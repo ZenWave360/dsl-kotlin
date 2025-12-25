@@ -171,7 +171,7 @@ kover {
 }
 
 // Task to print both line and branch coverage
-tasks.register("printCoverage") {
+tasks.register("koverPrintCoverageDetailed") {
     group = "verification"
     description = "Prints line and branch coverage percentages"
     dependsOn("koverXmlReport")

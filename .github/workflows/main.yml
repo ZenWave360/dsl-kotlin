@@ -39,7 +39,7 @@ jobs:
         run: ./gradlew build koverHtmlReport koverLog
 
       - name: Print coverage to console
-        run: ./gradlew printCoverage
+        run: ./gradlew koverPrintCoverageDetailed
         if: always()
 
       - name: Upload coverage reports
@@ -61,11 +61,11 @@ jobs:
       - name: Generate coverage badges
         if: github.event_name != 'pull_request'
         run: |
-          # Extract coverage percentages from printCoverage task
-          OUTPUT=$(./gradlew printCoverage --console=plain 2>&1)
+          # Extract coverage percentages from Kover detailed output
+          OUTPUT=$(./gradlew koverPrintCoverageDetailed --console=plain 2>&1)
 
-          LINE_COVERAGE=$(echo "$OUTPUT" | grep "coverage = " | grep -oP '\d+\.\d+' | awk '{printf "%.0f", $1}')
-          BRANCH_COVERAGE=$(echo "$OUTPUT" | grep "branches = " | grep -oP '\d+\.\d+' | awk '{printf "%.0f", $1}')
+          LINE_COVERAGE=$(echo "$OUTPUT" | grep "Line coverage:" | grep -oP '\d+\.\d+' | awk '{printf "%.0f", $1}')
+          BRANCH_COVERAGE=$(echo "$OUTPUT" | grep "Branch coverage:" | grep -oP '\d+\.\d+' | awk '{printf "%.0f", $1}')
 
           echo "Line Coverage: $LINE_COVERAGE%"
           echo "Branch Coverage: $BRANCH_COVERAGE%"
@@ -98,15 +98,15 @@ jobs:
           echo "LINE_COVERAGE=$LINE_COVERAGE" >> $GITHUB_ENV
           echo "BRANCH_COVERAGE=$BRANCH_COVERAGE" >> $GITHUB_ENV
 
-      - name: Commit and push coverage badge
+      - name: Commit and push coverage badges
         if: github.event_name != 'pull_request'
         run: |
           cd badges
           if [[ `git status --porcelain` ]]; then
             git config --global user.name 'github-actions'
             git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add coverage.svg
-            git commit -m "Update coverage badge: ${{ env.COVERAGE }}%"
+            git add coverage.svg branch-coverage.svg
+            git commit -m "Update coverage badges: line ${{ env.LINE_COVERAGE }}%, branch ${{ env.BRANCH_COVERAGE }}%"
             git push
           fi
 
