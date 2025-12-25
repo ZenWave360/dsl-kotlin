@@ -39,7 +39,7 @@ jobs:
         run: ./gradlew build koverHtmlReport koverLog
 
       - name: Print coverage to console
-        run: ./gradlew koverPrintCoverage
+        run: ./gradlew printCoverage
         if: always()
 
       - name: Upload coverage reports
@@ -58,29 +58,45 @@ jobs:
           ref: badges
           path: badges
 
-      - name: Generate coverage badge
+      - name: Generate coverage badges
         if: github.event_name != 'pull_request'
         run: |
-          # Extract coverage percentage from Kover log output
-          COVERAGE=$(./gradlew koverPrintCoverage --console=plain | grep "application line coverage:" | grep -oP '\d+\.\d+' | awk '{printf "%.0f", $1}')
-          echo "Coverage: $COVERAGE%"
+          # Extract coverage percentages from printCoverage task
+          OUTPUT=$(./gradlew printCoverage --console=plain 2>&1)
 
-          # Generate badge color based on coverage
-          if [ "$COVERAGE" -ge 80 ]; then
-            COLOR="brightgreen"
-          elif [ "$COVERAGE" -ge 60 ]; then
-            COLOR="yellow"
+          LINE_COVERAGE=$(echo "$OUTPUT" | grep "coverage = " | grep -oP '\d+\.\d+' | awk '{printf "%.0f", $1}')
+          BRANCH_COVERAGE=$(echo "$OUTPUT" | grep "branches = " | grep -oP '\d+\.\d+' | awk '{printf "%.0f", $1}')
+
+          echo "Line Coverage: $LINE_COVERAGE%"
+          echo "Branch Coverage: $BRANCH_COVERAGE%"
+
+          # Generate badge color based on line coverage
+          if [ "$LINE_COVERAGE" -ge 80 ]; then
+            LINE_COLOR="brightgreen"
+          elif [ "$LINE_COVERAGE" -ge 60 ]; then
+            LINE_COLOR="yellow"
           else
-            COLOR="red"
+            LINE_COLOR="red"
+          fi
+
+          # Generate badge color based on branch coverage
+          if [ "$BRANCH_COVERAGE" -ge 80 ]; then
+            BRANCH_COLOR="brightgreen"
+          elif [ "$BRANCH_COVERAGE" -ge 60 ]; then
+            BRANCH_COLOR="yellow"
+          else
+            BRANCH_COLOR="red"
           fi
 
           # Create badge directory if it doesn't exist
           mkdir -p badges
 
-          # Download badge from shields.io
-          curl -o badges/coverage.svg "https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}"
+          # Download badges from shields.io
+          curl -o badges/coverage.svg "https://img.shields.io/badge/line%20coverage-${LINE_COVERAGE}%25-${LINE_COLOR}"
+          curl -o badges/branch-coverage.svg "https://img.shields.io/badge/branch%20coverage-${BRANCH_COVERAGE}%25-${BRANCH_COLOR}"
 
-          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+          echo "LINE_COVERAGE=$LINE_COVERAGE" >> $GITHUB_ENV
+          echo "BRANCH_COVERAGE=$BRANCH_COVERAGE" >> $GITHUB_ENV
 
       - name: Commit and push coverage badge
         if: github.event_name != 'pull_request'

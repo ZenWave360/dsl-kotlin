@@ -2,7 +2,7 @@ plugins {
     kotlin("multiplatform") version "2.0.21"
     id("com.strumenta.antlr-kotlin") version "1.0.3"
     id("com.vanniktech.maven.publish") version "0.30.0"
-    id("org.jetbrains.kotlinx.kover") version "0.8.3"
+    id("org.jetbrains.kotlinx.kover") version "0.9.4"
 }
 
 group = "io.zenwave360.sdk"
@@ -164,8 +164,55 @@ kover {
         filters {
             excludes {
                 // Exclude generated ANTLR code from coverage
-                packages("io.zenwave360.zdl.antlr")
+//                packages("io.zenwave360.zdl.antlr")
             }
+        }
+    }
+}
+
+// Task to print both line and branch coverage
+tasks.register("printCoverage") {
+    group = "verification"
+    description = "Prints line and branch coverage percentages"
+    dependsOn("koverXmlReport")
+
+    doLast {
+        val reportFile = layout.buildDirectory.file("reports/kover/report.xml").get().asFile
+        if (reportFile.exists()) {
+            val xml = groovy.xml.XmlParser().parse(reportFile)
+            val counters = (xml as groovy.util.Node).get("counter") as groovy.util.NodeList
+
+            var lineCovered = 0.0
+            var lineMissed = 0.0
+            var branchCovered = 0.0
+            var branchMissed = 0.0
+
+            counters.forEach { counter ->
+                val node = counter as groovy.util.Node
+                val type = node.attribute("type") as String
+                val covered = (node.attribute("covered") as String).toDouble()
+                val missed = (node.attribute("missed") as String).toDouble()
+
+                when (type) {
+                    "LINE" -> {
+                        lineCovered = covered
+                        lineMissed = missed
+                    }
+                    "BRANCH" -> {
+                        branchCovered = covered
+                        branchMissed = missed
+                    }
+                }
+            }
+
+            val lineTotal = lineCovered + lineMissed
+            val branchTotal = branchCovered + branchMissed
+
+            val linePercentage = if (lineTotal > 0) (lineCovered / lineTotal) * 100 else 0.0
+            val branchPercentage = if (branchTotal > 0) (branchCovered / branchTotal) * 100 else 0.0
+
+            println("coverage = %.2f".format(linePercentage))
+            println("branches = %.2f".format(branchPercentage))
         }
     }
 }
