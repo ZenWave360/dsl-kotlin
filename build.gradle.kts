@@ -74,6 +74,18 @@ kotlin {
         // Generate ES modules instead of CommonJS
         useEsModules()
 
+        // Set the NPM package name to use scoped naming for main compilation only
+        compilations["main"].packageJson {
+            customField("name", "@zenwave360/zdl")
+            customField("description", "ZenWave Domain Model Language for JavaScript/TypeScript")
+            customField("keywords", listOf("zdl", "domain-driven-design", "event-storming"))
+            customField("homepage", "https://github.com/ZenWave360/zdl-kotlin")
+            customField("repository", mapOf(
+                "type" to "git",
+                "url" to "https://github.com/ZenWave360/zdl-kotlin"
+            ))
+            customField("license", "MIT")
+        }
     }
     sourceSets {
         val commonMain by getting {
@@ -110,7 +122,8 @@ val nodeIntegrationTestInstall = tasks.register<Exec>("nodeIntegrationTestInstal
     group = "verification"
     description = "Install dependencies for Node.js integration tests"
 
-    dependsOn("jsProductionExecutableCompileSync", "kotlinNodeJsSetup")
+    // Ensure the JS package is fully assembled before installing dependencies
+    dependsOn("jsProductionExecutableCompileSync", "jsPackageJson", "kotlinNodeJsSetup")
 
     workingDir = file("nodejs-test-project")
 

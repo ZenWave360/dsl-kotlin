@@ -7,7 +7,7 @@
     "test": "node --test zdl-parser.test.js"
   },
   "dependencies": {
-    "@zenwave360/zdl": "file:../build/js/packages/zdl-kotlin-multiplatform",
+    "@zenwave360/zdl": "file:../build/js/packages/zdl-kotlin",
     "jsonpath": "^1.1.1"
   }
 }

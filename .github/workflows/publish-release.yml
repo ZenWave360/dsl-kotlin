@@ -55,8 +55,8 @@ jobs:
 
       - name: Publish JS package to npm
         run: |
-          cd build/js/packages/zdl-kotlin-multiplatform
-          npm publish --access public
+          cd build/js/packages/zdl-kotlin
+          npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -67,4 +67,4 @@ jobs:
           name: build-artifacts
           path: |
             build/libs/
-            build/js/packages/zdl-kotlin-multiplatform/
+            build/js/packages/zdl-kotlin/
