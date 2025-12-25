@@ -17,6 +17,8 @@ ZDL is a Domain Specific Language (DSL) for Event-Driven Architectures. With Dom
 - And because it's machine-friendly it can be parsed and converted into multiple software artifacts like: 
   - documentation, drawings, API definitions like OpenAPI and AsyncAPI v2/v3 and multiple backend implementations and its tests.
 
+![EventStorming ZDL](docs/EvenStorming-ZDL.png)
+
 Usage:
 
 * Java:
@@ -48,10 +50,7 @@ const zdlContent = "...";
 const model = parseZdl(zdlContent);
 ```
 
-Further reading:
+* Further reading:
 - [ZDL Domain Language Reference](https://zenwave360.github.io/docs/event-driven-design/zenwave-domain-language)
 - [ZenWave SDK](https://zenwave360.github.io/zenwave-sdk/)
 - [ZenWave Editor for IntelliJ](https://zenwave360.github.io/plugin/)
-
-![EventStorming ZDL](docs/EvenStorming-ZDL.png)
-
