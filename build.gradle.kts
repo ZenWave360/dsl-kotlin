@@ -105,12 +105,29 @@ kotlin {
 }
 
 
+// Node.js integration tests - Install dependencies
+val nodeIntegrationTestInstall = tasks.register<Exec>("nodeIntegrationTestInstall") {
+    group = "verification"
+    description = "Install dependencies for Node.js integration tests"
+
+    dependsOn("jsProductionExecutableCompileSync", "kotlinNodeJsSetup")
+
+    workingDir = file("nodejs-test-project")
+
+    // Detect OS and use appropriate command
+    val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+    val npmCmd = if (isWindows) "npm.cmd" else "npm"
+
+    // Install npm dependencies
+    commandLine(npmCmd, "install")
+}
+
 // Node.js integration tests
 val nodeIntegrationTest = tasks.register<Exec>("nodeIntegrationTest") {
     group = "verification"
     description = "Run Node.js integration tests for the published NPM package"
 
-    dependsOn("jsProductionExecutableCompileSync", "kotlinNodeJsSetup")
+    dependsOn("nodeIntegrationTestInstall")
 
     workingDir = file("nodejs-test-project")
 
