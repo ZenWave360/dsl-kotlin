@@ -5,5 +5,5 @@ pluginManagement {
     }
 }
 
-rootProject.name = "zdl-kotlin-multiplatform"
+rootProject.name = "zdl-kotlin"
 

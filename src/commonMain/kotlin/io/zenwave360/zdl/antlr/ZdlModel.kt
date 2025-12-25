@@ -22,7 +22,7 @@ class ZdlModel(private val delegate: FluentMap = FluentMap.build()) : MutableMap
     // Forward FluentMap fluent API expected by call sites
     fun with(key: String, value: Any?): ZdlModel { delegate.with(key, value); return this }
     fun appendTo(collection: String, key: String, value: Any?): ZdlModel { delegate.appendTo(collection, key, value); return this }
-    fun appendTo(collection: String, map: Map<String, Any?>): ZdlModel { delegate.appendTo(collection, map); return this }
+    fun appendToWithMap(collection: String, map: Map<String, Any?>): ZdlModel { delegate.appendToWithMap(collection, map); return this }
     fun appendToList(collection: String, value: Any?): ZdlModel { delegate.appendToList(collection, value); return this }
 
     fun getAggregates(): FluentMap = delegate["aggregates"] as FluentMap

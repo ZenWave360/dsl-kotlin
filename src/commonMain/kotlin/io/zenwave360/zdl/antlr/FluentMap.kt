@@ -16,12 +16,12 @@ class FluentMap private constructor(
     fun putEntry(key: String, value: Any?): FluentMap = apply { backingMap[key] = value }
     fun putAllEntries(map: Map<String, Any?>): FluentMap = apply { backingMap.putAll(map) }
 
-    fun appendToMap(collection: String, key: String, value: Any?): FluentMap = apply {
+    fun appendTo(collection: String, key: String, value: Any?): FluentMap = apply {
         val nestedMap = backingMap.getOrPut(collection) { linkedMapOf<String, Any?>() } as MutableMap<String, Any?>
         nestedMap[key] = value
     }
 
-    fun appendToMap(collection: String, map: Map<String, Any?>): FluentMap = apply {
+    fun appendToWithMap(collection: String, map: Map<String, Any?>): FluentMap = apply {
         val nestedMap = backingMap.getOrPut(collection) { linkedMapOf<String, Any?>() } as MutableMap<String, Any?>
         nestedMap.putAll(map)
     }
@@ -33,7 +33,5 @@ class FluentMap private constructor(
 
     // Compatibility API (to be refactored later)
     fun with(key: String, value: Any?): FluentMap = putEntry(key, value)
-    fun appendTo(collection: String, key: String, value: Any?): FluentMap = appendToMap(collection, key, value)
-    fun appendTo(collection: String, map: Map<String, Any?>): FluentMap = appendToMap(collection, map)
 }
 

@@ -43,8 +43,11 @@ class ZdlListenerImpl : ZdlBaseListener() {
     }
 
     override fun enterImport_(ctx: ZdlParser.Import_Context) {
-        val value = getValueText(ctx.import_value().string())
-        model.appendToList("imports", value)
+        val name = getText(ctx.import_key())
+        val value = getValueText(ctx.import_value()?.string())
+        model.appendToList("imports", FluentMap.build()
+            .with("key", name)
+            .with("value", value))
     }
 
     override fun enterConfig_option(ctx: ZdlParser.Config_optionContext) {
@@ -127,7 +130,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
         val name = getText(ctx.policie_name())!!
         val value = getValueText(ctx.policie_value().simple())
         val aggregate = (ctx.getParent()?.getParent() as ZdlParser.PoliciesContext).policy_aggregate()
-        model.appendTo("policies", FluentMap.build().with(name, FluentMap.build().with("name", name).with("value", value).with("aggregate", aggregate)))
+        model.appendToWithMap("policies", FluentMap.build().with(name, FluentMap.build().with("name", name).with("value", value).with("aggregate", aggregate)))
         super.enterPolicie_body(ctx)
     }
 
@@ -179,7 +182,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
 
     override fun enterField(ctx: ZdlParser.FieldContext) {
         val name = getText(ctx.field_name())!!
-        var type = if (ctx.field_type() != null && ctx.field_type().ID() != null) ctx.field_type().ID()!!.text else null
+        var type = ctx.field_type()?.ID()?.text
         val initialValue = ctx.field_initialization()?.field_initial_value()?.let { getValueText(it.simple()) }
         val jd = javadoc(first(ctx.javadoc(), ctx.suffix_javadoc()))
         val isEnum = false
@@ -245,7 +248,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
         val entityJavadoc = javadoc(parent.javadoc())
         val tableName = getText(parent.entity_table_name())
         val validations = processNestedFieldValidations(ctx.nested_field_validations())
-        (parentField as FluentMap).appendTo("validations", validations)
+        (parentField as FluentMap).appendToWithMap("validations", validations)
         currentStack.addLast(processEntity(entityName, entityJavadoc, tableName).with("type", currentCollection!!.split(".")[0]))
         currentStack.last().appendTo("options", "embedded", true)
         @Suppress("UNCHECKED_CAST")
@@ -324,7 +327,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
         val location = "relationships.$relationshipName"
         model.setLocation(location, getLocations(ctx))
 
-        if (ctx.relationship_from() != null && ctx.relationship_from().relationship_definition() != null) {
+        if (ctx.relationship_from().relationship_definition() != null) {
             val from = getText(ctx.relationship_from().relationship_definition().relationship_entity_name())
             val fromField = getText(ctx.relationship_from().relationship_definition().relationship_field_name())
             val commentInFrom = javadoc(ctx.relationship_from().javadoc())
@@ -470,6 +473,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
         val commandName = getText(ctx.aggregate_command_name())!!
         val location = "aggregates.$aggregateName.commands.$commandName"
         val parameter = ctx.aggregate_command_parameter()?.ID()?.text
+        val parameterIsOptional = ctx.aggregate_command_parameter()?.OPTIONAL() != null
         val withEvents = getServiceMethodEvents(location, ctx.with_events())
         val jd = javadoc(first(ctx.javadoc(), ctx.suffix_javadoc()))
 
@@ -477,6 +481,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
             .with("name", commandName)
             .with("aggregateName", aggregateName)
             .with("parameter", parameter)
+            .with("parameterIsOptional", parameterIsOptional)
             .with("withEvents", withEvents)
             .with("javadoc", jd)
         currentStack.last().appendTo("commands", commandName, method)
@@ -517,7 +522,9 @@ class ZdlListenerImpl : ZdlBaseListener() {
         val location = "services.$serviceName.methods.$methodName"
         val naturalId = if (ctx.service_method_parameter_natural() != null) true else null
         val methodParamId = if (ctx.service_method_parameter_id() != null) "id" else null
+        val methodParamIdIsOptional = ctx.service_method_parameter_id()?.OPTIONAL() != null
         val methodParameter = ctx.service_method_parameter()?.text
+        val methodParameterIsOptional = ctx.service_method_parameter()?.OPTIONAL() != null
         val returnType = ctx.service_method_return()?.ID()?.text
         val returnTypeIsArray = ctx.service_method_return()?.ARRAY() != null
         val returnTypeIsOptional = ctx.service_method_return()?.OPTIONAL() != null
@@ -529,7 +536,9 @@ class ZdlListenerImpl : ZdlBaseListener() {
             .with("serviceName", serviceName)
             .with("naturalId", naturalId)
             .with("paramId", methodParamId)
+            .with("paramIdIsOptional", methodParamIdIsOptional)
             .with("parameter", methodParameter)
+            .with("parameterIsOptional", methodParameterIsOptional)
             .with("returnType", returnType)
             .with("returnTypeIsArray", returnTypeIsArray)
             .with("returnTypeIsOptional", returnTypeIsOptional)

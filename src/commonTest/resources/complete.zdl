@@ -227,7 +227,7 @@ service OrdersService for (CustomerOrder) {
     cancelOrder(id, CancelOrderInput) CustomerOrder withEvents OrderEvent OrderStatusUpdated
 
     @post({path: "/search", params: {param1: String, param2: Integer}})
-    searchOrders(OrdersFilter) CustomerOrder[]
+    searchOrders(OrdersFilter?) CustomerOrder[]
 }
 
 service OrdersService2 for (CustomerOrder, Aggregate2) {

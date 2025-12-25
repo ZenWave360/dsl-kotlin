@@ -5,11 +5,10 @@
 ZenWave Domain Model Language
 =====================================
 
-[![Maven Central](https://img.shields.io/maven-central/v/io.zenwave360.sdk/zdl-jvm.svg?label=Maven%20Central&logo=apachemaven)](https://search.maven.org/artifact/io.zenwave360.sdk/zdl-jvm)
-[![build](https://github.com/ZenWave360/zdl-jvm/workflows/Build%20and%20Publish%20Maven%20Snapshots/badge.svg)](https://github.com/ZenWave360/zdl-jvm/actions/workflows/publish-maven-snapshots.yml)
-[![coverage](https://raw.githubusercontent.com/ZenWave360/zdl-jvm/badges/jacoco.svg)](https://github.com/ZenWave360/zdl-jvm/actions/workflows/build.yml)
-[![branches coverage](https://raw.githubusercontent.com/ZenWave360/zdl-jvm/badges/branches.svg)](https://github.com/ZenWave360/zdl-jvm/actions/workflows/main.yml)
-[![GitHub](https://img.shields.io/github/license/ZenWave360/zdl-jvm)](https://github.com/ZenWave360/zdl-jvm/blob/main/LICENSE)
+[![Maven Central](https://img.shields.io/maven-central/v/io.zenwave360.sdk/zdl-kotlin.svg?label=Maven%20Central&logo=apachemaven)](https://search.maven.org/artifact/io.zenwave360.sdk/zdl-kotlin)
+[![build](https://github.com/ZenWave360/zdl-kotlin/workflows/Verify%20Main%20and%20Publish%20Coverage/badge.svg)](https://github.com/ZenWave360/zdl-kotlin/actions/workflows/main.yml)
+[![coverage](https://raw.githubusercontent.com/ZenWave360/zdl-kotlin/badges/coverage.svg)](https://github.com/ZenWave360/zdl-kotlin/actions/workflows/main.yml)
+[![GitHub](https://img.shields.io/github/license/ZenWave360/zdl-kotlin)](https://github.com/ZenWave360/zdl-kotlin/blob/main/LICENSE)
 
 > Since version 1.3.0 groupId was changed to `io.zenwave360.sdk`
 

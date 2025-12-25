@@ -46,7 +46,7 @@ class ZdlListenerKotlinTest {
         val model = parseZdl("complete.zdl")
 
         assertEquals("ZenWave Online Food Delivery - Orders Module.", JSONPath.get(model, "$.javadoc"))
-        assertEquals("com.example:artifact:RELEASE", JSONPath.get(model, "$.imports[0]"))
+        assertEquals("com.example:artifact:RELEASE", JSONPath.get(model, "$.imports[0].value"))
 
         // CONFIG
         assertEquals("io.zenwave360.example.orders", JSONPath.get(model, "$.config.basePackage"))
@@ -124,6 +124,13 @@ class ZdlListenerKotlinTest {
 
         assertEquals("/search", JSONPath.get(model, "$.services.OrdersService.methods.searchOrders.options.post.path"))
         assertEquals("String", JSONPath.get(model, "$.services.OrdersService.methods.searchOrders.options.post.params.param1"))
+
+
+        // Test parameterIsOptional for different service methods
+        assertEquals(false, JSONPath.get(model, "$.services.OrdersService.methods.createOrder.parameterIsOptional", false))
+        assertEquals(false, JSONPath.get(model, "$.services.OrdersService.methods.updateOrder.parameterIsOptional", false))
+        assertEquals(true, JSONPath.get(model, "$.services.OrdersService.methods.searchOrders.parameterIsOptional", false))
+        assertEquals(false, JSONPath.get(model, "$.services.OrdersService.methods.getCustomerOrder.parameterIsOptional", false))
 
         // ANNOTATIONS
         assertEquals("item1", (JSONPath.get(model, "$.inputs.CustomerOrderInput.options.array_annotation[0]")))

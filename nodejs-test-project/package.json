@@ -1,0 +1,13 @@
+{
+  "name": "zdl-test-project",
+  "version": "1.0.0",
+  "description": "Test project for ZDL NPM package",
+  "type": "module",
+  "scripts": {
+    "test": "node --test zdl-parser.test.js"
+  },
+  "dependencies": {
+    "@zenwave360/zdl": "file:../build/js/packages/zdl-kotlin-multiplatform",
+    "jsonpath": "^1.1.1"
+  }
+}
