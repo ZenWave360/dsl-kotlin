@@ -39,6 +39,7 @@ jobs:
         run: ./gradlew build koverHtmlReport koverLog
 
       - name: Print coverage to console
+        id: coverage
         run: ./gradlew koverPrintCoverageDetailed
         if: always()
 
@@ -64,8 +65,8 @@ jobs:
           # Extract coverage percentages from Kover detailed output
           OUTPUT=$(./gradlew koverPrintCoverageDetailed --console=plain 2>&1)
 
-          LINE_COVERAGE=$(echo "$OUTPUT" | grep "Line coverage:" | grep -oP '\d+\.\d+' | awk '{printf "%.0f", $1}')
-          BRANCH_COVERAGE=$(echo "$OUTPUT" | grep "Branch coverage:" | grep -oP '\d+\.\d+' | awk '{printf "%.0f", $1}')
+          LINE_COVERAGE=$(echo "$OUTPUT" | grep "coverage =" | grep -oP '\d+\.\d+' | awk '{printf "%.0f", $1}')
+          BRANCH_COVERAGE=$(echo "$OUTPUT" | grep "branches =" | grep -oP '\d+\.\d+' | awk '{printf "%.0f", $1}')
 
           echo "Line Coverage: $LINE_COVERAGE%"
           echo "Branch Coverage: $BRANCH_COVERAGE%"
@@ -110,3 +111,7 @@ jobs:
             git push
           fi
 
+      - name: Log coverage percentage
+        run: |
+          echo "coverage = ${{ env.LINE_COVERAGE }}"
+          echo "branches = ${{ env.BRANCH_COVERAGE }}"
