@@ -1,6 +1,6 @@
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseZdl } from '@zenwave360/zdl';
+import { parseZdl } from '@zenwave360/dsl';
 import fs from 'fs';
 import { jsonPath, mapSize, arraySize } from './utils.js';
 

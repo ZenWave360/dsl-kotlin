@@ -1,24 +1,25 @@
-package io.zenwave360.zfl.internal
+package io.zenwave360.language.zfl.internal
 
-import io.zenwave360.antlr.ZflBaseListener
-import io.zenwave360.antlr.ZflParser
-import io.zenwave360.internal.buildMap
-import io.zenwave360.internal.with
-import io.zenwave360.internal.appendTo
-import io.zenwave360.internal.appendToList
-import io.zenwave360.internal.appendToWithMap
+import io.zenwave360.language.antlr.ZflBaseListener
+import io.zenwave360.language.antlr.ZflParser
+import io.zenwave360.language.utils.buildMap
+import io.zenwave360.language.utils.with
+import io.zenwave360.language.utils.appendTo
+import io.zenwave360.language.utils.appendToList
+import io.zenwave360.language.utils.appendToWithMap
+import io.zenwave360.language.zfl.ZflModel
 import org.antlr.v4.kotlinruntime.ParserRuleContext
 import org.antlr.v4.kotlinruntime.tree.ErrorNode
 import org.antlr.v4.kotlinruntime.tree.TerminalNode
-import io.zenwave360.zfl.internal.ZflListenerUtils.getText
-import io.zenwave360.zfl.internal.ZflListenerUtils.getValueText
-import io.zenwave360.zfl.internal.ZflListenerUtils.getComplexValue
-import io.zenwave360.zfl.internal.ZflListenerUtils.getOptionValue
-import io.zenwave360.zfl.internal.ZflListenerUtils.getArray
-import io.zenwave360.zfl.internal.ZflListenerUtils.camelCase
-import io.zenwave360.zfl.internal.ZflListenerUtils.javadoc
-import io.zenwave360.zfl.internal.ZflListenerUtils.getLocations
-import io.zenwave360.zfl.internal.ZflListenerUtils.first
+import io.zenwave360.language.zfl.internal.ZflListenerUtils.getText
+import io.zenwave360.language.zfl.internal.ZflListenerUtils.getValueText
+import io.zenwave360.language.zfl.internal.ZflListenerUtils.getComplexValue
+import io.zenwave360.language.zfl.internal.ZflListenerUtils.getOptionValue
+import io.zenwave360.language.zfl.internal.ZflListenerUtils.getArray
+import io.zenwave360.language.zfl.internal.ZflListenerUtils.camelCase
+import io.zenwave360.language.zfl.internal.ZflListenerUtils.javadoc
+import io.zenwave360.language.zfl.internal.ZflListenerUtils.getLocations
+import io.zenwave360.language.zfl.internal.ZflListenerUtils.first
 
 class ZflListenerImpl : ZflBaseListener() {
 

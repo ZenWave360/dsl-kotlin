@@ -1,12 +1,15 @@
-package io.zenwave360.zdl.internal
+package io.zenwave360.language.zdl.internal
 
-import io.zenwave360.internal.JSONPath
+import io.zenwave360.language.zdl.ZdlParser
+import io.zenwave360.language.utils.JSONPath
+import io.zenwave360.language.zdl.ZdlModel
+import kotlin.collections.iterator
 
 class ZdlModelValidator {
 
     private val API_ROLES = listOf("provider", "client")
 
-    private var standardFieldTypes: List<String> = io.zenwave360.zdl.ZdlParser.Companion.STANDARD_FIELD_TYPES
+    private var standardFieldTypes: List<String> = ZdlParser.Companion.STANDARD_FIELD_TYPES
     private var extraFieldTypes: List<String> = emptyList()
 
     fun withStandardFieldTypes(standardFieldTypes: List<String>): ZdlModelValidator {

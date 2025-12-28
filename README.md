@@ -27,8 +27,8 @@ Usage:
 ```xml
 <dependency>
     <groupId>io.zenwave360.sdk</groupId>
-    <artifactId>zdl-kotlin-jvm</artifactId>
-    <version>${zdl-kotlin.version}</version>
+    <artifactId>dsl-kotlin-jvm</artifactId>
+    <version>${dsl-kotlin.version}</version>
 </dependency>
 ```
 
@@ -41,11 +41,11 @@ ZdlModel model = parser.parseModel(zdlContent);
 * JavaScript/TypeScript:
 
 ```bash
-npm install @zenwave360/zdl
+npm install @zenwave360/dsl
 ```
 
 ```js
-import { parseZdl } from '@zenwave360/zdl';
+import { parseZdl } from '@zenwave360/dsl';
 
 const zdlContent = "...";
 const model = parseZdl(zdlContent);

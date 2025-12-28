@@ -1,7 +1,7 @@
 {
-  "name": "zdl-test-project",
+  "name": "dsl-test-project",
   "version": "1.0.0",
-  "description": "Test project for ZDL NPM package",
+  "description": "Test project for dsl NPM package",
   "type": "module",
   "scripts": {
     "test": "node --test zdl-parser.test.js zfl-parser.test.js",
@@ -9,7 +9,7 @@
     "test:zfl": "node --test zfl-parser.test.js"
   },
   "dependencies": {
-    "@zenwave360/zdl": "file:../build/js/packages/zdl-kotlin",
+    "@zenwave360/dsl": "file:../build/js/packages/dsl-kotlin",
     "jsonpath": "^1.1.1"
   }
 }

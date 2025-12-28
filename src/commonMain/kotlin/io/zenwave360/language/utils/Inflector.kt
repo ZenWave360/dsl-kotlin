@@ -1,4 +1,4 @@
-package io.zenwave360.internal
+package io.zenwave360.language.utils
 
 object Inflector {
 

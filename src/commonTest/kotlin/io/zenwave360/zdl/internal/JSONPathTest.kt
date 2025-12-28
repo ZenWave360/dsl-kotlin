@@ -1,6 +1,6 @@
 package io.zenwave360.zdl.internal
 
-import io.zenwave360.internal.JSONPath
+import io.zenwave360.language.utils.JSONPath
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonArray

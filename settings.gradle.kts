@@ -5,5 +5,5 @@ pluginManagement {
     }
 }
 
-rootProject.name = "zdl-kotlin"
+rootProject.name = "dsl-kotlin"
 

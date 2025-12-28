@@ -1,30 +1,31 @@
-package io.zenwave360.zdl.internal
+package io.zenwave360.language.zdl.internal
 
-import io.zenwave360.antlr.ZdlBaseListener
-import io.zenwave360.antlr.ZdlParser
-import io.zenwave360.internal.JSONPath
-import io.zenwave360.internal.appendTo
-import io.zenwave360.internal.appendToList
-import io.zenwave360.internal.appendToWithMap
-import io.zenwave360.internal.buildMap
-import io.zenwave360.internal.with
+import io.zenwave360.language.antlr.ZdlBaseListener
+import io.zenwave360.language.antlr.ZdlParser
+import io.zenwave360.language.utils.JSONPath
+import io.zenwave360.language.utils.appendTo
+import io.zenwave360.language.utils.appendToList
+import io.zenwave360.language.utils.appendToWithMap
+import io.zenwave360.language.utils.buildMap
+import io.zenwave360.language.utils.with
+import io.zenwave360.language.zdl.ZdlModel
 import org.antlr.v4.kotlinruntime.ParserRuleContext
 import org.antlr.v4.kotlinruntime.tree.ErrorNode
 import org.antlr.v4.kotlinruntime.tree.TerminalNode
-import io.zenwave360.zdl.internal.ZdlListenerUtils.camelCase
-import io.zenwave360.zdl.internal.ZdlListenerUtils.createCRUDMethods
-import io.zenwave360.zdl.internal.ZdlListenerUtils.first
-import io.zenwave360.zdl.internal.ZdlListenerUtils.getArray
-import io.zenwave360.zdl.internal.ZdlListenerUtils.getComplexValue
-import io.zenwave360.zdl.internal.ZdlListenerUtils.getLocations
-import io.zenwave360.zdl.internal.ZdlListenerUtils.getOptionValue
-import io.zenwave360.zdl.internal.ZdlListenerUtils.getText
-import io.zenwave360.zdl.internal.ZdlListenerUtils.getValueText
-import io.zenwave360.zdl.internal.ZdlListenerUtils.javadoc
-import io.zenwave360.zdl.internal.ZdlListenerUtils.kebabCase
-import io.zenwave360.zdl.internal.ZdlListenerUtils.lowerCamelCase
-import io.zenwave360.zdl.internal.ZdlListenerUtils.pluralize
-import io.zenwave360.zdl.internal.ZdlListenerUtils.snakeCase
+import io.zenwave360.language.zdl.internal.ZdlListenerUtils.camelCase
+import io.zenwave360.language.zdl.internal.ZdlListenerUtils.createCRUDMethods
+import io.zenwave360.language.zdl.internal.ZdlListenerUtils.first
+import io.zenwave360.language.zdl.internal.ZdlListenerUtils.getArray
+import io.zenwave360.language.zdl.internal.ZdlListenerUtils.getComplexValue
+import io.zenwave360.language.zdl.internal.ZdlListenerUtils.getLocations
+import io.zenwave360.language.zdl.internal.ZdlListenerUtils.getOptionValue
+import io.zenwave360.language.zdl.internal.ZdlListenerUtils.getText
+import io.zenwave360.language.zdl.internal.ZdlListenerUtils.getValueText
+import io.zenwave360.language.zdl.internal.ZdlListenerUtils.javadoc
+import io.zenwave360.language.zdl.internal.ZdlListenerUtils.kebabCase
+import io.zenwave360.language.zdl.internal.ZdlListenerUtils.lowerCamelCase
+import io.zenwave360.language.zdl.internal.ZdlListenerUtils.pluralize
+import io.zenwave360.language.zdl.internal.ZdlListenerUtils.snakeCase
 
 class ZdlListenerImpl : ZdlBaseListener() {
 

@@ -15,7 +15,7 @@ val generateKotlinGrammarSource = tasks.register<com.strumenta.antlrkotlin.gradl
         include("**/*.g4")
     }
 
-    packageName = "io.zenwave360.antlr"
+    packageName = "io.zenwave360.language.antlr"
 
     val outDir = "generatedAntlr/${packageName?.replace(".", "/")}"
     outputDirectory = layout.buildDirectory.dir(outDir).get().asFile
@@ -34,7 +34,7 @@ mavenPublishing {
     pom {
         name.set("ZDL Kotlin Multiplatform")
         description.set("ZenWave Domain Language (ZDL) parser for Kotlin Multiplatform (JVM and JS)")
-        url.set("https://github.com/ZenWave360/zdl-kotlin")
+        url.set("https://github.com/ZenWave360/dsl-kotlin")
 
         licenses {
             license {
@@ -54,7 +54,7 @@ mavenPublishing {
         scm {
             connection.set("scm:git:git://github.com/ZenWave360/zdl-kotlin.git")
             developerConnection.set("scm:git:ssh://github.com/ZenWave360/zdl-kotlin.git")
-            url.set("https://github.com/ZenWave360/zdl-kotlin")
+            url.set("https://github.com/ZenWave360/dsl-kotlin")
         }
     }
 }
@@ -74,13 +74,13 @@ kotlin {
 
         // Set the NPM package name to use scoped naming for main compilation only
         compilations["main"].packageJson {
-            customField("name", "@zenwave360/zdl")
+            customField("name", "@zenwave360/dsl")
             customField("description", "ZenWave Domain Model Language for JavaScript/TypeScript")
             customField("keywords", listOf("zdl", "domain-driven-design", "event-storming"))
-            customField("homepage", "https://github.com/ZenWave360/zdl-kotlin")
+            customField("homepage", "https://github.com/ZenWave360/dsl-kotlin")
             customField("repository", mapOf(
                 "type" to "git",
-                "url" to "https://github.com/ZenWave360/zdl-kotlin"
+                "url" to "https://github.com/ZenWave360/dsl-kotlin"
             ))
             customField("license", "MIT")
         }
@@ -162,7 +162,7 @@ kover {
         filters {
             excludes {
                 // skip generated parser
-                packages("io.zenwave360.antlr")
+                packages("io.zenwave360.language.antlr")
             }
         }
     }

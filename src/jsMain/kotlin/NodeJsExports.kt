@@ -1,5 +1,7 @@
 @file:JsExport
 
+import io.zenwave360.language.zdl.ZdlParser
+import io.zenwave360.language.zfl.ZflParser
 import kotlin.js.ExperimentalJsExport
 import kotlin.js.JsExport
 
@@ -8,7 +10,7 @@ import kotlin.js.JsExport
  *
  * Usage:
  * ```javascript
- * import { parseZdl } from '@zenwave360/zdl';
+ * import { parseZdl } from '@zenwave360/dsl';
  * const model = parseZdl(zdlContent);
  * console.log(JSON.stringify(model, null, 2));
  * ```
@@ -16,7 +18,7 @@ import kotlin.js.JsExport
 @OptIn(ExperimentalJsExport::class)
 @JsExport
 fun parseZdl(input: String): Any? {
-    val parser = io.zenwave360.zdl.ZdlParser()
+    val parser = ZdlParser()
     val model = parser.parseModel(input)
     return convertToPlain(model as Map<*, *>)
 }
@@ -26,7 +28,7 @@ fun parseZdl(input: String): Any? {
  *
  * Usage:
  * ```javascript
- * import { parseZfl } from '@zenwave360/zdl';
+ * import { parseZfl } from '@zenwave360/dsl';
  * const model = parseZfl(zflContent);
  * console.log(JSON.stringify(model, null, 2));
  * ```
@@ -34,7 +36,7 @@ fun parseZdl(input: String): Any? {
 @OptIn(ExperimentalJsExport::class)
 @JsExport
 fun parseZfl(input: String): Any? {
-    val parser = io.zenwave360.zfl.ZflParser()
+    val parser = ZflParser()
     val model = parser.parseModel(input)
     return convertToPlain(model as Map<*, *>)
 }

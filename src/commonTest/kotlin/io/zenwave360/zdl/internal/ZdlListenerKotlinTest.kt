@@ -1,7 +1,8 @@
 package io.zenwave360.zdl.internal
 
-import io.zenwave360.internal.JSONPath
-import io.zenwave360.zdl.ZdlParser
+import io.zenwave360.language.utils.JSONPath
+import io.zenwave360.language.zdl.ZdlParser
+import io.zenwave360.language.zdl.ZdlModel
 import kotlin.test.*
 
 class ZdlListenerKotlinTest {

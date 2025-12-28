@@ -1,6 +1,8 @@
 package io.zenwave360.zfl.internal
 
-import io.zenwave360.internal.JSONPath
+import io.zenwave360.language.utils.JSONPath
+import io.zenwave360.language.zfl.ZflParser
+import io.zenwave360.language.zfl.ZflModel
 import io.zenwave360.zdl.internal.readTestFile
 import kotlin.test.*
 
@@ -188,7 +190,7 @@ class ZflListenerKotlinTest {
 
     private fun parseZfl(fileName: String): ZflModel {
         val content = readTestFile(fileName)
-        return io.zenwave360.zfl.ZflParser().parseModel(content)
+        return ZflParser().parseModel(content)
     }
 
     private fun printMapAsJson(map: Map<String, Any?>, indent: String = ""): String {

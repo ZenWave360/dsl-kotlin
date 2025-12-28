@@ -1,13 +1,13 @@
-package io.zenwave360.zdl.internal
+package io.zenwave360.language.zdl
 
-import io.zenwave360.internal.JSONPath
-import io.zenwave360.internal.appendTo
-import io.zenwave360.internal.appendToList
-import io.zenwave360.internal.appendToWithMap
-import io.zenwave360.internal.asJavaMap
-import io.zenwave360.internal.buildMap
-import io.zenwave360.internal.putEntry
-import io.zenwave360.internal.with
+import io.zenwave360.language.utils.JSONPath
+import io.zenwave360.language.utils.appendTo
+import io.zenwave360.language.utils.appendToList
+import io.zenwave360.language.utils.appendToWithMap
+import io.zenwave360.language.utils.asJavaMap
+import io.zenwave360.language.utils.buildMap
+import io.zenwave360.language.utils.putEntry
+import io.zenwave360.language.utils.with
 
 class ZdlModel(private val delegate: MutableMap<String, Any?> = buildMap()) : MutableMap<String, Any?> by delegate {
 
@@ -109,4 +109,3 @@ class ZdlModel(private val delegate: MutableMap<String, Any?> = buildMap()) : Mu
         return location
     }
 }
-

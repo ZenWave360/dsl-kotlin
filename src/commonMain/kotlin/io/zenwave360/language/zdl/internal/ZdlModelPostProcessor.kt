@@ -1,6 +1,7 @@
-package io.zenwave360.zdl.internal
+package io.zenwave360.language.zdl.internal
 
-import io.zenwave360.internal.JSONPath
+import io.zenwave360.language.utils.JSONPath
+import io.zenwave360.language.zdl.ZdlModel
 
 class ZdlModelPostProcessor {
     companion object {
