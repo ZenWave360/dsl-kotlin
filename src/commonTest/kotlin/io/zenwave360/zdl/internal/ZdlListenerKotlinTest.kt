@@ -10,7 +10,9 @@ class ZdlListenerKotlinTest {
     @Test
     fun parseZdl_SuffixJavadoc() {
         val model = parseZdl("suffix_javadoc.zdl")
-        // println(model)
+        assertEquals(JSONPath.get(model, "$.entities.A.fields.name.javadoc"), "name javadoc")
+        assertEquals(JSONPath.get(model, "$.entities.A.fields.count.javadoc"), "count javadoc")
+//         println(model)
     }
 
     @Test

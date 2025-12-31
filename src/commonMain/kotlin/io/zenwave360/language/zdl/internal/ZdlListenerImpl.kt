@@ -540,7 +540,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
         val naturalId = if (ctx.service_method_parameter_natural() != null) true else null
         val methodParamId = if (ctx.service_method_parameter_id() != null) "id" else null
         val methodParamIdIsOptional = ctx.service_method_parameter_id()?.OPTIONAL() != null
-        val methodParameter = ctx.service_method_parameter()?.text
+        val methodParameter = ctx.service_method_parameter()?.ID()?.text
         val methodParameterIsOptional = ctx.service_method_parameter()?.OPTIONAL() != null
         val returnType = ctx.service_method_return()?.ID()?.text
         val returnTypeIsArray = ctx.service_method_return()?.ARRAY() != null

@@ -3,4 +3,5 @@ entity A {
   /** name javadoc */
   name String
   count Integer /** count javadoc */
+  next String
 }

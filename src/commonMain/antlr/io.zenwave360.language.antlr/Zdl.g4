@@ -1,16 +1,25 @@
 grammar Zdl;
 
+
+
 @parser::members {
-    // Kotlin port: for now, delegate to super. We can re-introduce the hack later if needed.
     override fun match(ttype: Int): org.antlr.v4.kotlinruntime.Token {
-        return try {
-            super.match(ttype)
+        try { // hack to not parse suffix javadoc after new lines (hidden tokens)
+            if(context is Suffix_javadocContext) {
+                val currentTokenIndex = currentToken!!.tokenIndex;
+                val prevToken = tokenStream.get(currentTokenIndex - 1); // getTokenStream().get(currentTokenIndex - 1);
+                if(prevToken?.text?.contains("\n") == true) {
+                    println("RULE_suffix_javadoc")
+                    val t = currentToken!!;
+                    return t;
+                }
+            }
         } catch (e: Exception) {
-            e.printStackTrace()
-            super.match(ttype)
+            e.printStackTrace();
         }
+        return super.match(ttype);
     }
-}
+} // end members
 
 LPAREN: '(';
 RPAREN: ')';

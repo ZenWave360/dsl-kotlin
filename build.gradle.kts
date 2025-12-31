@@ -1,24 +1,71 @@
 plugins {
     kotlin("multiplatform") version "2.0.21"
-    id("com.strumenta.antlr-kotlin") version "1.0.3"
+    id("com.strumenta.antlr-kotlin") version "1.0.9"
     id("com.vanniktech.maven.publish") version "0.30.0"
     id("org.jetbrains.kotlinx.kover") version "0.9.4"
 }
 
-group = "io.zenwave360.sdk"
+group = "io.zenwave360.dsl"
 version = "1.5.0-SNAPSHOT"
 
-val generateKotlinGrammarSource = tasks.register<com.strumenta.antlrkotlin.gradle.AntlrKotlinTask>("generateKotlinGrammarSource") {
-    dependsOn("cleanGenerateKotlinGrammarSource")
+val antlrVersion = "4.13.2"
 
-    source = fileTree(layout.projectDirectory.dir("src/commonMain/antlr")) {
-        include("**/*.g4")
+val antlrTool by configurations.creating
+
+dependencies {
+    antlrTool("org.antlr:antlr4:$antlrVersion")
+}
+
+val generateKotlinGrammarSource by tasks.registering(com.strumenta.antlrkotlin.gradle.AntlrKotlinTask::class) {
+    dependsOn("cleanGenerateKotlinGrammarSource")
+    source = fileTree("src/commonMain/antlr") { include("**/*.g4") }
+    packageName = "io.zenwave360.language.antlr"
+    outputDirectory = layout.buildDirectory.dir("generated/antlr/commonMain/kotlin").get().asFile
+}
+
+val prepareJavaGrammar = tasks.register("prepareJavaGrammar", Copy::class) {
+    from("src/commonMain/antlr")
+    into("build/generated/antlr-java")
+
+    val javaMembersContent = file("src/commonMain/antlr/io.zenwave360.language.antlr/_parser_members.java.txt").readText()
+
+    var skipping = false
+    filter { line ->
+        when {
+            line.contains("@parser::members {") -> {
+                skipping = true
+                javaMembersContent
+            }
+            line.contains("} // end members") -> {
+                skipping = false
+                ""
+            }
+            // While between start and end, discard the Kotlin lines
+            skipping -> ""
+            else -> line
+        }
     }
 
-    packageName = "io.zenwave360.language.antlr"
+}
 
-    val outDir = "generatedAntlr/${packageName?.replace(".", "/")}"
-    outputDirectory = layout.buildDirectory.dir(outDir).get().asFile
+val generateJavaGrammarSource by tasks.registering(JavaExec::class) {
+    dependsOn(prepareJavaGrammar)
+
+    group = "antlr"
+    description = "Genera parsers ANTLR en Java para target JVM"
+    classpath = antlrTool
+    mainClass.set("org.antlr.v4.Tool")
+    val outputDir = layout.buildDirectory.dir("generated/antlr/jvmMain/java/io/zenwave360/language/antlr/java").get().asFile
+    args = listOf(
+        "-no-visitor",
+        "-no-listener",
+        "-Xexact-output-dir",
+        "-o", outputDir.absolutePath,
+        "-package", "io.zenwave360.language.antlr.java"
+    ) + fileTree("build/generated/antlr-java") { include("**/*.g4") }.files.map { it.absolutePath }
+
+    inputs.dir("src/commonMain/antlr")
+    outputs.dir(layout.buildDirectory.dir("generated/antlr/jvmMain/java/").get().asFile)
 }
 
 mavenPublishing {
@@ -52,8 +99,8 @@ mavenPublishing {
         }
 
         scm {
-            connection.set("scm:git:git://github.com/ZenWave360/zdl-kotlin.git")
-            developerConnection.set("scm:git:ssh://github.com/ZenWave360/zdl-kotlin.git")
+            connection.set("scm:git:git://github.com/ZenWave360/dsl-kotlin.git")
+            developerConnection.set("scm:git:ssh://github.com/ZenWave360/dsl-kotlin.git")
             url.set("https://github.com/ZenWave360/dsl-kotlin")
         }
     }
@@ -64,7 +111,9 @@ repositories {
 }
 
 kotlin {
-    jvm()
+    jvm {
+        withJava() // Enables Java compilation for the JVM target
+    }
     js(IR) {
         nodejs()
         binaries.executable()
@@ -100,7 +149,7 @@ kotlin {
         }
         val jvmMain by getting {
             dependencies {
-                // implementation("com.jayway.jsonpath:json-path:2.9.0")
+                compileOnly("org.antlr:antlr4-runtime:$antlrVersion")
             }
         }
         val jvmTest by getting
@@ -114,6 +163,18 @@ kotlin {
     }
 }
 
+java {
+    sourceSets {
+        getByName("main") {
+            java.srcDirs(generateJavaGrammarSource)
+        }
+    }
+}
+
+// generateJavaGrammarSource must run before jvmProcessResources
+tasks.named("jvmProcessResources") { dependsOn(generateJavaGrammarSource) }
+tasks.named("compileKotlinJvm") { dependsOn(generateJavaGrammarSource) }
+tasks.withType<JavaCompile>().configureEach { dependsOn(generateJavaGrammarSource) }
 
 // Node.js integration tests - Install dependencies
 val nodeIntegrationTestInstall = tasks.register<Exec>("nodeIntegrationTestInstall") {
