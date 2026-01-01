@@ -174,15 +174,11 @@ flow_start_name: ID;
 flow_when: javadoc? annotations WHEN flow_when_trigger LBRACE flow_when_body RBRACE;
 flow_when_trigger: flow_when_event_trigger (AND flow_when_event_trigger)*;
 flow_when_event_trigger: ID;
-flow_when_body: (flow_when_command | flow_when_event | flow_when_if | flow_when_policy)*;
+flow_when_body: flow_when_command (flow_when_event)*;
 flow_when_command: COMMAND flow_command_name;
 flow_command_name: ID;
 flow_when_event: EVENT flow_event_name;
 flow_event_name: ID;
-flow_when_if: IF string LBRACE flow_when_body RBRACE flow_when_else_if* flow_when_else?;
-flow_when_else_if: ELSE IF string LBRACE flow_when_body RBRACE;
-flow_when_else: ELSE LBRACE flow_when_body RBRACE;
-flow_when_policy: POLICY string;
 
 // end block
 flow_end: javadoc? annotations END LBRACE flow_end_outcomes RBRACE;

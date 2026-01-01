@@ -12,26 +12,25 @@ config {
 flow PaymentsFlow {
 
     systems {
+        @zdl("subscription/model.zdl")
         Subscription {
-            zdl: "subscription/model.zdl"
-            service {
+            service SubscriptionService {
                 commands: renewSubscription, suspendSubscription, cancelRenewal
             }
-            events: SubscriptionRenewed, SubscriptionSuspended, RenewalCancelled
         }
 
+        @zdl("payments/model.zdl")
         Payments {
             service PaymentService {
                 commands: chargePayment, retryPayment, recordPayment
             }
-            events: PaymentSucceeded, PaymentFailed, PaymentRetryScheduled, PaymentRecorded
         }
 
+        @zdl("billing/model.zdl")
         Billing {
             service BillingService {
                 commands: generateInvoice
             }
-            events: InvoiceGenerated
         }
     }
 
@@ -62,15 +61,16 @@ flow PaymentsFlow {
         event PaymentFailed
     }
 
+    @if("less than 3 attempts")
     when PaymentFailed {
-        if "less than 3 attempts" {
-            command retryPayment
-            event PaymentRetryScheduled
-        } else {
-            policy "Suspend after 3 failed attempts"
-            command suspendSubscription
-            event SubscriptionSuspended
-        }
+        command retryPayment
+        event PaymentRetryScheduled
+    }
+
+    @if("3 or more attempts")
+    when PaymentFailed {
+        command suspendSubscription
+        event SubscriptionSuspended
     }
 
     when PaymentSucceeded and BillingCycleEnded {

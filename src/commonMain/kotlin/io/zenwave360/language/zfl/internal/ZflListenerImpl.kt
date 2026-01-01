@@ -189,7 +189,6 @@ class ZflListenerImpl : ZflBaseListener() {
 
         val whenBlock = buildMap()
             .with("triggers", triggers)
-            .with("commands", mutableListOf<Any?>())
             .with("events", mutableListOf<Any?>())
             .with("ifs", mutableListOf<Any?>())
             .with("policies", mutableListOf<Any?>())
@@ -206,75 +205,13 @@ class ZflListenerImpl : ZflBaseListener() {
 
     override fun enterFlow_when_command(ctx: ZflParser.Flow_when_commandContext) {
         val commandName = getText(ctx.flow_command_name())
-        @Suppress("UNCHECKED_CAST")
-        (currentStack.last()["commands"] as MutableList<Any?>).add(commandName)
+        currentStack.last()["command"] = commandName
     }
 
     override fun enterFlow_when_event(ctx: ZflParser.Flow_when_eventContext) {
         val eventName = getText(ctx.flow_event_name())
         @Suppress("UNCHECKED_CAST")
         (currentStack.last()["events"] as MutableList<Any?>).add(eventName)
-    }
-
-    override fun enterFlow_when_policy(ctx: ZflParser.Flow_when_policyContext) {
-        val policyName = getValueText(ctx.string())
-        @Suppress("UNCHECKED_CAST")
-        (currentStack.last()["policies"] as MutableList<Any?>).add(policyName)
-    }
-
-    override fun enterFlow_when_if(ctx: ZflParser.Flow_when_ifContext) {
-        val condition = getValueText(ctx.string())
-
-        val ifBlock = buildMap()
-            .with("condition", condition)
-            .with("commands", mutableListOf<Any?>())
-            .with("events", mutableListOf<Any?>())
-            .with("policies", mutableListOf<Any?>())
-            .with("elseIfs", mutableListOf<Any?>())
-            .with("else", null)
-
-        currentStack.addLast(ifBlock)
-        val whenBlock = currentStack[currentStack.size - 2]
-        @Suppress("UNCHECKED_CAST")
-        (whenBlock["ifs"] as MutableList<Any?>).add(ifBlock)
-    }
-
-    override fun exitFlow_when_if(ctx: ZflParser.Flow_when_ifContext) {
-        currentStack.removeLast()
-    }
-
-    override fun enterFlow_when_else_if(ctx: ZflParser.Flow_when_else_ifContext) {
-        val condition = getValueText(ctx.string())
-
-        val elseIfBlock = buildMap()
-            .with("condition", condition)
-            .with("commands", mutableListOf<Any?>())
-            .with("events", mutableListOf<Any?>())
-            .with("policies", mutableListOf<Any?>())
-
-        val ifBlock = currentStack.last()
-        @Suppress("UNCHECKED_CAST")
-        (ifBlock["elseIfs"] as MutableList<Any?>).add(elseIfBlock)
-        currentStack.addLast(elseIfBlock)
-    }
-
-    override fun exitFlow_when_else_if(ctx: ZflParser.Flow_when_else_ifContext) {
-        currentStack.removeLast()
-    }
-
-    override fun enterFlow_when_else(ctx: ZflParser.Flow_when_elseContext) {
-        val elseBlock = buildMap()
-            .with("commands", mutableListOf<Any?>())
-            .with("events", mutableListOf<Any?>())
-            .with("policies", mutableListOf<Any?>())
-
-        val ifBlock = currentStack.last()
-        ifBlock["else"] = elseBlock
-        currentStack.addLast(elseBlock)
-    }
-
-    override fun exitFlow_when_else(ctx: ZflParser.Flow_when_elseContext) {
-        currentStack.removeLast()
     }
 
     // End block

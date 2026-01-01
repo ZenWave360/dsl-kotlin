@@ -54,7 +54,7 @@ describe('ZFL Parser - Subscriptions', () => {
         describe('Subscription system', () => {
             it('should have correct name and zdl', () => {
                 assert.equal(jsonPath(model, "$.flows.PaymentsFlow.systems.Subscription.name"), "Subscription");
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.systems.Subscription.zdl"), "subscription/model.zdl");
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.systems.Subscription.options.zdl"), "subscription/model.zdl");
             });
 
             it('should have 1 service', () => {
@@ -62,20 +62,12 @@ describe('ZFL Parser - Subscriptions', () => {
             });
 
             it('should have SubscriptionService with correct commands', () => {
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.systems.Subscription.services.DefaultService.name"), "DefaultService");
-                const commands = jsonPath(model, "$.flows.PaymentsFlow.systems.Subscription.services.DefaultService.commands");
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.systems.Subscription.services.SubscriptionService.name"), "SubscriptionService");
+                const commands = jsonPath(model, "$.flows.PaymentsFlow.systems.Subscription.services.SubscriptionService.commands");
                 assert.equal(arraySize(commands), 3);
                 assert.equal(commands[0], "renewSubscription");
                 assert.equal(commands[1], "suspendSubscription");
                 assert.equal(commands[2], "cancelRenewal");
-            });
-
-            it('should have correct events', () => {
-                const events = jsonPath(model, "$.flows.PaymentsFlow.systems.Subscription.events");
-                assert.equal(arraySize(events), 3);
-                assert.equal(events[0], "SubscriptionRenewed");
-                assert.equal(events[1], "SubscriptionSuspended");
-                assert.equal(events[2], "RenewalCancelled");
             });
         });
 
@@ -147,9 +139,9 @@ describe('ZFL Parser - Subscriptions', () => {
     });
 
     describe('when blocks', () => {
-        it('should have 5 when blocks', () => {
+        it('should have 6 when blocks', () => {
             const whens = jsonPath(model, "$.flows.PaymentsFlow.whens");
-            assert.equal(arraySize(whens), 5);
+            assert.equal(arraySize(whens), 6);
         });
 
         describe('first when block', () => {
@@ -159,10 +151,8 @@ describe('ZFL Parser - Subscriptions', () => {
                 assert.equal(triggers[0], "CustomerRequestsSubscriptionRenewal");
             });
 
-            it('should have correct commands', () => {
-                const commands = jsonPath(model, "$.flows.PaymentsFlow.whens[0].commands");
-                assert.equal(arraySize(commands), 1);
-                assert.equal(commands[0], "renewSubscription");
+            it('should have correct command', () => {
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[0].command"), "renewSubscription");
             });
 
             it('should have correct events', () => {
@@ -179,10 +169,8 @@ describe('ZFL Parser - Subscriptions', () => {
                 assert.equal(triggers[0], "SubscriptionRenewed");
             });
 
-            it('should have correct commands', () => {
-                const commands = jsonPath(model, "$.flows.PaymentsFlow.whens[1].commands");
-                assert.equal(arraySize(commands), 1);
-                assert.equal(commands[0], "chargePayment");
+            it('should have correct command', () => {
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[1].command"), "chargePayment");
             });
 
             it('should have correct events', () => {
@@ -193,94 +181,82 @@ describe('ZFL Parser - Subscriptions', () => {
             });
         });
 
-        describe('third when block with if/else', () => {
+        describe('third when block with if condition', () => {
             it('should have correct triggers', () => {
                 const triggers = jsonPath(model, "$.flows.PaymentsFlow.whens[2].triggers");
                 assert.equal(arraySize(triggers), 1);
                 assert.equal(triggers[0], "PaymentFailed");
             });
 
-            it('should have 1 if block', () => {
-                const ifs = jsonPath(model, "$.flows.PaymentsFlow.whens[2].ifs");
-                assert.equal(arraySize(ifs), 1);
-            });
-
             it('should have correct if condition', () => {
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[2].ifs[0].condition"), "less than 3 attempts");
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[2].options.if"), "less than 3 attempts");
             });
 
-            it('should have correct if commands', () => {
-                const commands = jsonPath(model, "$.flows.PaymentsFlow.whens[2].ifs[0].commands");
-                assert.equal(arraySize(commands), 1);
-                assert.equal(commands[0], "retryPayment");
+            it('should have correct command', () => {
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[2].command"), "retryPayment");
             });
 
-            it('should have correct if events', () => {
-                const events = jsonPath(model, "$.flows.PaymentsFlow.whens[2].ifs[0].events");
+            it('should have correct events', () => {
+                const events = jsonPath(model, "$.flows.PaymentsFlow.whens[2].events");
                 assert.equal(arraySize(events), 1);
                 assert.equal(events[0], "PaymentRetryScheduled");
             });
-
-            it('should have else block', () => {
-                const elseBlock = jsonPath(model, "$.flows.PaymentsFlow.whens[2].ifs[0].else");
-                assert.notEqual(elseBlock, null);
-            });
-
-            it('should have correct else policies', () => {
-                const policies = jsonPath(model, "$.flows.PaymentsFlow.whens[2].ifs[0].else.policies");
-                assert.equal(arraySize(policies), 1);
-                assert.equal(policies[0], "Suspend after 3 failed attempts");
-            });
-
-            it('should have correct else commands', () => {
-                const commands = jsonPath(model, "$.flows.PaymentsFlow.whens[2].ifs[0].else.commands");
-                assert.equal(arraySize(commands), 1);
-                assert.equal(commands[0], "suspendSubscription");
-            });
-
-            it('should have correct else events', () => {
-                const events = jsonPath(model, "$.flows.PaymentsFlow.whens[2].ifs[0].else.events");
-                assert.equal(arraySize(events), 1);
-                assert.equal(events[0], "SubscriptionSuspended");
-            });
         });
 
-        describe('fourth when block with AND trigger', () => {
-            it('should have 2 triggers (AND condition)', () => {
+        describe('fourth when block with if condition (else case)', () => {
+            it('should have correct triggers', () => {
                 const triggers = jsonPath(model, "$.flows.PaymentsFlow.whens[3].triggers");
-                assert.equal(arraySize(triggers), 2);
-                assert.equal(triggers[0], "PaymentSucceeded");
-                assert.equal(triggers[1], "BillingCycleEnded");
+                assert.equal(arraySize(triggers), 1);
+                assert.equal(triggers[0], "PaymentFailed");
             });
 
-            it('should have correct commands', () => {
-                const commands = jsonPath(model, "$.flows.PaymentsFlow.whens[3].commands");
-                assert.equal(arraySize(commands), 1);
-                assert.equal(commands[0], "recordPayment");
+            it('should have correct if condition', () => {
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[3].options.if"), "3 or more attempts");
+            });
+
+            it('should have correct command', () => {
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[3].command"), "suspendSubscription");
             });
 
             it('should have correct events', () => {
                 const events = jsonPath(model, "$.flows.PaymentsFlow.whens[3].events");
                 assert.equal(arraySize(events), 1);
-                assert.equal(events[0], "PaymentRecorded");
+                assert.equal(events[0], "SubscriptionSuspended");
             });
         });
 
-        describe('fifth when block', () => {
-            it('should have correct triggers', () => {
+        describe('fifth when block with AND trigger', () => {
+            it('should have 2 triggers (AND condition)', () => {
                 const triggers = jsonPath(model, "$.flows.PaymentsFlow.whens[4].triggers");
-                assert.equal(arraySize(triggers), 1);
-                assert.equal(triggers[0], "PaymentTimeout");
+                assert.equal(arraySize(triggers), 2);
+                assert.equal(triggers[0], "PaymentSucceeded");
+                assert.equal(triggers[1], "BillingCycleEnded");
             });
 
-            it('should have correct commands', () => {
-                const commands = jsonPath(model, "$.flows.PaymentsFlow.whens[4].commands");
-                assert.equal(arraySize(commands), 1);
-                assert.equal(commands[0], "cancelRenewal");
+            it('should have correct command', () => {
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[4].command"), "recordPayment");
             });
 
             it('should have correct events', () => {
                 const events = jsonPath(model, "$.flows.PaymentsFlow.whens[4].events");
+                assert.equal(arraySize(events), 1);
+                assert.equal(events[0], "PaymentRecorded");
+            });
+        });
+
+        describe('sixth when block', () => {
+            it('should have correct triggers', () => {
+                const triggers = jsonPath(model, "$.flows.PaymentsFlow.whens[5].triggers");
+                assert.equal(arraySize(triggers), 1);
+                assert.equal(triggers[0], "PaymentTimeout");
+            });
+
+            it('should have correct command', () => {
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[5].command"), "cancelRenewal");
+            });
+
+            it('should have correct events', () => {
+                const events = jsonPath(model, "$.flows.PaymentsFlow.whens[5].events");
                 assert.equal(arraySize(events), 1);
                 assert.equal(events[0], "RenewalCancelled");
             });

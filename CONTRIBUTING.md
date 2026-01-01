@@ -10,7 +10,7 @@
 
 ```bash
 # Build the project
-./gradlew build
+./gradlew clean build
 
 # Run tests
 ./gradlew jvmTest

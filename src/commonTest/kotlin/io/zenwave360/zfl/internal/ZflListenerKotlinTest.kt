@@ -38,7 +38,7 @@ class ZflListenerKotlinTest {
         assertEquals("Subscription", JSONPath.get(model, "$.flows.PaymentsFlow.systems.Subscription.name"))
         assertEquals(
             "subscription/model.zdl",
-            JSONPath.get(model, "$.flows.PaymentsFlow.systems.Subscription.zdl")
+            JSONPath.get(model, "$.flows.PaymentsFlow.systems.Subscription.options.zdl")
         )
         assertEquals(
             1,
@@ -46,19 +46,15 @@ class ZflListenerKotlinTest {
                 ?: 0
         )
         assertEquals(
-            "DefaultService",
-            JSONPath.get(model, "$.flows.PaymentsFlow.systems.Subscription.services.DefaultService.name")
+            "SubscriptionService",
+            JSONPath.get(model, "$.flows.PaymentsFlow.systems.Subscription.services.SubscriptionService.name")
         )
         assertEquals(
             listOf("renewSubscription", "suspendSubscription", "cancelRenewal"),
             JSONPath.get(
                 model,
-                "$.flows.PaymentsFlow.systems.Subscription.services.DefaultService.commands"
+                "$.flows.PaymentsFlow.systems.Subscription.services.SubscriptionService.commands"
             )
-        )
-        assertEquals(
-            listOf("SubscriptionRenewed", "SubscriptionSuspended", "RenewalCancelled"),
-            JSONPath.get(model, "$.flows.PaymentsFlow.systems.Subscription.events")
         )
 
         // Test Payments system
@@ -138,42 +134,40 @@ class ZflListenerKotlinTest {
         val whens =
             JSONPath.get(model, "$.flows.PaymentsFlow.whens", emptyList<Map<String, Any?>>()) as? List<*>
                 ?: emptyList<Any?>()
-        assertEquals(5, whens.size)
+        assertEquals(6, whens.size)
 
         // Test first when block
         assertEquals(listOf("CustomerRequestsSubscriptionRenewal"), JSONPath.get(whens[0], "$.triggers"))
-        assertEquals(listOf("renewSubscription"), JSONPath.get(whens[0], "$.commands"))
+        assertEquals("renewSubscription", JSONPath.get(whens[0], "$.command"))
         assertEquals(listOf("SubscriptionRenewed"), JSONPath.get(whens[0], "$.events"))
 
         // Test second when block
         assertEquals(listOf("SubscriptionRenewed"), JSONPath.get(whens[1], "$.triggers"))
-        assertEquals(listOf("chargePayment"), JSONPath.get(whens[1], "$.commands"))
+        assertEquals("chargePayment", JSONPath.get(whens[1], "$.command"))
         assertEquals(listOf("PaymentSucceeded", "PaymentFailed"), JSONPath.get(whens[1], "$.events"))
 
         // Test third when block with if/else
         assertEquals(listOf("PaymentFailed"), JSONPath.get(whens[2], "$.triggers"))
-        val ifs =
-            JSONPath.get(whens[2], "$.ifs", emptyList<Map<String, Any?>>()) as? List<*> ?: emptyList<Any?>()
-        assertEquals(1, ifs.size)
-        assertEquals("less than 3 attempts", JSONPath.get(ifs[0], "$.condition"))
-        assertEquals(listOf("retryPayment"), JSONPath.get(ifs[0], "$.commands"))
-        assertEquals(listOf("PaymentRetryScheduled"), JSONPath.get(ifs[0], "$.events"))
+        val ifText = JSONPath.get(whens[2], "$.options.if") as String?
+        assertEquals("less than 3 attempts", ifText)
+        assertEquals("retryPayment", JSONPath.get(whens[2], "$.command"))
+        assertEquals(listOf("PaymentRetryScheduled"), JSONPath.get(whens[2], "$.events"))
 
-        val elseBlock = JSONPath.get(ifs[0], "$.else") as? Map<*, *>
-        assertNotNull(elseBlock)
-        assertEquals(listOf("Suspend after 3 failed attempts"), JSONPath.get(elseBlock, "$.policies"))
-        assertEquals(listOf("suspendSubscription"), JSONPath.get(elseBlock, "$.commands"))
-        assertEquals(listOf("SubscriptionSuspended"), JSONPath.get(elseBlock, "$.events"))
+        assertEquals(listOf("PaymentFailed"), JSONPath.get(whens[3], "$.triggers"))
+        val ifText2 = JSONPath.get(whens[3], "$.options.if") as String?
+        assertEquals("3 or more attempts", ifText2)
+        assertEquals("suspendSubscription", JSONPath.get(whens[3], "$.command"))
+        assertEquals(listOf("SubscriptionSuspended"), JSONPath.get(whens[3], "$.events"))
 
         // Test fourth when block with AND trigger
-        assertEquals(listOf("PaymentSucceeded", "BillingCycleEnded"), JSONPath.get(whens[3], "$.triggers"))
-        assertEquals(listOf("recordPayment"), JSONPath.get(whens[3], "$.commands"))
-        assertEquals(listOf("PaymentRecorded"), JSONPath.get(whens[3], "$.events"))
+        assertEquals(listOf("PaymentSucceeded", "BillingCycleEnded"), JSONPath.get(whens[4], "$.triggers"))
+        assertEquals("recordPayment", JSONPath.get(whens[4], "$.command"))
+        assertEquals(listOf("PaymentRecorded"), JSONPath.get(whens[4], "$.events"))
 
         // Test fifth when block
-        assertEquals(listOf("PaymentTimeout"), JSONPath.get(whens[4], "$.triggers"))
-        assertEquals(listOf("cancelRenewal"), JSONPath.get(whens[4], "$.commands"))
-        assertEquals(listOf("RenewalCancelled"), JSONPath.get(whens[4], "$.events"))
+        assertEquals(listOf("PaymentTimeout"), JSONPath.get(whens[5], "$.triggers"))
+        assertEquals("cancelRenewal", JSONPath.get(whens[5], "$.command"))
+        assertEquals(listOf("RenewalCancelled"), JSONPath.get(whens[5], "$.events"))
 
         // Test end block
         @Suppress("UNCHECKED_CAST")

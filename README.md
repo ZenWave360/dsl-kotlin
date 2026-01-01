@@ -38,6 +38,8 @@ ZdlParser parser = new ZdlParser();
 ZdlModel model = parser.parseModel(zdlContent);
 ```
 
+NOTE: jvm version includes a working ZdlParser compiled from Kotlin ANTL4 target and also just the Parser/Lexer from the Java target for use by intellij-antlr-adapter.
+
 * JavaScript/TypeScript:
 
 ```bash
