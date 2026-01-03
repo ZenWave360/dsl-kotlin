@@ -1,0 +1,299 @@
+{
+  "imports": [
+    {
+      "key": "subscriptions",
+      "value": "http://localhost:8080/subscription/model.zdl"
+    },
+    {
+      "key": "payments",
+      "value": "com.example.domain:payments:RELEASE"
+    }
+  ],
+  "config": {
+    "basePackage": "io.zenwave360.example.subscriptions",
+    "persistence": "mongodb"
+  },
+  "flows": {
+    "PaymentsFlow": {
+      "name": "PaymentsFlow",
+      "className": "PaymentsFlow",
+      "javadoc": "Payment Flow for Subscription Renewals",
+      "options": {},
+      "systems": {
+        "Subscription": {
+          "name": "Subscription",
+          "javadoc": null,
+          "options": {
+            "zdl": "subscription/model.zdl"
+          },
+          "zdl": null,
+          "services": {
+            "SubscriptionService": {
+              "name": "SubscriptionService",
+              "options": {},
+              "commands": [
+                "renewSubscription",
+                "suspendSubscription",
+                "cancelRenewal"
+              ]
+            }
+          },
+          "events": [],
+          "optionsList": [
+            {
+              "name": "zdl",
+              "value": "subscription/model.zdl"
+            }
+          ]
+        },
+        "Payments": {
+          "name": "Payments",
+          "javadoc": null,
+          "options": {
+            "zdl": "payments/model.zdl"
+          },
+          "zdl": null,
+          "services": {
+            "PaymentService": {
+              "name": "PaymentService",
+              "options": {},
+              "commands": [
+                "chargePayment",
+                "retryPayment",
+                "recordPayment"
+              ]
+            }
+          },
+          "events": [],
+          "optionsList": [
+            {
+              "name": "zdl",
+              "value": "payments/model.zdl"
+            }
+          ]
+        },
+        "Billing": {
+          "name": "Billing",
+          "javadoc": null,
+          "options": {
+            "zdl": "billing/model.zdl"
+          },
+          "zdl": null,
+          "services": {
+            "BillingService": {
+              "name": "BillingService",
+              "options": {},
+              "commands": [
+                "generateInvoice"
+              ]
+            }
+          },
+          "events": [],
+          "optionsList": [
+            {
+              "name": "zdl",
+              "value": "billing/model.zdl"
+            }
+          ]
+        }
+      },
+      "starts": {
+        "CustomerRequestsSubscriptionRenewal": {
+          "name": "CustomerRequestsSubscriptionRenewal",
+          "className": "CustomerRequestsSubscriptionRenewal",
+          "javadoc": null,
+          "options": {
+            "actor": "Customer"
+          },
+          "fields": {
+            "subscriptionId": {
+              "name": "subscriptionId",
+              "type": "String",
+              "isArray": false,
+              "javadoc": null,
+              "options": {}
+            },
+            "customerId": {
+              "name": "customerId",
+              "type": "String",
+              "isArray": false,
+              "javadoc": null,
+              "options": {}
+            },
+            "paymentMethodId": {
+              "name": "paymentMethodId",
+              "type": "String",
+              "isArray": false,
+              "javadoc": null,
+              "options": {}
+            }
+          },
+          "optionsList": [
+            {
+              "name": "actor",
+              "value": "Customer"
+            }
+          ]
+        },
+        "BillingCycleEnded": {
+          "name": "BillingCycleEnded",
+          "className": "BillingCycleEnded",
+          "javadoc": null,
+          "options": {
+            "time": "end of month"
+          },
+          "fields": {
+            "billingPeriod": {
+              "name": "billingPeriod",
+              "type": "String",
+              "isArray": false,
+              "javadoc": null,
+              "options": {}
+            }
+          },
+          "optionsList": [
+            {
+              "name": "time",
+              "value": "end of month"
+            }
+          ]
+        },
+        "PaymentTimeout": {
+          "name": "PaymentTimeout",
+          "className": "PaymentTimeout",
+          "javadoc": null,
+          "options": {
+            "time": "5 minutes after SubscriptionRenewed and not PaymentSucceeded or PaymentFailed"
+          },
+          "fields": {},
+          "optionsList": [
+            {
+              "name": "time",
+              "value": "5 minutes after SubscriptionRenewed and not PaymentSucceeded or PaymentFailed"
+            }
+          ]
+        }
+      },
+      "whens": [
+        {
+          "triggers": [
+            "CustomerRequestsSubscriptionRenewal"
+          ],
+          "events": [
+            "SubscriptionRenewed"
+          ],
+          "ifs": [],
+          "policies": [],
+          "command": "renewSubscription"
+        },
+        {
+          "triggers": [
+            "SubscriptionRenewed"
+          ],
+          "events": [
+            "PaymentSucceeded",
+            "PaymentFailed"
+          ],
+          "ifs": [],
+          "policies": [],
+          "command": "chargePayment"
+        },
+        {
+          "triggers": [
+            "PaymentFailed"
+          ],
+          "events": [
+            "PaymentRetryScheduled"
+          ],
+          "ifs": [],
+          "policies": [],
+          "options": {
+            "if": "less than 3 attempts"
+          },
+          "optionsList": [
+            {
+              "name": "if",
+              "value": "less than 3 attempts"
+            }
+          ],
+          "command": "retryPayment"
+        },
+        {
+          "triggers": [
+            "PaymentFailed"
+          ],
+          "events": [
+            "SubscriptionSuspended"
+          ],
+          "ifs": [],
+          "policies": [],
+          "options": {
+            "if": "3 or more attempts"
+          },
+          "optionsList": [
+            {
+              "name": "if",
+              "value": "3 or more attempts"
+            }
+          ],
+          "command": "suspendSubscription"
+        },
+        {
+          "triggers": [
+            "PaymentSucceeded",
+            "BillingCycleEnded"
+          ],
+          "events": [
+            "PaymentRecorded"
+          ],
+          "ifs": [],
+          "policies": [],
+          "command": "recordPayment"
+        },
+        {
+          "triggers": [
+            "PaymentTimeout"
+          ],
+          "events": [
+            "RenewalCancelled"
+          ],
+          "ifs": [],
+          "policies": [],
+          "command": "cancelRenewal"
+        }
+      ],
+      "end": {
+        "outcomes": {
+          "completed": [
+            "PaymentRecorded"
+          ],
+          "suspended": [
+            "SubscriptionSuspended"
+          ],
+          "cancelled": [
+            "RenewalCancelled"
+          ]
+        }
+      }
+    }
+  },
+  "locations": {
+    "flows.PaymentsFlow": {
+      "0": 227,
+      "1": 2182,
+      "2": 9,
+      "3": 0,
+      "4": 91,
+      "5": 0
+    },
+    "flows.PaymentsFlow.name": {
+      "0": 285,
+      "1": 297,
+      "2": 12,
+      "3": 5,
+      "4": 12,
+      "5": 17
+    }
+  },
+  "problems": []
+}
