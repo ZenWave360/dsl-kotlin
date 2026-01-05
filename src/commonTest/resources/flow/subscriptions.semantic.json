@@ -1,0 +1,350 @@
+{
+  "flows": [
+    {
+      "name": "PaymentsFlow",
+      "description": "Payment Flow for Subscription Renewals",
+      "starts": [
+        {
+          "description": "",
+          "name": "CustomerRequestsSubscriptionRenewal",
+          "actor": "Customer",
+          "timer": null,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "description": "",
+          "name": "BillingCycleEnded",
+          "actor": null,
+          "timer": null,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "description": "",
+          "name": "PaymentTimeout",
+          "actor": null,
+          "timer": null,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        }
+      ],
+      "policies": [
+        {
+          "description": "",
+          "triggers": [
+            "CustomerRequestsSubscriptionRenewal"
+          ],
+          "condition": null,
+          "command": "renewSubscription",
+          "events": [
+            "SubscriptionRenewed"
+          ],
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "description": "",
+          "triggers": [
+            "SubscriptionRenewed"
+          ],
+          "condition": null,
+          "command": "chargePayment",
+          "events": [
+            "PaymentSucceeded",
+            "PaymentFailed"
+          ],
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "description": "",
+          "triggers": [
+            "PaymentFailed"
+          ],
+          "condition": "less than 3 attempts",
+          "command": "retryPayment",
+          "events": [
+            "PaymentRetryScheduled"
+          ],
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "description": "",
+          "triggers": [
+            "PaymentFailed"
+          ],
+          "condition": "3 or more attempts",
+          "command": "suspendSubscription",
+          "events": [
+            "SubscriptionSuspended"
+          ],
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "description": "",
+          "triggers": [
+            "PaymentSucceeded",
+            "BillingCycleEnded"
+          ],
+          "condition": null,
+          "command": "recordPayment",
+          "events": [
+            "PaymentRecorded"
+          ],
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "description": "",
+          "triggers": [
+            "PaymentTimeout"
+          ],
+          "condition": null,
+          "command": "cancelRenewal",
+          "events": [
+            "RenewalCancelled"
+          ],
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        }
+      ],
+      "commands": [
+        {
+          "name": "renewSubscription",
+          "system": "Subscription",
+          "service": "SubscriptionService",
+          "actor": null,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "name": "suspendSubscription",
+          "system": "Subscription",
+          "service": "SubscriptionService",
+          "actor": null,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "name": "cancelRenewal",
+          "system": "Subscription",
+          "service": "SubscriptionService",
+          "actor": null,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "name": "chargePayment",
+          "system": "Payments",
+          "service": "PaymentService",
+          "actor": null,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "name": "retryPayment",
+          "system": "Payments",
+          "service": "PaymentService",
+          "actor": null,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "name": "recordPayment",
+          "system": "Payments",
+          "service": "PaymentService",
+          "actor": null,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "name": "generateInvoice",
+          "system": "Billing",
+          "service": "BillingService",
+          "actor": null,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        }
+      ],
+      "events": [
+        {
+          "name": "SubscriptionRenewed",
+          "description": null,
+          "system": "Subscription",
+          "service": "SubscriptionService",
+          "isStart": false,
+          "isError": false,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "name": "PaymentSucceeded",
+          "description": null,
+          "system": "Payments",
+          "service": "PaymentService",
+          "isStart": false,
+          "isError": false,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "name": "PaymentFailed",
+          "description": null,
+          "system": "Payments",
+          "service": "PaymentService",
+          "isStart": false,
+          "isError": false,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "name": "PaymentRetryScheduled",
+          "description": null,
+          "system": "Payments",
+          "service": "PaymentService",
+          "isStart": false,
+          "isError": false,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "name": "SubscriptionSuspended",
+          "description": null,
+          "system": "Subscription",
+          "service": "SubscriptionService",
+          "isStart": false,
+          "isError": false,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "name": "PaymentRecorded",
+          "description": null,
+          "system": "Payments",
+          "service": "PaymentService",
+          "isStart": false,
+          "isError": false,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "name": "RenewalCancelled",
+          "description": null,
+          "system": "Subscription",
+          "service": "SubscriptionService",
+          "isStart": false,
+          "isError": false,
+          "sourceRef": {
+            "file": "<zfl>",
+            "line": 1,
+            "column": 1
+          }
+        }
+      ],
+      "end": {
+        "completed": [],
+        "suspended": [],
+        "cancelled": [],
+        "sourceRef": {
+          "file": "<zfl>",
+          "line": 1,
+          "column": 1
+        }
+      }
+    }
+  ],
+  "systems": {
+    "Subscription": {
+      "name": "Subscription",
+      "services": {}
+    },
+    "Payments": {
+      "name": "Payments",
+      "services": {}
+    },
+    "Billing": {
+      "name": "Billing",
+      "services": {}
+    }
+  },
+  "actors": {
+    "Customer": {
+      "name": "Customer",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    }
+  },
+  "diagnostics": []
+}

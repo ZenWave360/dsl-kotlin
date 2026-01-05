@@ -5,8 +5,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ZflFlow(
     val name: String,
+    val description: String,
+    val starts: List<ZflStart>,
+    val policies: List<ZflPolicy>,
     val commands: List<ZflCommand>,
     val events: List<ZflEvent>,
-    val policies: List<ZflPolicy>,
-    val whens: List<ZflWhen>
+    val end: ZflEnd,
 )

@@ -6,7 +6,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ZflEvent(
     val name: String,
-    val system: String,
+    val description: String?,
+    val system: String?,
+    val service: String?,
+    val isStart: Boolean = false,
     val isError: Boolean = false,
     val sourceRef: SourceRef
 )

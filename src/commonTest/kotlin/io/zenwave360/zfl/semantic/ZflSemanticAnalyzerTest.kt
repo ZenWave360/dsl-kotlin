@@ -2,6 +2,7 @@ package io.zenwave360.zfl.semantic
 
 import io.zenwave360.language.zfl.ZflParser
 import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
+import io.zenwave360.language.zfl.semantic.toJsonString
 import io.zenwave360.zdl.internal.readTestFile
 import kotlin.test.*
 
@@ -16,6 +17,7 @@ class ZflSemanticAnalyzerTest {
         // Analyze the model
         val analyzer = ZflSemanticAnalyzer()
         val semanticModel = analyzer.analyze(model)
+        println(semanticModel.toJsonString())
         
         // Verify flows
         assertEquals(1, semanticModel.flows.size, "Should have 1 flow")
@@ -67,29 +69,19 @@ class ZflSemanticAnalyzerTest {
         assertTrue(eventNames.contains("PaymentRecorded"))
         assertTrue(eventNames.contains("RenewalCancelled"))
         
-        // Verify error events
-        val paymentFailedEvent = flow.events.find { it.name == "PaymentFailed" }
-        assertNotNull(paymentFailedEvent)
-        assertTrue(paymentFailedEvent.isError, "PaymentFailed should be marked as error event")
+
+        // Verify policies whens
+        assertEquals(6, flow.policies.size, "Should have 6 policies (when)")
         
-        val paymentSucceededEvent = flow.events.find { it.name == "PaymentSucceeded" }
-        assertNotNull(paymentSucceededEvent)
-        assertFalse(paymentSucceededEvent.isError, "PaymentSucceeded should not be marked as error event")
-        
-        // Verify policies (conditional whens)
-        assertEquals(2, flow.policies.size, "Should have 2 policies")
-        
-        val policy1 = flow.policies.find { it.name == "less than 3 attempts" }
+        val policy1 = flow.policies.find { it.condition == "less than 3 attempts" }
         assertNotNull(policy1)
-        assertEquals("PaymentFailed", policy1.fromEvent)
-        assertEquals("retryPayment", policy1.toCommand)
-        assertEquals("Payments", policy1.system)
+        assertEquals("PaymentFailed", policy1.triggers.first())
+        assertEquals("retryPayment", policy1.command)
         
-        val policy2 = flow.policies.find { it.name == "3 or more attempts" }
+        val policy2 = flow.policies.find { it.condition == "3 or more attempts" }
         assertNotNull(policy2)
-        assertEquals("PaymentFailed", policy2.fromEvent)
-        assertEquals("suspendSubscription", policy2.toCommand)
-        assertEquals("Subscription", policy2.system)
+        assertEquals("PaymentFailed", policy2.triggers.first())
+        assertEquals("suspendSubscription", policy2.command)
     }
     
     @Test
@@ -195,7 +187,7 @@ class ZflSemanticAnalyzerTest {
 
         // All policies should have source refs
         flow.policies.forEach { policy ->
-            assertNotNull(policy.sourceRef, "Policy ${policy.name} should have a source ref")
+            assertNotNull(policy.sourceRef, "Policy ${policy.triggers.joinToString("_and_")} should have a source ref")
             assertEquals("<zfl>", policy.sourceRef.file)
         }
 

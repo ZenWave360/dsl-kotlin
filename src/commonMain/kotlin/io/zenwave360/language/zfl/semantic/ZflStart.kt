@@ -4,10 +4,11 @@ import io.zenwave360.language.source.SourceRef
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ZflCommand(
+data class ZflStart(
+    val description: String,
     val name: String,
-    val system: String?,
-    val service: String?,
     val actor: String?,
+    val timer: String?,
+    val system: String?,
     val sourceRef: SourceRef
 )

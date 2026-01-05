@@ -18,42 +18,104 @@ class ZflToFlowIrTransformer {
         val edgeList = mutableListOf<FlowEdge>()
 
         semanticModel.flows.forEach { flow ->
-            // 1. Register all commands as nodes
+            // 1. Register start events as nodes
+            flow.starts.forEach { start ->
+                nodeMap[startId(start.name)] = FlowNode(
+                    id = startId(start.name),
+                    type = FlowNodeType.START,
+                    label = start.name,
+                    system = null,
+                    service = null,
+                    sourceRef = start.sourceRef
+                )
+                edgeList.add(FlowEdge(
+                    id = edgeId(startId(start.name), eventId(start.name)),
+                    source = startId(start.name),
+                    target = eventId(start.name),
+                    type = FlowEdgeType.TRIGGER,
+                    sourceRef = start.sourceRef
+                ))
+            }
+
+            // 2. Register all commands as nodes
             flow.commands.forEach { command ->
-                nodeMap[command.name] = FlowNode(
-                    id = command.name,
+                nodeMap[commandId(command.name)] = FlowNode(
+                    id = commandId(command.name),
                     type = FlowNodeType.COMMAND,
                     label = command.name,
                     system = command.system,
+                    service = command.service,
                     sourceRef = command.sourceRef
                 )
             }
 
-            // 2. Register all events as nodes
+            // 3. Register all events as nodes
             flow.events.forEach { event ->
-                nodeMap[event.name] = FlowNode(
-                    id = event.name,
+                nodeMap[eventId(event.name)] = FlowNode(
+                    id = eventId(event.name),
                     type = FlowNodeType.EVENT,
                     label = event.name,
                     system = event.system,
+                    service = event.service,
                     sourceRef = event.sourceRef
                 )
             }
 
-            // 3. Register all policies as nodes
+            // 4. Register all policies as nodes
             flow.policies.forEach { policy ->
-                val policyId = policyNodeId(policy)
-                nodeMap[policyId] = FlowNode(
-                    id = policyId,
+                nodeMap[policyNodeId(policy)] = FlowNode(
+                    id = policyNodeId(policy),
                     type = FlowNodeType.POLICY,
-                    label = policy.name,
-                    system = policy.system,
+                    label = policyLabel(policy),
+                    system = null, // nodeMap[commandId(policy.command)]?.system,
+                    service = null,
                     sourceRef = policy.sourceRef
                 )
+                // connect policy triggers (events) to command
+                policy.triggers.forEach { eventName ->
+                    val edgeType = if (policy.condition != null) FlowEdgeType.CONDITIONAL else FlowEdgeType.TRIGGER
+                    edgeList.add(
+                        FlowEdge(
+                            id = edgeId(eventId(eventName),policyNodeId(policy)),
+                            source = eventId(eventName),
+                            target = policyNodeId(policy),
+                            type = edgeType,
+                            sourceRef = policy.sourceRef
+                        )
+                    )
+                    edgeList.add(
+                        FlowEdge(
+                            id = edgeId(policyNodeId(policy),commandId(policy.command)),
+                            source = policyNodeId(policy),
+                            target = commandId(policy.command),
+                            type = edgeType,
+                            sourceRef = policy.sourceRef
+                        )
+                    )
+                }
+                // connect command to events
+                policy.events.forEach { eventName ->
+                    edgeList.add(FlowEdge(
+                        id = edgeId(commandId(policy.command), eventId(eventName)),
+                        source = commandId(policy.command),
+                        target = eventId(eventName),
+                        type = FlowEdgeType.CAUSATION,
+                        sourceRef = policy.sourceRef
+                    ))
+                }
             }
 
-            // 4. Build edges from when-clauses
-            buildEdgesFromWhens(flow, edgeList)
+            // 5. Register end nodes
+            flow.end.completed.forEach { eventName ->
+                nodeMap[endId(eventName)] = FlowNode(
+                    id = endId(eventName),
+                    type = FlowNodeType.END,
+                    label = eventName,
+                    system = null,
+                    service = null,
+                    sourceRef = flow.end.sourceRef
+                )
+            }
         }
 
         return FlowIR(
@@ -62,68 +124,25 @@ class ZflToFlowIrTransformer {
         )
     }
 
-    /**
-     * Builds edges from when-clauses.
-     *
-     * Each when expresses: triggers → [policy?] → command → events
-     */
-    private fun buildEdgesFromWhens(flow: ZflFlow, edgeList: MutableList<FlowEdge>) {
-        flow.whens.forEach { when_ ->
-            val commandName = when_.command
+    private fun startId(start: String): String =
+        "start:${start}"
 
-            // Find if this when has a conditional policy
-            val policy = flow.policies.find { it.toCommand == commandName }
+    private fun eventId(event: String): String =
+        "event:${event}"
 
-            // Create edges from triggers to command (possibly through policy)
-            when_.triggers.forEach { triggerName ->
-                if (policy != null) {
-                    // Trigger → Policy → Command
-                    val policyId = policyNodeId(policy)
+    private fun commandId(command: String): String =
+        "command:${command}"
 
-                    edgeList.add(FlowEdge(
-                        id = "$triggerName→$policyId",
-                        source = triggerName,
-                        target = policyId,
-                        type = FlowEdgeType.TRIGGER,
-                        sourceRef = when_.sourceRef
-                    ))
+    private fun edgeId(source: String, target: String): String =
+        "from[$source]to[$target]"
 
-                    edgeList.add(FlowEdge(
-                        id = "$policyId→$commandName",
-                        source = policyId,
-                        target = commandName,
-                        type = FlowEdgeType.CONDITIONAL,
-                        label = policy.name,
-                        sourceRef = policy.sourceRef
-                    ))
-                } else {
-                    // Direct: Trigger → Command
-                    edgeList.add(FlowEdge(
-                        id = "$triggerName→$commandName",
-                        source = triggerName,
-                        target = commandName,
-                        type = FlowEdgeType.TRIGGER,
-                        sourceRef = when_.sourceRef
-                    ))
-                }
-            }
+    private fun endId(end: String): String =
+        "end:${end}"
 
-            // Create edges from command to emitted events
-            when_.events.forEach { eventName ->
-                edgeList.add(FlowEdge(
-                    id = "$commandName→$eventName",
-                    source = commandName,
-                    target = eventName,
-                    type = FlowEdgeType.CAUSATION,
-                    sourceRef = when_.sourceRef
-                ))
-            }
-        }
-    }
-
-    /**
-     * Generates a unique ID for a policy node.
-     */
     private fun policyNodeId(policy: ZflPolicy): String =
-        "policy:${policy.name}:${policy.toCommand}"
+        "policy:${policy.triggers.joinToString(",")}:${policy.command}"
+
+    private fun policyLabel(policy: ZflPolicy): String =
+        "when ${policy.triggers.joinToString(",")} do ${policy.command}" +
+                (if (policy.condition != null) " if ${policy.condition}" else "")
 }

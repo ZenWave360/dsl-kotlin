@@ -3,7 +3,7 @@ package io.zenwave360.language.zfl.semantic
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ZflSystem(
+data class ZflService(
     val name: String,
-    var services: MutableMap<String, ZflService> = mutableMapOf()
+    val boundedContext: Boolean = true
 )

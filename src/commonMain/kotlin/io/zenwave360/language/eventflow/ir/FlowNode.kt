@@ -12,5 +12,6 @@ data class FlowNode(
     val type: FlowNodeType,
     val label: String,
     val system: String?,
+    val service: String?,
     val sourceRef: SourceRef
 )

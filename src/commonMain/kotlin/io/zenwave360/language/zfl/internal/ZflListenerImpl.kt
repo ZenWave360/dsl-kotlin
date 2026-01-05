@@ -82,7 +82,7 @@ class ZflListenerImpl : ZflBaseListener() {
 
     // Systems block
     override fun enterFlow_systems(ctx: ZflParser.Flow_systemsContext) {
-        // Systems container - no action needed
+        model.setLocation("systems", getLocations(ctx))
     }
 
     override fun enterFlow_system(ctx: ZflParser.Flow_systemContext) {
@@ -97,6 +97,9 @@ class ZflListenerImpl : ZflBaseListener() {
             .with("services", buildMap())
             .with("events", mutableListOf<Any?>())
         )
+
+        model.setLocation("systems.$name", getLocations(ctx))
+        model.setLocation("systems.${name}.name", getLocations(ctx.flow_system_name()))
         
         val flow = currentStack[currentStack.size - 2]
         @Suppress("UNCHECKED_CAST")
@@ -105,11 +108,6 @@ class ZflListenerImpl : ZflBaseListener() {
 
     override fun exitFlow_system(ctx: ZflParser.Flow_systemContext) {
         currentStack.removeLast()
-    }
-
-    override fun enterFlow_system_zdl(ctx: ZflParser.Flow_system_zdlContext) {
-        val zdlPath = getValueText(ctx.string())
-        currentStack.last()["zdl"] = zdlPath
     }
 
     override fun enterFlow_system_service(ctx: ZflParser.Flow_system_serviceContext) {
@@ -125,6 +123,10 @@ class ZflListenerImpl : ZflBaseListener() {
         val system = currentStack[currentStack.size - 2]
         @Suppress("UNCHECKED_CAST")
         (system["services"] as MutableMap<String, Any?>)[serviceName!!] = service
+
+        val systemName = system["name"]
+        model.setLocation("systems.${systemName}.services.$serviceName", getLocations(ctx))
+        model.setLocation("systems.${systemName}.services.$serviceName.name", getLocations(ctx.flow_system_service_name()))
     }
 
     override fun exitFlow_system_service(ctx: ZflParser.Flow_system_serviceContext) {
@@ -134,11 +136,6 @@ class ZflListenerImpl : ZflBaseListener() {
     override fun enterFlow_system_service_body(ctx: ZflParser.Flow_system_service_bodyContext) {
         val commands = getArray(ctx.flow_system_service_command_list(), ",")
         currentStack.last()["commands"] = commands
-    }
-
-    override fun enterFlow_system_events(ctx: ZflParser.Flow_system_eventsContext) {
-        val events = getArray(ctx.flow_system_event_list(), ",")
-        currentStack.last()["events"] = events
     }
 
     // Start events
@@ -157,6 +154,9 @@ class ZflListenerImpl : ZflBaseListener() {
         val flow = currentStack[currentStack.size - 2]
         @Suppress("UNCHECKED_CAST")
         (flow["starts"] as MutableMap<String, Any?>)[name] = start
+
+        model.setLocation("starts.$name", getLocations(ctx))
+        model.setLocation("starts.${name}.name", getLocations(ctx.flow_start_name()))
     }
 
     override fun exitFlow_start(ctx: ZflParser.Flow_startContext) {
@@ -195,8 +195,13 @@ class ZflListenerImpl : ZflBaseListener() {
 
         currentStack.addLast(whenBlock)
         val flow = currentStack[currentStack.size - 2]
+
         @Suppress("UNCHECKED_CAST")
-        (flow["whens"] as MutableList<Any?>).add(whenBlock)
+        val whens = (flow["whens"] as MutableList<Any?>)
+        whens.add(whenBlock)
+
+        model.setLocation("whens[${whens.size - 1}]", getLocations(ctx))
+        model.setLocation("whens[${whens.size - 1}].triggers", getLocations(ctx.flow_when_trigger()))
     }
 
     override fun exitFlow_when(ctx: ZflParser.Flow_whenContext) {

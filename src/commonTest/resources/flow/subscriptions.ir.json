@@ -1,0 +1,374 @@
+{
+  "nodes": [
+    {
+      "id": "renewSubscription",
+      "type": "COMMAND",
+      "label": "renewSubscription",
+      "system": "Subscription",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "suspendSubscription",
+      "type": "COMMAND",
+      "label": "suspendSubscription",
+      "system": "Subscription",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "cancelRenewal",
+      "type": "COMMAND",
+      "label": "cancelRenewal",
+      "system": "Subscription",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "chargePayment",
+      "type": "COMMAND",
+      "label": "chargePayment",
+      "system": "Payments",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "retryPayment",
+      "type": "COMMAND",
+      "label": "retryPayment",
+      "system": "Payments",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "recordPayment",
+      "type": "COMMAND",
+      "label": "recordPayment",
+      "system": "Payments",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "generateInvoice",
+      "type": "COMMAND",
+      "label": "generateInvoice",
+      "system": "Billing",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "SubscriptionRenewed",
+      "type": "EVENT",
+      "label": "SubscriptionRenewed",
+      "system": "Subscription",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "PaymentSucceeded",
+      "type": "EVENT",
+      "label": "PaymentSucceeded",
+      "system": "Payments",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "PaymentFailed",
+      "type": "EVENT",
+      "label": "PaymentFailed",
+      "system": "Payments",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "PaymentRetryScheduled",
+      "type": "EVENT",
+      "label": "PaymentRetryScheduled",
+      "system": "Payments",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "SubscriptionSuspended",
+      "type": "EVENT",
+      "label": "SubscriptionSuspended",
+      "system": "Subscription",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "PaymentRecorded",
+      "type": "EVENT",
+      "label": "PaymentRecorded",
+      "system": "Payments",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "RenewalCancelled",
+      "type": "EVENT",
+      "label": "RenewalCancelled",
+      "system": "Subscription",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "policy:less than 3 attempts:retryPayment",
+      "type": "POLICY",
+      "label": "less than 3 attempts",
+      "system": "Payments",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "policy:3 or more attempts:suspendSubscription",
+      "type": "POLICY",
+      "label": "3 or more attempts",
+      "system": "Subscription",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "CustomerRequestsSubscriptionRenewal→renewSubscription",
+      "source": "CustomerRequestsSubscriptionRenewal",
+      "target": "renewSubscription",
+      "type": "TRIGGER",
+      "label": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "renewSubscription→SubscriptionRenewed",
+      "source": "renewSubscription",
+      "target": "SubscriptionRenewed",
+      "type": "CAUSATION",
+      "label": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "SubscriptionRenewed→chargePayment",
+      "source": "SubscriptionRenewed",
+      "target": "chargePayment",
+      "type": "TRIGGER",
+      "label": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "chargePayment→PaymentSucceeded",
+      "source": "chargePayment",
+      "target": "PaymentSucceeded",
+      "type": "CAUSATION",
+      "label": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "chargePayment→PaymentFailed",
+      "source": "chargePayment",
+      "target": "PaymentFailed",
+      "type": "CAUSATION",
+      "label": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "PaymentFailed→policy:less than 3 attempts:retryPayment",
+      "source": "PaymentFailed",
+      "target": "policy:less than 3 attempts:retryPayment",
+      "type": "TRIGGER",
+      "label": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "policy:less than 3 attempts:retryPayment→retryPayment",
+      "source": "policy:less than 3 attempts:retryPayment",
+      "target": "retryPayment",
+      "type": "CONDITIONAL",
+      "label": "less than 3 attempts",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "retryPayment→PaymentRetryScheduled",
+      "source": "retryPayment",
+      "target": "PaymentRetryScheduled",
+      "type": "CAUSATION",
+      "label": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "PaymentFailed→policy:3 or more attempts:suspendSubscription",
+      "source": "PaymentFailed",
+      "target": "policy:3 or more attempts:suspendSubscription",
+      "type": "TRIGGER",
+      "label": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "policy:3 or more attempts:suspendSubscription→suspendSubscription",
+      "source": "policy:3 or more attempts:suspendSubscription",
+      "target": "suspendSubscription",
+      "type": "CONDITIONAL",
+      "label": "3 or more attempts",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "suspendSubscription→SubscriptionSuspended",
+      "source": "suspendSubscription",
+      "target": "SubscriptionSuspended",
+      "type": "CAUSATION",
+      "label": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "PaymentSucceeded→recordPayment",
+      "source": "PaymentSucceeded",
+      "target": "recordPayment",
+      "type": "TRIGGER",
+      "label": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "BillingCycleEnded→recordPayment",
+      "source": "BillingCycleEnded",
+      "target": "recordPayment",
+      "type": "TRIGGER",
+      "label": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "recordPayment→PaymentRecorded",
+      "source": "recordPayment",
+      "target": "PaymentRecorded",
+      "type": "CAUSATION",
+      "label": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "PaymentTimeout→cancelRenewal",
+      "source": "PaymentTimeout",
+      "target": "cancelRenewal",
+      "type": "TRIGGER",
+      "label": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    },
+    {
+      "id": "cancelRenewal→RenewalCancelled",
+      "source": "cancelRenewal",
+      "target": "RenewalCancelled",
+      "type": "CAUSATION",
+      "label": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      }
+    }
+  ]
+}

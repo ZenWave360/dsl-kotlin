@@ -156,15 +156,12 @@ flow_body: (flow_systems | flow_start | flow_when | flow_end)*;
 flow_systems: javadoc? annotations SYSTEMS LBRACE flow_system* RBRACE;
 flow_system: javadoc? annotations flow_system_name LBRACE flow_system_body RBRACE;
 flow_system_name: ID;
-flow_system_body: flow_system_zdl? flow_system_services flow_system_events?;
-flow_system_zdl: ZDL COLON? string;
+flow_system_body: flow_system_services;
 flow_system_services: flow_system_service*;
 flow_system_service: SERVICE flow_system_service_name? LBRACE flow_system_service_body RBRACE;
 flow_system_service_name: ID;
 flow_system_service_body: COMMANDS COLON flow_system_service_command_list;
 flow_system_service_command_list: ID (COMMA ID)*;
-flow_system_events: EVENTS COLON flow_system_event_list;
-flow_system_event_list: ID (COMMA ID)*;
 
 // start events
 flow_start: javadoc? annotations START flow_start_name LBRACE fields RBRACE;

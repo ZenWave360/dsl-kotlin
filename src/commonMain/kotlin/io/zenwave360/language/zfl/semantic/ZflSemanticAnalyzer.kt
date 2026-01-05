@@ -2,6 +2,7 @@ package io.zenwave360.language.zfl.semantic
 
 import io.zenwave360.language.zfl.ZflModel
 import io.zenwave360.language.source.SourceRef
+import io.zenwave360.language.utils.JSONPath
 
 class ZflSemanticAnalyzer {
 
@@ -25,11 +26,13 @@ class ZflSemanticAnalyzer {
 
                 systemModel.getMap("services").values.forEach { serviceData ->
                     val service = serviceData.asMapOrReturn { return@forEach }
+                    val serviceName = service.getString("name")
 
                     service.getList("commands").forEach { commandName ->
                         commandByName[commandName] = ZflCommand(
                             name = commandName,
                             system = systemName,
+                            service = serviceName,
                             actor = null,
                             sourceRef = sourceRefOf(flowName, commandName)
                         )
@@ -37,13 +40,26 @@ class ZflSemanticAnalyzer {
                 }
             }
 
-            // 2. Starts → actors
+            val starts = mutableListOf<ZflStart>()
+
+            // 2. Starts
             flowModel.getMap("starts").values.forEach { startData ->
                 val start = startData.asMapOrReturn { return@forEach }
                 val startName = start.getString("name")
-                val options = start.getMap("options")
+                val actor = JSONPath.get<String>(start, "options.actor")
+                val timer = JSONPath.get<String>(start, "options.timer")
+                val system = JSONPath.get<String>(start, "options.system")
+                starts += ZflStart(
+                    description = start.getString("javadoc"),
+                    name = startName,
+                    actor = actor,
+                    timer = timer,
+                    system = system,
+                    sourceRef = sourceRefOf(flowName, startName)
+                )
 
-                options["actor"]?.toString()?.let { actorName ->
+                // Starts → actors
+                actor?.let { actorName ->
                     actors.getOrPut(actorName) {
                         ZflActor(actorName, sourceRefOf(flowName, startName))
                     }
@@ -53,19 +69,27 @@ class ZflSemanticAnalyzer {
             // 3. Events + policies + whens from whens
             val events = mutableMapOf<String, ZflEvent>()
             val policies = mutableListOf<ZflPolicy>()
-            val whens = mutableListOf<ZflWhen>()
 
             flowModel.getMapList("whens").forEach { whenModel ->
                 val commandName = whenModel.getString("command")
-                val command = commandByName[commandName]
-                    ?: error("Command '$commandName' not found in systems")
+                val command = commandByName.getOrPut(commandName) {
+                    ZflCommand(
+                        name = commandName,
+                        system = null,
+                        service = null,
+                        actor = null,
+                        sourceRef = sourceRefOf(flowName, commandName)
+                    )
+                }
 
                 val triggers = whenModel.getList("triggers")
                 val eventNames = whenModel.getList("events")
 
                 // Store when clause
-                whens += ZflWhen(
+                policies += ZflPolicy(
+                    description = whenModel.getString("javadoc"),
                     triggers = triggers,
+                    condition = JSONPath.get<String>(whenModel, "options.if"),
                     command = commandName,
                     events = eventNames,
                     sourceRef = sourceRefOf(flowName, commandName)
@@ -76,31 +100,31 @@ class ZflSemanticAnalyzer {
                     events.getOrPut(eventName) {
                         ZflEvent(
                             name = eventName,
+                            description = null, // TODO: get from model
                             system = command.system,
-                            isError = eventName.contains("Failed", ignoreCase = true),
+                            service = command.service,
+                            isError = false, // TODO: annotate in ZFL
                             sourceRef = sourceRefOf(flowName, eventName)
                         )
                     }
                 }
-
-                // conditional policies
-                whenModel.getMap("options")["if"]?.toString()?.let { condition ->
-                    policies += ZflPolicy(
-                        name = condition,
-                        fromEvent = triggers.joinToString(","),
-                        toCommand = commandName,
-                        system = command.system,
-                        sourceRef = sourceRefOf(flowName, commandName)
-                    )
-                }
             }
+            
+            val end = ZflEnd(
+                completed = JSONPath.get(flowModel, "end.completed", emptyList<String>()),
+                suspended = JSONPath.get(flowModel, "end.suspended", emptyList<String>()),
+                cancelled = JSONPath.get(flowModel, "end.cancelled", emptyList<String>()),
+                sourceRef = sourceRefOf(flowName, "end")
+            )
 
             flows += ZflFlow(
                 name = flowName,
+                description = flowModel.getString("javadoc"),
+                starts = starts,
+                end = end,
                 commands = commandByName.values.toList(),
                 events = events.values.toList(),
                 policies = policies,
-                whens = whens
             )
         }
 

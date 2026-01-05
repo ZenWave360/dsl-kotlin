@@ -52,7 +52,7 @@ class FlowLayoutEngineTest {
         val viewModel = layoutEngine.layout(flowIR)
 
         // Verify nodes are created
-        assertEquals(2, viewModel.nodes.size, "Should have 2 nodes")
+        assertEquals(4, viewModel.nodes.size, "Should have 4 nodes")
 
         // Verify all nodes have positions
         viewModel.nodes.forEach { node ->
@@ -69,7 +69,7 @@ class FlowLayoutEngineTest {
         }
 
         // Verify edges are created
-        assertEquals(2, viewModel.edges.size, "Should have 2 edges")
+        assertEquals(4, viewModel.edges.size, "Should have 4 edges")
 
         // Verify bounds are calculated
         assertTrue(viewModel.bounds.width > 0, "Bounds width should be > 0")
@@ -144,7 +144,7 @@ class FlowLayoutEngineTest {
         val viewModel = layoutEngine.layout(flowIR)
 
         // Verify nodes
-        assertEquals(16, viewModel.nodes.size, "Should have 16 nodes (7 commands + 7 events + 2 policies)")
+        assertEquals(23, viewModel.nodes.size, "Should have 23 nodes (7 commands + 7 events + 3 starts + 6 policies)")
 
         // Verify all nodes have valid positions and dimensions
         viewModel.nodes.forEach { node ->

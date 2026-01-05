@@ -7,7 +7,9 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 enum class FlowNodeType {
+    START,
     COMMAND,
     EVENT,
-    POLICY
+    POLICY,
+    END
 }

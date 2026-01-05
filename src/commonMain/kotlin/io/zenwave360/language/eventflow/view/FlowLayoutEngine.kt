@@ -180,9 +180,11 @@ class FlowLayoutEngine {
      */
     private fun semanticNodeSize(type: FlowNodeType): Dimensions {
         return when (type) {
+            FlowNodeType.START -> Dimensions(width = 180.0, height = 56.0)
             FlowNodeType.COMMAND -> Dimensions(width = 180.0, height = 56.0)
             FlowNodeType.EVENT -> Dimensions(width = 160.0, height = 48.0)
             FlowNodeType.POLICY -> Dimensions(width = 220.0, height = 64.0)
+            FlowNodeType.END -> Dimensions(width = 180.0, height = 56.0)
         }
     }
 

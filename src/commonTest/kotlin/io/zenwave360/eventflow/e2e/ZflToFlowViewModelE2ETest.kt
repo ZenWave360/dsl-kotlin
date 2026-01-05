@@ -4,6 +4,7 @@ import io.zenwave360.language.eventflow.ir.ZflToFlowIrTransformer
 import io.zenwave360.language.eventflow.view.*
 import io.zenwave360.language.zfl.ZflParser
 import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
+import io.zenwave360.language.zfl.semantic.toJsonString
 import io.zenwave360.zdl.internal.readTestFile
 import kotlin.test.*
 
@@ -51,7 +52,7 @@ class ZflToFlowViewModelE2ETest {
         val transformer = ZflToFlowIrTransformer()
         val flowIR = transformer.transform(semanticModel)
         assertNotNull(flowIR, "FlowIR should be created")
-        assertEquals(2, flowIR.nodes.size, "Should have 2 nodes (1 command + 1 event)")
+        assertEquals(4, flowIR.nodes.size, "Should have 4 nodes (1 command + 1 event + 1 start + 1 policy)")
 
         // Step 5: Apply layout to create FlowViewModel
         val layoutEngine = FlowLayoutEngine()
@@ -79,8 +80,8 @@ class ZflToFlowViewModelE2ETest {
 
         // Step 9: Validate FlowViewModel content
         assertEquals("zfl.eventflow.view@1", viewModel.schema)
-        assertEquals(2, viewModel.nodes.size)
-        assertEquals(2, viewModel.edges.size)
+        assertEquals(4, viewModel.nodes.size)
+        assertEquals(4, viewModel.edges.size)
         assertTrue(viewModel.bounds.width > 0)
         assertTrue(viewModel.bounds.height > 0)
     }
@@ -99,6 +100,7 @@ class ZflToFlowViewModelE2ETest {
         // Step 3: Perform semantic analysis
         val analyzer = ZflSemanticAnalyzer()
         val semanticModel = analyzer.analyze(zflModel)
+        println(semanticModel.toJsonString())
         assertNotNull(semanticModel, "Semantic model should be created")
         assertEquals(1, semanticModel.flows.size, "Should have 1 flow")
         assertEquals("PaymentsFlow", semanticModel.flows.first().name)
@@ -106,8 +108,9 @@ class ZflToFlowViewModelE2ETest {
         // Step 4: Transform to IR
         val transformer = ZflToFlowIrTransformer()
         val flowIR = transformer.transform(semanticModel)
+        println(flowIR.toJsonString())
         assertNotNull(flowIR, "FlowIR should be created")
-        assertEquals(16, flowIR.nodes.size, "Should have 16 nodes (7 commands + 7 events + 2 policies)")
+        assertEquals(23, flowIR.nodes.size, "Should have 23 nodes (7 commands + 7 events + 3 starts + 6 policies)")
 
         // Step 5: Apply layout to create FlowViewModel
         val layoutEngine = FlowLayoutEngine()
@@ -135,7 +138,7 @@ class ZflToFlowViewModelE2ETest {
 
         // Step 9: Validate FlowViewModel content
         assertEquals("zfl.eventflow.view@1", viewModel.schema)
-        assertEquals(16, viewModel.nodes.size)
+        assertEquals(23, viewModel.nodes.size)
         assertTrue(viewModel.edges.isNotEmpty())
         assertTrue(viewModel.systemGroups.isNotEmpty())
         assertEquals(3, viewModel.systemGroups.size, "Should have 3 system groups")
@@ -221,12 +224,7 @@ class ZflToFlowViewModelE2ETest {
 
         // Verify we have policy nodes
         val policyNodes = viewModel.nodes.filter { it.type.name == "POLICY" }
-        assertEquals(2, policyNodes.size, "Should have 2 policy nodes")
-
-        // Verify policy labels
-        val policyLabels = policyNodes.map { it.label }.toSet()
-        assertTrue(policyLabels.contains("retry count < 3"), "Should have first policy")
-        assertTrue(policyLabels.contains("retry count >= 3"), "Should have second policy")
+        assertEquals(3, policyNodes.size, "Should have 3 policy nodes")
     }
 
     @Test

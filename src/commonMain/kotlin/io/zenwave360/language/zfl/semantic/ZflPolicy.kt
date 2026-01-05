@@ -5,9 +5,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ZflPolicy(
-    val name: String,
-    val fromEvent: String,
-    val toCommand: String,
-    val system: String,
+    val description: String?,
+    val triggers: List<String>,
+    val condition: String?,
+    val command: String,
+    val events: List<String>,
     val sourceRef: SourceRef
 )
