@@ -53,12 +53,13 @@ jobs:
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
           SIGN_KEY_PASS: ${{ secrets.SIGN_KEY_PASS }}
 
-      - name: Publish JS package to npm
-        run: |
-          cd build/js/packages/zdl-kotlin
-          npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # NPM publishing disabled - uncomment when ready
+      # - name: Publish JS package to npm
+      #   run: |
+      #     cd build/js/packages/zdl-kotlin
+      #     npm publish
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
