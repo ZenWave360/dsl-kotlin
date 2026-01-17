@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.zenwave360.dsl"
-version = "1.5.0-SNAPSHOT"
+version = "1.6.0-SNAPSHOT"
 
 val antlrVersion = "4.13.2"
 
@@ -72,12 +72,7 @@ val generateJavaGrammarSource by tasks.registering(JavaExec::class) {
 mavenPublishing {
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
 
-    // Only sign if credentials are available (for CI/CD)
-    val signingKey = System.getenv("SIGN_KEY")
-    val signingPassword = System.getenv("SIGN_KEY_PASS")
-    if (!signingKey.isNullOrBlank() && !signingPassword.isNullOrBlank()) {
-        signAllPublications()
-    }
+    signAllPublications()
 
     pom {
         name.set("ZDL Kotlin Multiplatform")
@@ -282,3 +277,5 @@ tasks.register("koverPrintCoverageDetailed") {
         }
     }
 }
+
+
