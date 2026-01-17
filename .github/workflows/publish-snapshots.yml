@@ -51,10 +51,10 @@ jobs:
             build/reports/kover/
             build/reports/tests/
 
-#      - name: Publish snapshots to Maven Central
-#        run: ./gradlew publishAllPublicationsToOSSRHRepository
-#        env:
-#          MAVEN_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
-#          MAVEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN }}
-#          SIGN_KEY: ${{ secrets.SIGN_KEY }}
-#          SIGN_KEY_PASS: ${{ secrets.SIGN_KEY_PASS }}
+      - name: Publish snapshots to Maven Central
+        run: ./gradlew publishAllPublicationsToOSSRHRepository
+        env:
+          MAVEN_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN }}
+          SIGN_KEY: ${{ secrets.SIGN_KEY }}
+          SIGN_KEY_PASS: ${{ secrets.SIGN_KEY_PASS }}

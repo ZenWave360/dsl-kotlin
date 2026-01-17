@@ -106,15 +106,22 @@ class ZflToFlowIrTransformer {
             }
 
             // 5. Register end nodes
+            nodeMap[endId("completed")] = FlowNode(
+                id = endId("completed"),
+                type = FlowNodeType.END,
+                label = "Completed",
+                system = null,
+                service = null,
+                sourceRef = flow.end.sourceRef
+            )
             flow.end.completed.forEach { eventName ->
-                nodeMap[endId(eventName)] = FlowNode(
-                    id = endId(eventName),
-                    type = FlowNodeType.END,
-                    label = eventName,
-                    system = null,
-                    service = null,
+                edgeList.add(FlowEdge(
+                    id = edgeId(eventId(eventName), endId("completed")),
+                    source = eventId(eventName),
+                    target = endId("completed"),
+                    type = FlowEdgeType.CAUSATION,
                     sourceRef = flow.end.sourceRef
-                )
+                ))
             }
         }
 
