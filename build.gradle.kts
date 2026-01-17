@@ -75,7 +75,7 @@ mavenPublishing {
     // Only sign if credentials are available (for CI/CD)
     val signingKey = System.getenv("SIGN_KEY")
     val signingPassword = System.getenv("SIGN_KEY_PASS")
-    if (signingKey != null && signingPassword != null) {
+    if (!signingKey.isNullOrBlank() && !signingPassword.isNullOrBlank()) {
         signAllPublications()
     }
 
