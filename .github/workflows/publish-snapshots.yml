@@ -52,7 +52,7 @@ jobs:
             build/reports/tests/
 
       - name: Publish snapshots to Maven Central
-        run: ./gradlew publishAllPublicationsToOSSRHRepository
+        run: ./gradlew publishAllPublicationsToMavenCentralRepository
         env:
           MAVEN_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN }}
