@@ -10,39 +10,37 @@ class ZflSemanticAnalyzer {
         val actors = mutableMapOf<String, ZflActor>()
         val systems = mutableMapOf<String, ZflSystem>()
         val flows = mutableListOf<ZflFlow>()
+        val commandByName = mutableMapOf<String, ZflCommand>()
+
+        model.getSystems().values.forEach { systemData ->
+            val systemModel = systemData.asMapOrReturn { return@forEach }
+            val systemName = systemModel.getString("name")
+
+            systems[systemName] = ZflSystem(systemName)
+
+            systemModel.getMap("services").values.forEach { serviceData ->
+                val service = serviceData.asMapOrReturn { return@forEach }
+                val serviceName = service.getString("name")
+
+                service.getList("commands").forEach { commandName ->
+                    commandByName["$systemName.$serviceName.$commandName"] = ZflCommand(
+                        name = commandName,
+                        system = systemName,
+                        service = serviceName,
+                        actor = null,
+                        sourceRef = sourceRefOf("todo", commandName)
+                    )
+                }
+            }
+        }
 
         model.getFlows().values.forEach { flowData ->
             val flowModel = flowData.asMapOrReturn { return@forEach }
             val flowName = flowModel.getString("name")
 
-            // 1. Systems + commands
-            val commandByName = mutableMapOf<String, ZflCommand>()
-
-            flowModel.getMap("systems").values.forEach { systemData ->
-                val systemModel = systemData.asMapOrReturn { return@forEach }
-                val systemName = systemModel.getString("name")
-
-                systems[systemName] = ZflSystem(systemName)
-
-                systemModel.getMap("services").values.forEach { serviceData ->
-                    val service = serviceData.asMapOrReturn { return@forEach }
-                    val serviceName = service.getString("name")
-
-                    service.getList("commands").forEach { commandName ->
-                        commandByName[commandName] = ZflCommand(
-                            name = commandName,
-                            system = systemName,
-                            service = serviceName,
-                            actor = null,
-                            sourceRef = sourceRefOf(flowName, commandName)
-                        )
-                    }
-                }
-            }
-
             val starts = mutableListOf<ZflStart>()
 
-            // 2. Starts
+            // 1. Starts
             flowModel.getMap("starts").values.forEach { startData ->
                 val start = startData.asMapOrReturn { return@forEach }
                 val startName = start.getString("name")
@@ -66,18 +64,21 @@ class ZflSemanticAnalyzer {
                 }
             }
 
-            // 3. Events + policies + whens from whens
+            // 2. Events + policies + whens from whens
             val events = mutableMapOf<String, ZflEvent>()
             val policies = mutableListOf<ZflPolicy>()
 
             flowModel.getMapList("whens").forEach { whenModel ->
                 val commandName = whenModel.getString("command")
-                val command = commandByName.getOrPut(commandName) {
+                val systemName = whenModel.getString("system")
+                val serviceName = whenModel.getString("service")
+                val actor = JSONPath.get<String>(whenModel, "options.actor")
+                val command = commandByName.getOrPut("$systemName.$serviceName.$commandName") {
                     ZflCommand(
                         name = commandName,
-                        system = null,
-                        service = null,
-                        actor = null,
+                        system = systemName,
+                        service = serviceName,
+                        actor = actor,
                         sourceRef = sourceRefOf(flowName, commandName)
                     )
                 }

@@ -55,7 +55,7 @@ After the tag is created, create a GitHub Release:
 This automatically triggers the **Publish Release to Maven Central and NPM** workflow, which:
 - Builds and tests the project
 - Publishes to Maven Central
-- Publishes to NPM registry as `@zenwave360/zdl`
+- ~~Publishes to NPM registry as `@zenwave360/zdl`~~ (currently disabled)
 
 ### 3. Snapshot Releases
 
@@ -71,5 +71,5 @@ The following GitHub secrets must be configured for releases:
 - `CENTRAL_TOKEN` - Maven Central token
 - `SIGN_KEY` - GPG signing key
 - `SIGN_KEY_PASS` - GPG signing key password
-- `NPM_TOKEN` - NPM authentication token
+- ~~`NPM_TOKEN` - NPM authentication token~~ (not needed while NPM publishing is disabled)
 

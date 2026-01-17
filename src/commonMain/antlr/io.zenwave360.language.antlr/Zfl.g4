@@ -34,6 +34,7 @@ NULL: 'null';
 EQUALS: '=';
 ARRAY: '[]';
 OPTIONAL: '?';
+DOT: '.';
 
 // Keywords
 IMPORT: 'import';
@@ -70,7 +71,7 @@ PATTERN: 'pattern';
 OPTION_NAME: '@' [a-zA-Z_][a-zA-Z0-9_]*;
 
 fragment DIGIT : [0-9] ;
-ID: [a-zA-Z_][a-zA-Z0-9_.]*;
+ID: [a-zA-Z_][a-zA-Z0-9_]*;
 POLICY_ID: [a-zA-Z_][a-zA-Z0-9_-]*;
 INT: DIGIT+ ;
 NUMBER: DIGIT+ ([.] DIGIT+)? ;
@@ -100,7 +101,7 @@ PATTERN_REGEX: '/' .*? '/' ; // TODO: improve regex
 ERRCHAR: . -> channel(HIDDEN);
 
 // Rules
-zfl: import_* config? flow* EOF;
+zfl: import_* config? systems? flow* EOF;
 
 import_: '@import' LPAREN (import_value | import_key COLON import_value) RPAREN;
 import_key: ID;
@@ -147,21 +148,21 @@ option: option_name (LPAREN option_value RPAREN)?; // (LPAREN option_value RPARE
 option_name: OPTION_NAME;
 option_value: complex_value;
 
+// systems block
+systems: javadoc? annotations SYSTEMS LBRACE system* RBRACE;
+system: javadoc? annotations system_name LBRACE system_body RBRACE;
+system_name: ID;
+system_body: system_services;
+system_services: system_service*;
+system_service: SERVICE system_service_name (LBRACE system_service_body RBRACE)?;
+system_service_name: ID;
+system_service_body: COMMANDS COLON system_service_command_list;
+system_service_command_list: ID (COMMA ID)*;
+
 // flows
 flow: javadoc? annotations FLOW flow_name LBRACE flow_body RBRACE;
 flow_name: ID;
-flow_body: (flow_systems | flow_start | flow_when | flow_end)*;
-
-// systems block
-flow_systems: javadoc? annotations SYSTEMS LBRACE flow_system* RBRACE;
-flow_system: javadoc? annotations flow_system_name LBRACE flow_system_body RBRACE;
-flow_system_name: ID;
-flow_system_body: flow_system_services;
-flow_system_services: flow_system_service*;
-flow_system_service: SERVICE flow_system_service_name? LBRACE flow_system_service_body RBRACE;
-flow_system_service_name: ID;
-flow_system_service_body: COMMANDS COLON flow_system_service_command_list;
-flow_system_service_command_list: ID (COMMA ID)*;
+flow_body: (flow_start | flow_when | flow_end)*;
 
 // start events
 flow_start: javadoc? annotations START flow_start_name LBRACE fields RBRACE;
@@ -171,7 +172,11 @@ flow_start_name: ID;
 flow_when: javadoc? annotations WHEN flow_when_trigger LBRACE flow_when_body RBRACE;
 flow_when_trigger: flow_when_event_trigger (AND flow_when_event_trigger)*;
 flow_when_event_trigger: ID;
-flow_when_body: flow_when_command (flow_when_event)*;
+flow_when_body: flow_when_service? flow_when_command? (flow_when_event)*;
+flow_when_service: SERVICE flow_when_service_name;
+flow_when_service_name: flow_when_service_system_name DOT flow_when_service_service_name;
+flow_when_service_system_name: ID;
+flow_when_service_service_name: ID;
 flow_when_command: COMMAND flow_command_name;
 flow_command_name: ID;
 flow_when_event: EVENT flow_event_name;

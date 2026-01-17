@@ -51,7 +51,7 @@ private fun convertToPlain(value: Any?): Any? {
             }
             result
         }
-        is List<*> -> {
+        is Collection<*> -> {
             val result = js("[]")
             value.forEachIndexed { index, item ->
                 result[index] = convertToPlain(item)

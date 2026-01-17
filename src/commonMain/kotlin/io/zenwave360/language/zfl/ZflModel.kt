@@ -15,6 +15,7 @@ class ZflModel(private val delegate: MutableMap<String, Any?> = buildMap()) : Mu
         // Initialize top-level structure
         delegate.putEntry("imports", mutableListOf<Any?>())
         delegate.putEntry("config", buildMap())
+        delegate.putEntry("systems", buildMap())
         delegate.putEntry("flows", buildMap())
         delegate.putEntry("locations", buildMap())
         delegate.putEntry("problems", mutableListOf<Any?>())
@@ -27,6 +28,9 @@ class ZflModel(private val delegate: MutableMap<String, Any?> = buildMap()) : Mu
     fun appendTo(collection: String, key: String, value: Any?): ZflModel { delegate.appendTo(collection, key, value); return this }
     fun appendToWithMap(collection: String, map: Map<String, Any?>): ZflModel { delegate.appendToWithMap(collection, map); return this }
     fun appendToList(collection: String, value: Any?): ZflModel { delegate.appendToList(collection, value); return this }
+
+    @Suppress("UNCHECKED_CAST")
+    fun getSystems(): MutableMap<String, Any?> = delegate["systems"] as MutableMap<String, Any?>
 
     @Suppress("UNCHECKED_CAST")
     fun getFlows(): MutableMap<String, Any?> = delegate["flows"] as MutableMap<String, Any?>

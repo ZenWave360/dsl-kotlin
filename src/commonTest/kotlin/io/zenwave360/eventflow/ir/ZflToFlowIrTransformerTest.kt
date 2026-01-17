@@ -28,7 +28,7 @@ class ZflToFlowIrTransformerTest {
         val eventNodes = flowIR.nodes.filter { it.type == FlowNodeType.EVENT }
         val policyNodes = flowIR.nodes.filter { it.type == FlowNodeType.POLICY }
         
-        assertEquals(7, commandNodes.size, "Should have 7 command nodes")
+        assertEquals(6, commandNodes.size, "Should have 6 command nodes")
         assertEquals(7, eventNodes.size, "Should have 7 event nodes")
         assertEquals(6, policyNodes.size, "Should have 6 policy nodes")
         
@@ -138,14 +138,14 @@ class ZflToFlowIrTransformerTest {
     @Test
     fun testTransform_SimpleFlow() {
         val zflContent = """
-            flow SimpleFlow {
-                systems {
-                    TestSystem {
-                        service TestService {
-                            commands: doSomething
-                        }
+            systems {
+                TestSystem {
+                    service TestService {
+                        commands: doSomething
                     }
                 }
+            }
+            flow SimpleFlow {
                 
                 start UserAction {
                 }
@@ -167,7 +167,7 @@ class ZflToFlowIrTransformerTest {
         val flowIR = transformer.transform(semanticModel)
         
         // Should have 3 nodes: 1 command, 2 events (UserAction + SomethingDone)
-        assertEquals(4, flowIR.nodes.size)
+        assertEquals(5, flowIR.nodes.size)
         
         // Should have 2 edges: UserAction → doSomething, doSomething → SomethingDone
         assertEquals(4, flowIR.edges.size)

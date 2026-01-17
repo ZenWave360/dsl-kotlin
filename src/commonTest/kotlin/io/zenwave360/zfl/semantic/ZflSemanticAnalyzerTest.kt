@@ -31,7 +31,7 @@ class ZflSemanticAnalyzerTest {
         assertTrue(semanticModel.systems.containsKey("Billing"))
         
         // Verify commands
-        assertEquals(7, flow.commands.size, "Should have 7 commands total")
+        assertEquals(6, flow.commands.size, "Should have 6 commands total")
         val commandNames = flow.commands.map { it.name }.toSet()
         assertTrue(commandNames.contains("renewSubscription"))
         assertTrue(commandNames.contains("suspendSubscription"))
@@ -39,7 +39,6 @@ class ZflSemanticAnalyzerTest {
         assertTrue(commandNames.contains("chargePayment"))
         assertTrue(commandNames.contains("retryPayment"))
         assertTrue(commandNames.contains("recordPayment"))
-        assertTrue(commandNames.contains("generateInvoice"))
         
         // Verify command-system mapping
         val renewCommand = flow.commands.find { it.name == "renewSubscription" }
@@ -50,10 +49,7 @@ class ZflSemanticAnalyzerTest {
         assertNotNull(chargeCommand)
         assertEquals("Payments", chargeCommand.system)
         
-        val generateCommand = flow.commands.find { it.name == "generateInvoice" }
-        assertNotNull(generateCommand)
-        assertEquals("Billing", generateCommand.system)
-        
+
         // Verify actors
         assertEquals(1, semanticModel.actors.size, "Should have 1 actor")
         assertTrue(semanticModel.actors.containsKey("Customer"))
@@ -125,15 +121,15 @@ class ZflSemanticAnalyzerTest {
     fun testAnalyze_MultipleActors() {
         // Test with a flow that has multiple actors
         val zflContent = """
-            flow TestFlow {
-                systems {
-                    TestSystem {
-                        service TestService {
-                            commands: testCommand
-                        }
+            systems {
+                TestSystem {
+                    service TestService {
+                        commands: testCommand
                     }
                 }
-
+            }
+            flow TestFlow {
+                
                 @actor(User)
                 start UserAction {
                 }

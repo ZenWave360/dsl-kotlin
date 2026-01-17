@@ -48,22 +48,23 @@ describe('ZFL Parser - Subscriptions', () => {
 
     describe('systems', () => {
         it('should have 3 systems', () => {
-            assert.equal(mapSize(jsonPath(model, "$.flows.PaymentsFlow.systems")), 3);
+            assert.equal(mapSize(jsonPath(model, "$.systems")), 3);
         });
 
         describe('Subscription system', () => {
             it('should have correct name and zdl', () => {
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.systems.Subscription.name"), "Subscription");
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.systems.Subscription.options.zdl"), "subscription/model.zdl");
+                assert.equal(jsonPath(model, "$.systems.Subscription.name"), "Subscription");
+                assert.equal(jsonPath(model, "$.systems.Subscription.options.zdl"), "subscription/model.zdl");
             });
 
             it('should have 1 service', () => {
-                assert.equal(mapSize(jsonPath(model, "$.flows.PaymentsFlow.systems.Subscription.services")), 1);
+                assert.equal(mapSize(jsonPath(model, "$.systems.Subscription.services")), 1);
             });
 
             it('should have SubscriptionService with correct commands', () => {
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.systems.Subscription.services.SubscriptionService.name"), "SubscriptionService");
-                const commands = jsonPath(model, "$.flows.PaymentsFlow.systems.Subscription.services.SubscriptionService.commands");
+                assert.equal(jsonPath(model, "$.systems.Subscription.services.SubscriptionService.name"), "SubscriptionService");
+                const service = jsonPath(model, "$.systems.Subscription.services.SubscriptionService")
+                const commands = jsonPath(model, "$.systems.Subscription.services.SubscriptionService.commands");
                 assert.equal(arraySize(commands), 3);
                 assert.equal(commands[0], "renewSubscription");
                 assert.equal(commands[1], "suspendSubscription");
@@ -73,17 +74,17 @@ describe('ZFL Parser - Subscriptions', () => {
 
         describe('Payments system', () => {
             it('should have correct name', () => {
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.systems.Payments.name"), "Payments");
+                assert.equal(jsonPath(model, "$.systems.Payments.name"), "Payments");
             });
 
             it('should not have zdl', () => {
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.systems.Payments.zdl"), null);
+                assert.equal(jsonPath(model, "$.systems.Payments.zdl"), null);
             });
         });
 
         describe('Billing system', () => {
             it('should have correct name', () => {
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.systems.Billing.name"), "Billing");
+                assert.equal(jsonPath(model, "$.systems.Billing.name"), "Billing");
             });
         });
     });

@@ -16,7 +16,6 @@ class ZflParser {
         val listener = ZflListenerImpl()
         val zflRoot = parser.zfl()
         ParseTreeWalker.DEFAULT.walk(listener, zflRoot)
-
         return listener.model
     }
 }

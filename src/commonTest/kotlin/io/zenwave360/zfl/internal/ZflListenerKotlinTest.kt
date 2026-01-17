@@ -1,8 +1,8 @@
 package io.zenwave360.zfl.internal
 
 import io.zenwave360.language.utils.JSONPath
-import io.zenwave360.language.zfl.ZflParser
 import io.zenwave360.language.zfl.ZflModel
+import io.zenwave360.language.zfl.ZflParser
 import io.zenwave360.zdl.internal.readTestFile
 import kotlin.test.*
 
@@ -32,37 +32,37 @@ class ZflListenerKotlinTest {
         assertNotNull(JSONPath.get(model, "$.flows.PaymentsFlow.javadoc"))
 
         // Test systems
-        assertEquals(3, (JSONPath.get(model, "$.flows.PaymentsFlow.systems") as? Map<*, *>)?.size ?: 0)
+        assertEquals(3, (JSONPath.get(model, "$.systems") as? Map<*, *>)?.size ?: 0)
 
         // Test Subscription system
-        assertEquals("Subscription", JSONPath.get(model, "$.flows.PaymentsFlow.systems.Subscription.name"))
+        assertEquals("Subscription", JSONPath.get(model, "$.systems.Subscription.name"))
         assertEquals(
             "subscription/model.zdl",
-            JSONPath.get(model, "$.flows.PaymentsFlow.systems.Subscription.options.zdl")
+            JSONPath.get(model, "$.systems.Subscription.options.zdl")
         )
         assertEquals(
             1,
-            (JSONPath.get(model, "$.flows.PaymentsFlow.systems.Subscription.services") as? Map<*, *>)?.size
+            (JSONPath.get(model, "$.systems.Subscription.services") as? Map<*, *>)?.size
                 ?: 0
         )
         assertEquals(
             "SubscriptionService",
-            JSONPath.get(model, "$.flows.PaymentsFlow.systems.Subscription.services.SubscriptionService.name")
+            JSONPath.get(model, "$.systems.Subscription.services.SubscriptionService.name")
         )
         assertEquals(
-            listOf("renewSubscription", "suspendSubscription", "cancelRenewal"),
+            setOf("renewSubscription", "suspendSubscription", "cancelRenewal"),
             JSONPath.get(
                 model,
-                "$.flows.PaymentsFlow.systems.Subscription.services.SubscriptionService.commands"
+                "$.systems.Subscription.services.SubscriptionService.commands"
             )
         )
 
         // Test Payments system
-        assertEquals("Payments", JSONPath.get(model, "$.flows.PaymentsFlow.systems.Payments.name"))
-        assertNull(JSONPath.get(model, "$.flows.PaymentsFlow.systems.Payments.zdl"))
+        assertEquals("Payments", JSONPath.get(model, "$.systems.Payments.name"))
+        assertNull(JSONPath.get(model, "$.systems.Payments.zdl"))
 
         // Test Billing system
-        assertEquals("Billing", JSONPath.get(model, "$.flows.PaymentsFlow.systems.Billing.name"))
+        assertEquals("Billing", JSONPath.get(model, "$.systems.Billing.name"))
 
         // Test start events
         assertEquals(3, (JSONPath.get(model, "$.flows.PaymentsFlow.starts") as? Map<*, *>)?.size ?: 0)

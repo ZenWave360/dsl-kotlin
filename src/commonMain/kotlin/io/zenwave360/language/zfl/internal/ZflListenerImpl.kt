@@ -81,12 +81,12 @@ class ZflListenerImpl : ZflBaseListener() {
     }
 
     // Systems block
-    override fun enterFlow_systems(ctx: ZflParser.Flow_systemsContext) {
+    override fun enterSystems(ctx: ZflParser.SystemsContext) {
         model.setLocation("systems", getLocations(ctx))
     }
 
-    override fun enterFlow_system(ctx: ZflParser.Flow_systemContext) {
-        val name = getText(ctx.flow_system_name())
+    override fun enterSystem(ctx: ZflParser.SystemContext) {
+        val name = getText(ctx.system_name())
         val jd = javadoc(ctx.javadoc())
         
         currentStack.addLast(buildMap()
@@ -99,25 +99,24 @@ class ZflListenerImpl : ZflBaseListener() {
         )
 
         model.setLocation("systems.$name", getLocations(ctx))
-        model.setLocation("systems.${name}.name", getLocations(ctx.flow_system_name()))
-        
-        val flow = currentStack[currentStack.size - 2]
+        model.setLocation("systems.${name}.name", getLocations(ctx.system_name()))
+
         @Suppress("UNCHECKED_CAST")
-        (flow["systems"] as MutableMap<String, Any?>)[name!!] = currentStack.last()
+        (model["systems"] as MutableMap<String, Any?>)[name!!] = currentStack.last()
     }
 
-    override fun exitFlow_system(ctx: ZflParser.Flow_systemContext) {
+    override fun exitSystem(ctx: ZflParser.SystemContext) {
         currentStack.removeLast()
     }
 
-    override fun enterFlow_system_service(ctx: ZflParser.Flow_system_serviceContext) {
-        val serviceName = if (ctx.flow_system_service_name() != null) 
-            getText(ctx.flow_system_service_name()) else "DefaultService"
+    override fun enterSystem_service(ctx: ZflParser.System_serviceContext) {
+        val serviceName = if (ctx.system_service_name() != null)
+            getText(ctx.system_service_name()) else "DefaultService"
 
         val service = buildMap()
             .with("name", serviceName)
             .with("options", buildMap())
-            .with("commands", mutableListOf<Any?>())
+            .with("commands", mutableSetOf<Any?>())
         
         currentStack.addLast(service)
         val system = currentStack[currentStack.size - 2]
@@ -126,15 +125,15 @@ class ZflListenerImpl : ZflBaseListener() {
 
         val systemName = system["name"]
         model.setLocation("systems.${systemName}.services.$serviceName", getLocations(ctx))
-        model.setLocation("systems.${systemName}.services.$serviceName.name", getLocations(ctx.flow_system_service_name()))
+        model.setLocation("systems.${systemName}.services.$serviceName.name", getLocations(ctx.system_service_name()))
     }
 
-    override fun exitFlow_system_service(ctx: ZflParser.Flow_system_serviceContext) {
+    override fun exitSystem_service(ctx: ZflParser.System_serviceContext) {
         currentStack.removeLast()
     }
 
-    override fun enterFlow_system_service_body(ctx: ZflParser.Flow_system_service_bodyContext) {
-        val commands = getArray(ctx.flow_system_service_command_list(), ",")
+    override fun enterSystem_service_body(ctx: ZflParser.System_service_bodyContext) {
+        val commands = getArray(ctx.system_service_command_list(), ",")
         currentStack.last()["commands"] = commands
     }
 
@@ -202,15 +201,31 @@ class ZflListenerImpl : ZflBaseListener() {
 
         model.setLocation("whens[${whens.size - 1}]", getLocations(ctx))
         model.setLocation("whens[${whens.size - 1}].triggers", getLocations(ctx.flow_when_trigger()))
+
+        //
+        val serviceNameContext = ctx.flow_when_body().flow_when_service()?.flow_when_service_name()
+        val systemName = getText(serviceNameContext?.flow_when_service_system_name())?: "DefaultSystem"
+        val serviceName = getText(serviceNameContext?.flow_when_service_service_name())?: "DefaultService"
+        whenBlock["system"] = systemName
+        whenBlock["service"] = serviceName
+
+        val systems = model.getOrPut("systems") { mutableMapOf<String, Any>() } as MutableMap<String, Any>
+        val system = systems.getOrPut(systemName) { mutableMapOf<String, Any>() } as MutableMap<String, Any>
+        val services = system.getOrPut("services") { mutableMapOf<String, Any>() } as MutableMap<String, Any>
+        val service = services.getOrPut(serviceName) {
+            buildMap()
+                .with("name", serviceName)
+                .with("commands", mutableSetOf<Any?>()) } as MutableMap<String, Any>
+
+        //
+        val commandName = getText(ctx.flow_when_body().flow_when_command()?.flow_command_name())
+        whenBlock["command"] = commandName
+        @Suppress("UNCHECKED_CAST")
+        (service["commands"] as MutableCollection<Any?>).add(commandName)
     }
 
     override fun exitFlow_when(ctx: ZflParser.Flow_whenContext) {
         currentStack.removeLast()
-    }
-
-    override fun enterFlow_when_command(ctx: ZflParser.Flow_when_commandContext) {
-        val commandName = getText(ctx.flow_command_name())
-        currentStack.last()["command"] = commandName
     }
 
     override fun enterFlow_when_event(ctx: ZflParser.Flow_when_eventContext) {
