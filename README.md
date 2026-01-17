@@ -1,6 +1,4 @@
 
-> **Work in Progress**: Migration to kotlin multiplatform from the original [zdl-jvm](https://github.com/ZenWave360/zdl-jvm) repository.
-
 ZenWave Domain Model Language
 =====================================
 
@@ -25,7 +23,7 @@ Usage:
 
 ```xml
 <dependency>
-    <groupId>io.zenwave360.sdk</groupId>
+    <groupId>io.zenwave360.dsl</groupId>
     <artifactId>dsl-kotlin-jvm</artifactId>
     <version>${dsl-kotlin.version}</version>
 </dependency>
@@ -40,6 +38,8 @@ ZdlModel model = parser.parseModel(zdlContent);
 NOTE: jvm version includes a working ZdlParser compiled from Kotlin ANTL4 target and also just the Parser/Lexer from the Java target for use by intellij-antlr-adapter.
 
 * JavaScript/TypeScript:
+
+NOTE: pending publishing to npm-registy
 
 ```bash
 npm install @zenwave360/dsl
