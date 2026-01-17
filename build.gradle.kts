@@ -72,12 +72,7 @@ val generateJavaGrammarSource by tasks.registering(JavaExec::class) {
 mavenPublishing {
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
 
-    // Only sign if credentials are available (for CI/CD)
-    val signingKey = System.getenv("SIGN_KEY")
-    val signingPassword = System.getenv("SIGN_KEY_PASS")
-    if (!signingKey.isNullOrBlank() && !signingPassword.isNullOrBlank()) {
-        signAllPublications()
-    }
+    signAllPublications()
 
     pom {
         name.set("ZDL Kotlin Multiplatform")

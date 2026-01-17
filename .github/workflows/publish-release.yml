@@ -50,8 +50,8 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.CENTRAL_TOKEN }}
-          SIGN_KEY: ${{ secrets.SIGN_KEY }}
-          SIGN_KEY_PASS: ${{ secrets.SIGN_KEY_PASS }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGN_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGN_KEY_PASS }}
 
       # NPM publishing disabled - uncomment when ready
       # - name: Publish JS package to npm
