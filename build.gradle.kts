@@ -1,3 +1,5 @@
+import org.gradle.plugins.signing.Sign
+
 plugins {
     kotlin("multiplatform") version "2.0.21"
     kotlin("plugin.serialization") version "2.0.21"
@@ -176,6 +178,15 @@ java {
 
 tasks.clean {
     delete("bin")
+}
+
+// Disable signing tasks when credentials are not available
+val signingKey = System.getenv("SIGN_KEY")
+val signingPassword = System.getenv("SIGN_KEY_PASS")
+if (signingKey.isNullOrBlank() || signingPassword.isNullOrBlank()) {
+    tasks.withType<Sign>().configureEach {
+        enabled = false
+    }
 }
 
 // generateJavaGrammarSource must run before jvmProcessResources
