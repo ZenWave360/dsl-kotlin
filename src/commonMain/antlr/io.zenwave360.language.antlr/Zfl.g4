@@ -7,7 +7,7 @@ grammar Zfl;
                 val currentTokenIndex = currentToken!!.tokenIndex;
                 val prevToken = tokenStream.get(currentTokenIndex - 1); // getTokenStream().get(currentTokenIndex - 1);
                 if(prevToken?.text?.contains("\n") == true) {
-                    println("RULE_suffix_javadoc")
+                    // println("RULE_suffix_javadoc")
                     val t = currentToken!!;
                     return t;
                 }
