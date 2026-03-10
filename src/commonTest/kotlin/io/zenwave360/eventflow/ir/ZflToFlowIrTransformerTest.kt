@@ -1,12 +1,12 @@
 package io.zenwave360.eventflow.ir
 
-import io.zenwave360.language.eventflow.ir.*
+import io.zenwave360.language.eventflow.view.*
 import io.zenwave360.language.zfl.ZflParser
 import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
 import io.zenwave360.zdl.internal.readTestFile
 import kotlin.test.*
 
-class ZflToFlowIrTransformerTest {
+class ZflToFlowViewModelTransformerTest {
 
     @Test
     fun testTransform_SubscriptionsFlow() {
@@ -14,9 +14,9 @@ class ZflToFlowIrTransformerTest {
         val content = readTestFile("flow/subscriptions.zfl")
         val model = ZflParser().parseModel(content)
         val semanticModel = ZflSemanticAnalyzer().analyze(model)
-        
-        // Transform to IR
-        val transformer = ZflToFlowIrTransformer()
+
+        // Transform to FlowViewModel (without layout)
+        val transformer = ZflToFlowViewModelTransformer()
         val flowIR = transformer.transform(semanticModel)
         
         // Verify nodes
@@ -128,13 +128,13 @@ class ZflToFlowIrTransformerTest {
     fun testTransform_EmptyModel() {
         val model = ZflParser().parseModel("")
         val semanticModel = ZflSemanticAnalyzer().analyze(model)
-        val transformer = ZflToFlowIrTransformer()
+        val transformer = ZflToFlowViewModelTransformer()
         val flowIR = transformer.transform(semanticModel)
-        
+
         assertEquals(0, flowIR.nodes.size)
         assertEquals(0, flowIR.edges.size)
     }
-    
+
     @Test
     fun testTransform_SimpleFlow() {
         val zflContent = """
@@ -163,7 +163,7 @@ class ZflToFlowIrTransformerTest {
         
         val model = ZflParser().parseModel(zflContent)
         val semanticModel = ZflSemanticAnalyzer().analyze(model)
-        val transformer = ZflToFlowIrTransformer()
+        val transformer = ZflToFlowViewModelTransformer()
         val flowIR = transformer.transform(semanticModel)
         
         // Should have 3 nodes: 1 command, 2 events (UserAction + SomethingDone)

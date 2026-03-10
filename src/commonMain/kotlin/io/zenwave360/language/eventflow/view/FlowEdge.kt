@@ -1,4 +1,4 @@
-package io.zenwave360.language.eventflow.ir
+package io.zenwave360.language.eventflow.view
 
 import io.zenwave360.language.source.SourceRef
 import kotlinx.serialization.Serializable
@@ -15,3 +15,4 @@ data class FlowEdge(
     val label: String? = null,
     val sourceRef: SourceRef? = null
 )
+

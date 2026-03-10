@@ -1,6 +1,5 @@
 package io.zenwave360.eventflow.e2e
 
-import io.zenwave360.language.eventflow.ir.ZflToFlowIrTransformer
 import io.zenwave360.language.eventflow.view.*
 import io.zenwave360.language.zfl.ZflParser
 import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
@@ -47,13 +46,13 @@ class ZflToFlowViewModelE2ETest {
         assertNotNull(semanticModel, "Semantic model should be created")
         assertEquals(1, semanticModel.flows.size, "Should have 1 flow")
 
-        // Step 4: Transform to IR
-        val transformer = ZflToFlowIrTransformer()
+        // Step 4: Transform to FlowViewModel (without layout)
+        val transformer = ZflToFlowViewModelTransformer()
         val flowIR = transformer.transform(semanticModel)
-        assertNotNull(flowIR, "FlowIR should be created")
+        assertNotNull(flowIR, "FlowViewModel should be created")
         assertEquals(5, flowIR.nodes.size, "Should have 4 nodes (1 command + 1 event + 1 start + 1 policy + 1 end)")
 
-        // Step 5: Apply layout to create FlowViewModel
+        // Step 5: Apply layout to create positioned FlowViewModel
         val layoutEngine = FlowLayoutEngine()
         val viewModel = layoutEngine.layout(flowIR)
         assertNotNull(viewModel, "FlowViewModel should be created")
@@ -81,8 +80,8 @@ class ZflToFlowViewModelE2ETest {
         assertEquals("zfl.eventflow.view@1", viewModel.schema)
         assertEquals(5, viewModel.nodes.size)
         assertEquals(4, viewModel.edges.size)
-        assertTrue(viewModel.bounds.width > 0)
-        assertTrue(viewModel.bounds.height > 0)
+        assertTrue(viewModel.bounds!!.width > 0)
+        assertTrue(viewModel.bounds!!.height > 0)
     }
 
     @Test
@@ -104,14 +103,14 @@ class ZflToFlowViewModelE2ETest {
         assertEquals(1, semanticModel.flows.size, "Should have 1 flow")
         assertEquals("PaymentsFlow", semanticModel.flows.first().name)
 
-        // Step 4: Transform to IR
-        val transformer = ZflToFlowIrTransformer()
+        // Step 4: Transform to FlowViewModel (without layout)
+        val transformer = ZflToFlowViewModelTransformer()
         val flowIR = transformer.transform(semanticModel)
         println(flowIR.toJsonString())
-        assertNotNull(flowIR, "FlowIR should be created")
+        assertNotNull(flowIR, "FlowViewModel should be created")
         assertEquals(23, flowIR.nodes.size, "Should have 23 nodes (7 commands + 7 events + 3 starts + 6 policies)")
 
-        // Step 5: Apply layout to create FlowViewModel
+        // Step 5: Apply layout to create positioned FlowViewModel
         val layoutEngine = FlowLayoutEngine()
         val viewModel = layoutEngine.layout(flowIR)
         assertNotNull(viewModel, "FlowViewModel should be created")
@@ -139,30 +138,30 @@ class ZflToFlowViewModelE2ETest {
         assertEquals("zfl.eventflow.view@1", viewModel.schema)
         assertEquals(23, viewModel.nodes.size)
         assertTrue(viewModel.edges.isNotEmpty())
-        assertTrue(viewModel.systemGroups.isNotEmpty())
-//        assertEquals(3, viewModel.systemGroups.size, "Should have 3 system groups")
+        assertTrue(viewModel.systemGroups?.isNotEmpty() ?: false)
+//        assertEquals(3, viewModel.systemGroups?.size, "Should have 3 system groups")
 
         // Verify system groups
-        val systemNames = viewModel.systemGroups.map { it.systemName }.toSet()
+        val systemNames = viewModel.systemGroups!!.map { it.systemName }.toSet()
         assertTrue(systemNames.contains("Subscription"), "Should have Subscription system")
         assertTrue(systemNames.contains("Payments"), "Should have Payments system")
 //        assertTrue(systemNames.contains("Billing"), "Should have Billing system")
 
         // Verify layout metadata
-        assertEquals("zfl-layered", viewModel.layout.engine)
-        assertTrue(viewModel.layout.rankSpacing > 0)
-        assertTrue(viewModel.layout.nodeSpacing > 0)
+        assertEquals("zfl-timeline", viewModel.layout!!.engine)
+        assertTrue(viewModel.layout!!.rankSpacing > 0)
+        assertTrue(viewModel.layout!!.nodeSpacing > 0)
 
         // Verify bounds
-        assertTrue(viewModel.bounds.width > 0)
-        assertTrue(viewModel.bounds.height > 0)
+        assertTrue(viewModel.bounds!!.width > 0)
+        assertTrue(viewModel.bounds!!.height > 0)
 
         // Verify all nodes have valid positions and dimensions
         viewModel.nodes.forEach { node ->
-            assertTrue(node.position.x >= 0, "Node ${node.id} x should be >= 0")
-            assertTrue(node.position.y >= 0, "Node ${node.id} y should be >= 0")
-            assertTrue(node.dimensions.width > 0, "Node ${node.id} width should be > 0")
-            assertTrue(node.dimensions.height > 0, "Node ${node.id} height should be > 0")
+            assertTrue(node.position!!.x >= 0, "Node ${node.id} x should be >= 0")
+            assertTrue(node.position!!.y >= 0, "Node ${node.id} y should be >= 0")
+            assertTrue(node.dimensions!!.width > 0, "Node ${node.id} width should be > 0")
+            assertTrue(node.dimensions!!.height > 0, "Node ${node.id} height should be > 0")
         }
     }
 
@@ -206,7 +205,7 @@ class ZflToFlowViewModelE2ETest {
         val parser = ZflParser()
         val zflModel = parser.parseModel(zflContent)
         val semanticModel = ZflSemanticAnalyzer().analyze(zflModel)
-        val flowIR = ZflToFlowIrTransformer().transform(semanticModel)
+        val flowIR = ZflToFlowViewModelTransformer().transform(semanticModel)
         val viewModel = FlowLayoutEngine().layout(flowIR)
 
         // Step 6: Convert to JSON
@@ -252,7 +251,7 @@ class ZflToFlowViewModelE2ETest {
         // Create FlowViewModel through the pipeline
         val viewModel = ZflParser().parseModel(zflContent)
             .let { ZflSemanticAnalyzer().analyze(it) }
-            .let { ZflToFlowIrTransformer().transform(it) }
+            .let { ZflToFlowViewModelTransformer().transform(it) }
             .let { FlowLayoutEngine().layout(it) }
 
         // Convert to JSON

@@ -1,19 +1,20 @@
-package io.zenwave360.language.eventflow.ir
+package io.zenwave360.language.eventflow.view
 
 import io.zenwave360.language.zfl.semantic.*
 
 /**
- * Transforms a ZFL semantic model into the canonical EventFlow IR.
+ * Transforms a ZFL semantic model into a FlowViewModel (without layout).
  *
  * Mental model:
  * Each when in ZFL expresses:
  *   (trigger event[s]) → [optional policy] → command → emitted event[s]
  *
  * The transformer's job is to make this chain explicit as nodes and edges.
+ * The resulting FlowViewModel has no layout (position/dimensions are null).
  */
-class ZflToFlowIrTransformer {
+class ZflToFlowViewModelTransformer {
 
-    fun transform(semanticModel: ZflSemanticModel): FlowIR {
+    fun transform(semanticModel: ZflSemanticModel): FlowViewModel {
         val nodeMap = mutableMapOf<String, FlowNode>()
         val edgeList = mutableListOf<FlowEdge>()
 
@@ -67,7 +68,7 @@ class ZflToFlowIrTransformer {
                     id = policyNodeId(policy),
                     type = FlowNodeType.POLICY,
                     label = policyLabel(policy),
-                    system = null, // nodeMap[commandId(policy.command)]?.system,
+                    system = null,
                     service = null,
                     sourceRef = policy.sourceRef
                 )
@@ -76,7 +77,7 @@ class ZflToFlowIrTransformer {
                     val edgeType = if (policy.condition != null) FlowEdgeType.CONDITIONAL else FlowEdgeType.TRIGGER
                     edgeList.add(
                         FlowEdge(
-                            id = edgeId(eventId(eventName),policyNodeId(policy)),
+                            id = edgeId(eventId(eventName), policyNodeId(policy)),
                             source = eventId(eventName),
                             target = policyNodeId(policy),
                             type = edgeType,
@@ -85,7 +86,7 @@ class ZflToFlowIrTransformer {
                     )
                     edgeList.add(
                         FlowEdge(
-                            id = edgeId(policyNodeId(policy),commandId(policy.command)),
+                            id = edgeId(policyNodeId(policy), commandId(policy.command)),
                             source = policyNodeId(policy),
                             target = commandId(policy.command),
                             type = edgeType,
@@ -125,31 +126,21 @@ class ZflToFlowIrTransformer {
             }
         }
 
-        return FlowIR(
+        return FlowViewModel(
             nodes = nodeMap.values.toList(),
             edges = edgeList
         )
     }
 
-    private fun startId(start: String): String =
-        "start:${start}"
-
-    private fun eventId(event: String): String =
-        "event:${event}"
-
-    private fun commandId(command: String): String =
-        "command:${command}"
-
-    private fun edgeId(source: String, target: String): String =
-        "from[$source]to[$target]"
-
-    private fun endId(end: String): String =
-        "end:${end}"
-
+    private fun startId(start: String): String = "start:${start}"
+    private fun eventId(event: String): String = "event:${event}"
+    private fun commandId(command: String): String = "command:${command}"
+    private fun edgeId(source: String, target: String): String = "from[$source]to[$target]"
+    private fun endId(end: String): String = "end:${end}"
     private fun policyNodeId(policy: ZflPolicy): String =
         "policy:${policy.triggers.joinToString(",")}:${policy.command}"
-
     private fun policyLabel(policy: ZflPolicy): String =
         "when ${policy.triggers.joinToString(",")} do ${policy.command}" +
                 (if (policy.condition != null) " if ${policy.condition}" else "")
 }
+

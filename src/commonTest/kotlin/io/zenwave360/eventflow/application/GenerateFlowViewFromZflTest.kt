@@ -1,7 +1,6 @@
 package io.zenwave360.eventflow.application
 
 import io.zenwave360.language.eventflow.application.GenerateFlowViewFromZfl
-import io.zenwave360.language.eventflow.view.toJsonString
 import io.zenwave360.zdl.internal.readTestFile
 import kotlin.test.Test
 

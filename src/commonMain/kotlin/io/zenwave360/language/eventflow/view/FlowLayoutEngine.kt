@@ -1,25 +1,21 @@
 package io.zenwave360.language.eventflow.view
 
-import io.zenwave360.language.eventflow.ir.FlowEdge
-import io.zenwave360.language.eventflow.ir.FlowIR
-import io.zenwave360.language.eventflow.ir.FlowNode
-import io.zenwave360.language.eventflow.ir.FlowNodeType
-
 class FlowLayoutEngine {
 
     private val rankSpacing = 200.0
     private val nodeSpacing = 80.0
     private val systemGroupPadding = 40.0
     private val canvasPadding = 20.0
+    private val laneHeight = 200.0
 
-    fun layout(flowIR: FlowIR): FlowViewModel {
-        if (flowIR.nodes.isEmpty()) {
-            return FlowViewModel(
+    fun layout(viewModel: FlowViewModel): FlowViewModel {
+        if (viewModel.nodes.isEmpty()) {
+            return viewModel.copy(
                 nodes = emptyList(),
                 edges = emptyList(),
                 systemGroups = emptyList(),
                 layout = LayoutMetadata(
-                    engine = "zfl-layered",
+                    engine = "zfl-timeline",
                     direction = Direction.LR,
                     rankSpacing = rankSpacing,
                     nodeSpacing = nodeSpacing
@@ -28,36 +24,30 @@ class FlowLayoutEngine {
             )
         }
 
-        // Step 1: Assign nodes to layers (ranks) based on topological order
-        val layers = assignNodesToLayers(flowIR.nodes, flowIR.edges)
+        // Step 1: Assign nodes to timeline positions based on temporal sequence
+        val timeline = assignNodesToTimeline(viewModel.nodes, viewModel.edges)
 
-        // Step 2: Calculate positions for each node
-        val nodeViews = calculateNodePositions(layers, flowIR.nodes)
+        // Step 2: Calculate system lanes for vertical positioning
+        val systemLanes = calculateSystemLanes(viewModel.nodes)
 
-        // Step 3: Create edge views
-        val edgeViews = flowIR.edges.map { edge ->
-            FlowEdgeView(
-                id = edge.id,
-                source = edge.source,
-                target = edge.target,
-                type = edge.type,
-                label = edge.label,
-                sourceRef = edge.sourceRef
-            )
-        }
+        // Step 3: Calculate positions for each node
+        val positionedNodes = calculateNodePositions(timeline, systemLanes, viewModel.nodes)
 
-        // Step 4: Calculate system groups
-        val systemGroups = calculateSystemGroups(nodeViews)
+        // Step 4: Pass through edges unchanged (FlowEdge is already the unified type)
+        val edges = viewModel.edges
 
-        // Step 5: Calculate overall bounds
-        val bounds = calculateBounds(nodeViews)
+        // Step 5: Calculate system groups
+        val systemGroups = calculateSystemGroups(positionedNodes)
 
-        return FlowViewModel(
-            nodes = nodeViews,
-            edges = edgeViews,
+        // Step 6: Calculate overall bounds
+        val bounds = calculateBounds(positionedNodes)
+
+        return viewModel.copy(
+            nodes = positionedNodes,
+            edges = edges,
             systemGroups = systemGroups,
             layout = LayoutMetadata(
-                engine = "zfl-layered",
+                engine = "zfl-timeline",
                 direction = Direction.LR,
                 rankSpacing = rankSpacing,
                 nodeSpacing = nodeSpacing
@@ -67,112 +57,184 @@ class FlowLayoutEngine {
     }
 
     /**
-     * Assigns nodes to layers based on topological order.
-     * Returns a map of layer index to list of node IDs.
+     * Assigns nodes to timeline positions based on temporal sequence.
+     * Timeline follows event storming principles: START → EVENT → POLICY → COMMAND → EVENT → ... → END
+     *
+     * This implementation uses a topological sort with strict ordering constraints:
+     * - Commands must immediately precede their resulting events
+     * - Events must immediately precede any policies they trigger
+     * - END nodes are always positioned at the rightmost position
+     *
+     * Returns a map of timeline position to list of node IDs.
      */
-    private fun assignNodesToLayers(nodes: List<FlowNode>, edges: List<FlowEdge>): Map<Int, List<String>> {
+    private fun assignNodesToTimeline(nodes: List<FlowNode>, edges: List<FlowEdge>): Map<Int, List<String>> {
         val nodeMap = nodes.associateBy { it.id }
-        val inDegree = mutableMapOf<String, Int>()
+        val nodePosition = mutableMapOf<String, Int>()
         val outEdges = mutableMapOf<String, MutableList<String>>()
+        val inEdges = mutableMapOf<String, MutableList<String>>()
+        val inDegree = mutableMapOf<String, Int>()
 
-        // Initialize in-degree and out-edges
+        // Build adjacency lists and in-degree map
         nodes.forEach { node ->
-            inDegree[node.id] = 0
             outEdges[node.id] = mutableListOf()
+            inEdges[node.id] = mutableListOf()
+            inDegree[node.id] = 0
         }
 
         edges.forEach { edge ->
             if (nodeMap.containsKey(edge.source) && nodeMap.containsKey(edge.target)) {
-                inDegree[edge.target] = (inDegree[edge.target] ?: 0) + 1
                 outEdges[edge.source]?.add(edge.target)
+                inEdges[edge.target]?.add(edge.source)
+                inDegree[edge.target] = (inDegree[edge.target] ?: 0) + 1
             }
         }
 
-        // Topological sort with layer assignment
-        val layers = mutableMapOf<Int, MutableList<String>>()
-        val nodeLayer = mutableMapOf<String, Int>()
-        val queue = ArrayDeque<Pair<String, Int>>()
+        // Separate nodes by type for processing
+        val startNodes = nodes.filter { it.type == FlowNodeType.START }.sortedBy { it.id }
+        val endNodes = nodes.filter { it.type == FlowNodeType.END }.sortedBy { it.id }
 
-        // Start with nodes that have no incoming edges
-        inDegree.forEach { (nodeId, degree) ->
-            if (degree == 0) {
-                queue.add(nodeId to 0)
-                nodeLayer[nodeId] = 0
-            }
+        // Position 0: All START nodes
+        var currentPosition = 0
+        startNodes.forEach { node ->
+            nodePosition[node.id] = currentPosition
+        }
+        if (startNodes.isNotEmpty()) {
+            currentPosition++
         }
 
-        while (queue.isNotEmpty()) {
-            val (nodeId, layer) = queue.removeFirst()
-            layers.getOrPut(layer) { mutableListOf() }.add(nodeId)
+        // Use modified topological sort with strict temporal ordering
+        val processed = mutableSetOf<String>()
+        startNodes.forEach { processed.add(it.id) }
 
-            outEdges[nodeId]?.forEach { targetId ->
-                val currentDegree = inDegree[targetId] ?: 0
-                inDegree[targetId] = currentDegree - 1
+        // Process nodes in waves, respecting dependencies and event storming order
+        while (processed.size < nodes.size - endNodes.size) {
+            val readyNodes = nodes.filter { node ->
+                !processed.contains(node.id) &&
+                node.type != FlowNodeType.END &&
+                (inEdges[node.id]?.all { processed.contains(it) } ?: true)
+            }
 
-                if (inDegree[targetId] == 0) {
-                    val targetLayer = layer + 1
-                    nodeLayer[targetId] = targetLayer
-                    queue.add(targetId to targetLayer)
+            if (readyNodes.isEmpty()) {
+                // Handle remaining unprocessed nodes (disconnected or cyclic)
+                nodes.filter { !processed.contains(it.id) && it.type != FlowNodeType.END }.forEach { node ->
+                    nodePosition[node.id] = currentPosition
+                    processed.add(node.id)
+                }
+                if (nodePosition.values.any { it == currentPosition }) {
+                    currentPosition++
+                }
+                break
+            }
+
+            // Group ready nodes by type and process in event storming order
+            val nodesByType = readyNodes.groupBy { it.type }
+
+            // Process in strict order: EVENT → POLICY → COMMAND
+            val processingOrder = listOf(
+                FlowNodeType.EVENT,
+                FlowNodeType.POLICY,
+                FlowNodeType.COMMAND
+            )
+
+            processingOrder.forEach { type ->
+                nodesByType[type]?.sortedBy { it.id }?.forEach { node ->
+                    nodePosition[node.id] = currentPosition
+                    processed.add(node.id)
                 }
             }
+
+            currentPosition++
         }
 
-        // Handle any remaining nodes (cycles or disconnected nodes)
-        nodes.forEach { node ->
-            if (!nodeLayer.containsKey(node.id)) {
-                val layer = (nodeLayer.values.maxOrNull() ?: -1) + 1
-                layers.getOrPut(layer) { mutableListOf() }.add(node.id)
-                nodeLayer[node.id] = layer
-            }
+        // Position END nodes at the rightmost position
+        endNodes.forEach { node ->
+            nodePosition[node.id] = currentPosition
         }
 
-        // Sort nodes within each layer for stable ordering (by ID)
-        return layers.mapValues { (_, nodeIds) ->
+        // Group nodes by their timeline position
+        val timeline = mutableMapOf<Int, MutableList<String>>()
+        nodePosition.forEach { (nodeId, position) ->
+            timeline.getOrPut(position) { mutableListOf() }.add(nodeId)
+        }
+
+        // Sort nodes within each timeline position for stable ordering
+        return timeline.mapValues { (_, nodeIds) ->
             nodeIds.sortedBy { it }
         }
     }
 
     /**
-     * Calculates positions for all nodes based on their layer assignment.
+     * Calculates system lanes for vertical positioning.
+     * Each system gets its own horizontal lane (y-axis grouping).
+     * Returns a map of system name to lane index.
+     */
+    private fun calculateSystemLanes(nodes: List<FlowNode>): Map<String?, Int> {
+        val systems = nodes.mapNotNull { it.system }.distinct().sorted()
+        val lanes = mutableMapOf<String?, Int>()
+
+        // Assign lane 0 to null system (default lane)
+        lanes[null] = 0
+
+        // Assign lanes to other systems
+        var laneIndex = 1
+        systems.forEach { system ->
+            lanes[system] = laneIndex++
+        }
+
+        return lanes
+    }
+
+    /**
+     * Calculates positions for all nodes based on their timeline position and system lane.
+     * X-coordinate is determined by timeline position (temporal sequence).
+     * Y-coordinate is determined by system lane (swim lane).
      */
     private fun calculateNodePositions(
-        layers: Map<Int, List<String>>,
+        timeline: Map<Int, List<String>>,
+        systemLanes: Map<String?, Int>,
         nodes: List<FlowNode>
-    ): List<FlowNodeView> {
+    ): List<FlowNode> {
         val nodeMap = nodes.associateBy { it.id }
-        val nodeViews = mutableListOf<FlowNodeView>()
+        val positionedNodes = mutableListOf<FlowNode>()
 
-        layers.entries.sortedBy { it.key }.forEach { (layerIndex, nodeIds) ->
-            val x = canvasPadding + layerIndex.toDouble() * rankSpacing
-            var y = canvasPadding
+        // Track vertical position within each lane at each timeline position
+        val lanePositions = mutableMapOf<Pair<Int, Int>, Double>()
 
-            // Group nodes by system within the layer for better visual grouping
-            val groupedNodes = nodeIds.groupBy { nodeId -> nodeMap[nodeId]?.system }
-            val sortedGroups = groupedNodes.entries.sortedBy { it.key ?: "" }
+        timeline.entries.sortedBy { it.key }.forEach { (timelinePos, nodeIds) ->
+            val x = canvasPadding + timelinePos.toDouble() * rankSpacing
 
-            sortedGroups.forEach { (system, groupNodeIds) ->
-                groupNodeIds.forEach { nodeId ->
+            // Group nodes by system lane
+            val nodesByLane = nodeIds.groupBy { nodeId ->
+                val node = nodeMap[nodeId]
+                systemLanes[node?.system] ?: 0
+            }
+
+            nodesByLane.entries.sortedBy { it.key }.forEach { (laneIndex, laneNodeIds) ->
+                // Calculate base Y position for this lane
+                val baseY = canvasPadding + laneIndex.toDouble() * laneHeight
+
+                // Get current Y position within this lane at this timeline position
+                val key = Pair(timelinePos, laneIndex)
+                var y = lanePositions.getOrDefault(key, baseY)
+
+                laneNodeIds.sortedBy { it }.forEach { nodeId ->
                     val node = nodeMap[nodeId] ?: return@forEach
                     val dimensions = semanticNodeSize(node.type)
 
-                    nodeViews.add(
-                        FlowNodeView(
-                            id = node.id,
-                            type = node.type,
-                            label = node.label,
+                    positionedNodes.add(
+                        node.copy(
                             position = Point(x, y),
-                            dimensions = dimensions,
-                            system = node.system,
-                            sourceRef = node.sourceRef
+                            dimensions = dimensions
                         )
                     )
 
                     y += dimensions.height + nodeSpacing
+                    lanePositions[key] = y
                 }
             }
         }
 
-        return nodeViews
+        return positionedNodes
     }
 
     /**
@@ -190,17 +252,18 @@ class FlowLayoutEngine {
 
     /**
      * Calculates bounding boxes for system groups.
+     * Expects nodes with position/dimensions already set.
      */
-    private fun calculateSystemGroups(nodeViews: List<FlowNodeView>): List<FlowSystemGroupView> {
-        val systemNodes = nodeViews.groupBy { it.system }
+    private fun calculateSystemGroups(nodes: List<FlowNode>): List<FlowSystemGroupView> {
+        val systemNodes = nodes.groupBy { it.system }
 
-        return systemNodes.mapNotNull { (systemName, nodes) ->
+        return systemNodes.mapNotNull { (systemName, systemNodeList) ->
             if (systemName == null) return@mapNotNull null
 
-            val minX = nodes.minOf { it.position.x } - systemGroupPadding
-            val minY = nodes.minOf { it.position.y } - systemGroupPadding
-            val maxX = nodes.maxOf { it.position.x + it.dimensions.width } + systemGroupPadding
-            val maxY = nodes.maxOf { it.position.y + it.dimensions.height } + systemGroupPadding
+            val minX = systemNodeList.minOf { it.position!!.x } - systemGroupPadding
+            val minY = systemNodeList.minOf { it.position!!.y } - systemGroupPadding
+            val maxX = systemNodeList.maxOf { it.position!!.x + it.dimensions!!.width } + systemGroupPadding
+            val maxY = systemNodeList.maxOf { it.position!!.y + it.dimensions!!.height } + systemGroupPadding
 
             FlowSystemGroupView(
                 systemName = systemName,
@@ -216,16 +279,17 @@ class FlowLayoutEngine {
 
     /**
      * Calculates overall bounds of the flow diagram.
+     * Expects nodes with position/dimensions already set.
      */
-    private fun calculateBounds(nodeViews: List<FlowNodeView>): FlowBounds {
-        if (nodeViews.isEmpty()) {
+    private fun calculateBounds(nodes: List<FlowNode>): FlowBounds {
+        if (nodes.isEmpty()) {
             return FlowBounds(0.0, 0.0, 0.0, 0.0)
         }
 
-        val minX = nodeViews.minOf { it.position.x }
-        val minY = nodeViews.minOf { it.position.y }
-        val maxX = nodeViews.maxOf { it.position.x + it.dimensions.width }
-        val maxY = nodeViews.maxOf { it.position.y + it.dimensions.height }
+        val minX = nodes.minOf { it.position!!.x }
+        val minY = nodes.minOf { it.position!!.y }
+        val maxX = nodes.maxOf { it.position!!.x + it.dimensions!!.width }
+        val maxY = nodes.maxOf { it.position!!.y + it.dimensions!!.height }
 
         return FlowBounds(
             x = 0.0,
