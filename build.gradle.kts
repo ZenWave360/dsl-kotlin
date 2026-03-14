@@ -106,6 +106,10 @@ repositories {
     mavenCentral()
 }
 
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+    compilerOptions.freeCompilerArgs.add("-Xexpect-actual-classes")
+}
+
 kotlin {
     jvm {
         withJava() // Enables Java compilation for the JVM target
@@ -148,6 +152,7 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 compileOnly("org.antlr:antlr4-runtime:$antlrVersion")
+                implementation("org.eclipse.elk:org.eclipse.elk.alg.layered:0.10.0")
             }
         }
         val jvmTest by getting

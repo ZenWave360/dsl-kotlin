@@ -215,7 +215,7 @@ class FlowLayoutEngine {
 
                 // Get current Y position within this lane at this timeline position
                 val key = Pair(timelinePos, laneIndex)
-                var y = lanePositions.getOrDefault(key, baseY)
+                var y = lanePositions.getOrElse(key, { baseY })
 
                 laneNodeIds.sortedBy { it }.forEach { nodeId ->
                     val node = nodeMap[nodeId] ?: return@forEach

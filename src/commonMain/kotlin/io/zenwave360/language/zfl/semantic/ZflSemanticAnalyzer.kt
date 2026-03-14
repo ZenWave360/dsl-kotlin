@@ -112,9 +112,9 @@ class ZflSemanticAnalyzer {
             }
             
             val end = ZflEnd(
-                completed = JSONPath.get(flowModel, "end.completed", emptyList<String>()),
-                suspended = JSONPath.get(flowModel, "end.suspended", emptyList<String>()),
-                cancelled = JSONPath.get(flowModel, "end.cancelled", emptyList<String>()),
+                completed = JSONPath.get(flowModel, "end.outcomes.completed", emptyList<String>()),
+                suspended = JSONPath.get(flowModel, "end.outcomes.suspended", emptyList<String>()),
+                cancelled = JSONPath.get(flowModel, "end.outcomes.cancelled", emptyList<String>()),
                 sourceRef = sourceRefOf(flowName, "end")
             )
 

@@ -47,14 +47,12 @@ class ZflToFlowViewModelE2ETest {
         assertEquals(1, semanticModel.flows.size, "Should have 1 flow")
 
         // Step 4: Transform to FlowViewModel (without layout)
-        val transformer = ZflToFlowViewModelTransformer()
-        val flowIR = transformer.transform(semanticModel)
-        assertNotNull(flowIR, "FlowViewModel should be created")
-        assertEquals(5, flowIR.nodes.size, "Should have 4 nodes (1 command + 1 event + 1 start + 1 policy + 1 end)")
+        val unpositioned = ZflToFlowViewModelTransformer().transform(semanticModel)
+        assertNotNull(unpositioned, "FlowViewModel should be created")
+        assertEquals(5, unpositioned.nodes.size, "Should have 4 nodes (1 command + 1 event + 1 start + 1 policy + 1 end)")
 
         // Step 5: Apply layout to create positioned FlowViewModel
-        val layoutEngine = FlowLayoutEngine()
-        val viewModel = layoutEngine.layout(flowIR)
+        val viewModel = FlowLayoutEngine().layout(unpositioned)
         assertNotNull(viewModel, "FlowViewModel should be created")
 
         // Step 6: Convert to JSON string
@@ -104,15 +102,13 @@ class ZflToFlowViewModelE2ETest {
         assertEquals("PaymentsFlow", semanticModel.flows.first().name)
 
         // Step 4: Transform to FlowViewModel (without layout)
-        val transformer = ZflToFlowViewModelTransformer()
-        val flowIR = transformer.transform(semanticModel)
-        println(flowIR.toJsonString())
-        assertNotNull(flowIR, "FlowViewModel should be created")
-        assertEquals(23, flowIR.nodes.size, "Should have 23 nodes (7 commands + 7 events + 3 starts + 6 policies)")
+        val unpositioned = ZflToFlowViewModelTransformer().transform(semanticModel)
+        println(unpositioned.toJsonString())
+        assertNotNull(unpositioned, "FlowViewModel should be created")
+        assertEquals(23, unpositioned.nodes.size, "Should have 23 nodes (7 commands + 7 events + 3 starts + 6 policies)")
 
         // Step 5: Apply layout to create positioned FlowViewModel
-        val layoutEngine = FlowLayoutEngine()
-        val viewModel = layoutEngine.layout(flowIR)
+        val viewModel = FlowLayoutEngine().layout(unpositioned)
         assertNotNull(viewModel, "FlowViewModel should be created")
 
         // Step 6: Convert to JSON string
@@ -205,8 +201,7 @@ class ZflToFlowViewModelE2ETest {
         val parser = ZflParser()
         val zflModel = parser.parseModel(zflContent)
         val semanticModel = ZflSemanticAnalyzer().analyze(zflModel)
-        val flowIR = ZflToFlowViewModelTransformer().transform(semanticModel)
-        val viewModel = FlowLayoutEngine().layout(flowIR)
+        val viewModel = FlowLayoutEngine().layout(ZflToFlowViewModelTransformer().transform(semanticModel))
 
         // Step 6: Convert to JSON
         val jsonOutput = viewModel.toJsonString()

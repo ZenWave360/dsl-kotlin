@@ -1,12 +1,16 @@
 /**
- * TypeScript representation of FlowViewModel and related types
- * Converted from Kotlin source files in io.zenwave360.language.eventflow.view
+ * TypeScript interfaces mirroring the JSON serialization of
+ * io.zenwave360.language.eventflow.view.FlowViewModel (and its dependencies).
+ *
+ * No behaviour — structure only. Communication between Kotlin and TypeScript
+ * is done by passing JSON objects whose shape is defined here.
  */
 
-/**
- * Represents a precise location in a source file.
- * Lines and columns are 1-based.
- */
+// ============================================================================
+// io.zenwave360.language.source
+// ============================================================================
+
+/** Precise location in a source file. Lines and columns are 1-based. */
 export interface SourceRef {
   file: string;
   line: number;
@@ -14,12 +18,10 @@ export interface SourceRef {
 }
 
 // ============================================================================
-// Shared semantic enum types
+// io.zenwave360.language.eventflow.view — enums
 // ============================================================================
 
-/**
- * Semantic types of nodes in an event flow.
- */
+/** Semantic type of a node in an event flow. */
 export enum FlowNodeType {
   START = "START",
   COMMAND = "COMMAND",
@@ -28,9 +30,7 @@ export enum FlowNodeType {
   END = "END"
 }
 
-/**
- * Semantic meaning of a relationship between nodes.
- */
+/** Semantic meaning of a relationship between two flow nodes. */
 export enum FlowEdgeType {
   CAUSATION = "CAUSATION",
   TRIGGER = "TRIGGER",
@@ -38,24 +38,44 @@ export enum FlowEdgeType {
   ERROR = "ERROR"
 }
 
+/** Layout direction produced by the layout engine. */
+export enum Direction {
+  LR = "LR",
+  TB = "TB"
+}
+
 // ============================================================================
-// Unified FlowViewModel types (semantic + optional layout)
+// io.zenwave360.language.eventflow.view — value types
 // ============================================================================
 
+/** Absolute (x, y) position in the canvas. */
 export interface Point {
   x: number;
   y: number;
 }
 
+/** Width and height of a node. */
 export interface Dimensions {
   width: number;
   height: number;
 }
 
+/** Axis-aligned bounding box. */
+export interface FlowBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+// ============================================================================
+// io.zenwave360.language.eventflow.view — main types
+// ============================================================================
+
 /**
  * A node in an event-driven flow.
  *
- * Semantic properties are always populated. Layout properties (position,
+ * Semantic properties are always present. Layout properties (position,
  * dimensions) are null until the layout engine has been applied.
  */
 export interface FlowNode {
@@ -65,181 +85,54 @@ export interface FlowNode {
   system: string | null;
   service: string | null;
   sourceRef: SourceRef;
-  /** Absolute position (x, y) in the canvas. Null until layout is applied. */
-  position?: Point | null;
-  /** Width and height of the node. Null until layout is applied. */
-  dimensions?: Dimensions | null;
+  /** Null until layout is applied. */
+  position: Point | null;
+  /** Null until layout is applied. */
+  dimensions: Dimensions | null;
 }
 
-/**
- * Directed relationship between two flow nodes.
- */
+/** Directed relationship between two flow nodes. */
 export interface FlowEdge {
   id: string;
   source: string;
   target: string;
   type: FlowEdgeType;
-  label?: string | null;
-  sourceRef?: SourceRef | null;
+  label: string | null;
+  sourceRef: SourceRef | null;
 }
 
-export interface FlowBounds {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-/**
- * Visual grouping of nodes by system (swim lane).
- * Each system gets its own horizontal lane in the timeline layout.
- */
+/** Visual grouping of nodes that belong to the same system (swim lane). */
 export interface FlowSystemGroupView {
-  /** Name of the system (e.g., "Subscription", "Payments", "Billing") */
   systemName: string;
-  /** Bounding box that encompasses all nodes in this system */
   bounds: FlowBounds;
 }
 
-export enum Direction {
-  LR = "LR",
-  TB = "TB"
-}
-
-/**
- * Layout metadata describing how the flow was positioned.
- */
+/** Metadata describing the algorithm used to position the flow. */
 export interface LayoutMetadata {
-  /** Layout engine identifier. Current value: "zfl-timeline" */
   engine: string;
-  /** Layout direction: LR (left-to-right) or TB (top-to-bottom) */
   direction: Direction;
-  /** Horizontal spacing between timeline positions (x-axis) */
   rankSpacing: number;
-  /** Vertical spacing between nodes within the same lane (y-axis) */
   nodeSpacing: number;
 }
 
 /**
- * Unified view model for rendering an event-driven flow diagram.
+ * Unified view model for an event-driven flow diagram.
  *
- * Before layout is applied: nodes and edges are populated, layout/bounds/systemGroups are null.
- * After layout is applied: all fields are populated and nodes have position/dimensions set.
+ * Before layout: nodes and edges are populated; layout, bounds, and
+ * systemGroups are null.
+ * After layout: all fields are populated and every node has position and
+ * dimensions set.
  */
 export interface FlowViewModel {
-  /** Schema version identifier (e.g., "zfl.eventflow.view@1") */
+  /** Schema version, e.g. "zfl.eventflow.view@1". */
   schema: string;
-  /** All nodes in the flow (with optional positions after layout) */
   nodes: FlowNode[];
-  /** All edges connecting the nodes */
   edges: FlowEdge[];
-  /** Layout algorithm metadata. Null until layout is applied. */
-  layout?: LayoutMetadata | null;
-  /** Overall bounding box of the entire flow diagram. Null until layout is applied. */
-  bounds?: FlowBounds | null;
-  /** System groupings (swim lanes). Null until layout is applied. */
-  systemGroups?: FlowSystemGroupView[] | null;
-}
-
-/**
- * Factory function to create a FlowViewModel with default values
- */
-export function createFlowViewModel(
-  partial: Partial<FlowViewModel> & { nodes: FlowNode[]; edges: FlowEdge[] }
-): FlowViewModel {
-  return {
-    schema: "zfl.eventflow.view@1",
-    ...partial
-  };
-}
-
-// ============================================================================
-// ZFL Semantic Model Types
-// ============================================================================
-
-export enum Severity {
-  INFO = "INFO",
-  WARNING = "WARNING",
-  ERROR = "ERROR"
-}
-
-export interface ZflSemanticDiagnostic {
-  message: string;
-  severity: Severity;
-  sourceRef: SourceRef | null;
-}
-
-export interface ZflActor {
-  name: string;
-  sourceRef: SourceRef | null;
-}
-
-export interface ZflCommand {
-  name: string;
-  system: string | null;
-  service: string | null;
-  actor: string | null;
-  sourceRef: SourceRef;
-}
-
-export interface ZflEvent {
-  name: string;
-  description: string | null;
-  system: string | null;
-  service: string | null;
-  isError: boolean;
-  sourceRef: SourceRef;
-}
-
-export interface ZflPolicy {
-  description: string;
-  triggers: string[];
-  condition: string | null;
-  command: string;
-  events: string[];
-  sourceRef: SourceRef;
-}
-
-export interface ZflStart {
-  description: string;
-  name: string;
-  actor: string | null;
-  timer: string | null;
-  system: string | null;
-  sourceRef: SourceRef;
-}
-
-export interface ZflEnd {
-  completed: string[];
-  suspended: string[];
-  cancelled: string[];
-  sourceRef: SourceRef;
-}
-
-export interface ZflFlow {
-  name: string;
-  description: string;
-  starts: ZflStart[];
-  policies: ZflPolicy[];
-  commands: ZflCommand[];
-  events: ZflEvent[];
-  end: ZflEnd;
-}
-
-export interface ZflService {
-  name: string;
-  boundedContext: boolean;
-}
-
-export interface ZflSystem {
-  name: string;
-  services: Record<string, ZflService>;
-}
-
-export interface ZflSemanticModel {
-  flows: ZflFlow[];
-  systems: Record<string, ZflSystem>;
-  actors: Record<string, ZflActor>;
-  diagnostics: ZflSemanticDiagnostic[];
+  /** Null until layout is applied. */
+  layout: LayoutMetadata | null;
+  /** Null until layout is applied. */
+  bounds: FlowBounds | null;
+  /** Null until layout is applied. */
+  systemGroups: FlowSystemGroupView[] | null;
 }
 
