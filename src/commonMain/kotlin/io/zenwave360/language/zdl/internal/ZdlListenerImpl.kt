@@ -576,6 +576,12 @@ class ZdlListenerImpl : ZdlBaseListener() {
         val withEvents = getServiceMethodEvents(location, ctx.with_events())
         val jd = javadoc(first(ctx.javadoc(), ctx.suffix_javadoc()))
 
+        val transition = ctx.service_method_transition()
+        val fromStates = transition?.service_method_from_states()
+            ?.service_method_state()
+            ?.map { it.text }
+        val toState = transition?.service_method_to_state()?.text
+
         val method = buildMap()
             .with("name", methodName)
             .with("serviceName", serviceName)
@@ -587,6 +593,8 @@ class ZdlListenerImpl : ZdlBaseListener() {
             .with("returnType", returnType)
             .with("returnTypeIsArray", returnTypeIsArray)
             .with("returnTypeIsOptional", returnTypeIsOptional)
+            .with("from", fromStates)
+            .with("to", toState)
             .with("withEvents", withEvents)
             .with("javadoc", jd)
         currentStack.last().appendTo("methods", methodName, method)
@@ -596,6 +604,10 @@ class ZdlListenerImpl : ZdlBaseListener() {
         model.setLocation("$location.name", getLocations(ctx.service_method_name()))
         model.setLocation("$location.parameter", getLocations(ctx.service_method_parameter()))
         model.setLocation("$location.returnType", getLocations(ctx.service_method_return()))
+        transition?.let {
+            model.setLocation("$location.from", getLocations(it.service_method_from_states()))
+            model.setLocation("$location.to", getLocations(it.service_method_to_state()))
+        }
     }
 
     override fun exitService_method(ctx: ZdlParser.Service_methodContext) { currentStack.removeLast() }

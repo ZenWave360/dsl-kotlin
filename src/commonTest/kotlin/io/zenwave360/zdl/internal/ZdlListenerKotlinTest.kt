@@ -191,6 +191,52 @@ class ZdlListenerKotlinTest {
     }
 
     @Test
+    fun parseZdl_ServiceLifecycle() {
+        val model = parseZdl("service-lifecycle.zdl")
+        val problems = JSONPath.get(model, "$.problems", emptyList<Any>()) as? List<*> ?: emptyList<Any>()
+        assertEquals(0, problems.size, "expected no validation problems but got: $problems")
+
+        // ── Entity @lifecycle annotation stored in options ────────────────────
+        assertEquals("status",  JSONPath.get(model, "$.entities.Order.options.lifecycle.statusField"))
+        assertEquals("DRAFT",   JSONPath.get(model, "$.entities.Order.options.lifecycle.initialState"))
+        assertEquals("status",  JSONPath.get(model, "$.entities.Invoice.options.lifecycle.statusField"))
+        assertEquals("OPEN",    JSONPath.get(model, "$.entities.Invoice.options.lifecycle.initialState"))
+        // entity without @lifecycle must have no lifecycle option
+        assertNull(JSONPath.get(model, "$.entities.Item.options.lifecycle"))
+
+        // ── Single-aggregate service: OrderService ────────────────────────────
+        // placeOrder: single from state
+        assertEquals(listOf("DRAFT"), JSONPath.get(model, "$.services.OrderService.methods.placeOrder.from"))
+        assertEquals("PLACED",        JSONPath.get(model, "$.services.OrderService.methods.placeOrder.to"))
+        assertEquals(listOf("OrderPlaced"), JSONPath.get(model, "$.services.OrderService.methods.placeOrder.withEvents"))
+
+        // cancelOrder: multiple from states
+        assertEquals(listOf("DRAFT", "PLACED"), JSONPath.get(model, "$.services.OrderService.methods.cancelOrder.from"))
+        assertEquals("CANCELLED",               JSONPath.get(model, "$.services.OrderService.methods.cancelOrder.to"))
+
+        // addNote: no transition — from and to must be null
+        assertNull(JSONPath.get(model, "$.services.OrderService.methods.addNote.from"))
+        assertNull(JSONPath.get(model, "$.services.OrderService.methods.addNote.to"))
+
+        // createOrder: no id, no transition — must parse cleanly
+        assertNull(JSONPath.get(model, "$.services.OrderService.methods.createOrder.from"))
+        assertNull(JSONPath.get(model, "$.services.OrderService.methods.createOrder.to"))
+
+        // ── Multi-aggregate service: OrderInvoiceService ─────────────────────
+        // placeOrderMixed returnType=Order → resolved as target
+        assertEquals(listOf("DRAFT"), JSONPath.get(model, "$.services.OrderInvoiceService.methods.placeOrderMixed.from"))
+        assertEquals("PLACED",        JSONPath.get(model, "$.services.OrderInvoiceService.methods.placeOrderMixed.to"))
+
+        // payInvoice returnType=Invoice → resolved as target
+        assertEquals(listOf("OPEN"), JSONPath.get(model, "$.services.OrderInvoiceService.methods.payInvoice.from"))
+        assertEquals("PAID",         JSONPath.get(model, "$.services.OrderInvoiceService.methods.payInvoice.to"))
+
+        // ── ItemService: no lifecycle, no transitions — must parse cleanly ────
+        assertNull(JSONPath.get(model, "$.services.ItemService.methods.createItem.from"))
+        assertNull(JSONPath.get(model, "$.services.ItemService.methods.createItem.to"))
+    }
+
+    @Test
     fun parseZdl_StateMachine() {
         val model = parseZdl("state-machine.zdl")
         val problems = JSONPath.get(model, "$.problems", emptyList<Any>()) as? List<*> ?: emptyList<Any>()
