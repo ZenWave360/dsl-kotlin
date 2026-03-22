@@ -471,6 +471,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
             .with("className", camelCase(aggregateName!!))
             .with("javadoc", jd)
             .with("aggregateRoot", aggregateRoot)
+            .with("lifecycle", null)
             .with("commands", buildMap())
         )
         model.appendTo("aggregates", aggregateName, currentStack.last())
@@ -484,6 +485,21 @@ class ZdlListenerImpl : ZdlBaseListener() {
 
     override fun exitAggregate(ctx: ZdlParser.AggregateContext) { currentStack.removeLast() }
 
+    override fun enterAggregate_lifecycle(ctx: ZdlParser.Aggregate_lifecycleContext) {
+        val statusField = ctx.aggregate_lifecycle_field().text
+        val initialState = ctx.aggregate_lifecycle_initial_state().text
+        val lifecycle = buildMap()
+            .with("statusField", statusField)
+            .with("initialState", initialState)
+        currentStack.last().with("lifecycle", lifecycle)
+
+        val aggregateName = currentStack.last()["name"]
+        val location = "aggregates.$aggregateName.lifecycle"
+        model.setLocation(location, getLocations(ctx))
+        model.setLocation("$location.statusField", getLocations(ctx.aggregate_lifecycle_field()))
+        model.setLocation("$location.initialState", getLocations(ctx.aggregate_lifecycle_initial_state()))
+    }
+
     override fun enterAggregate_command(ctx: ZdlParser.Aggregate_commandContext) {
         val aggregateName = getText((ctx.getParent() as ZdlParser.AggregateContext).aggregate_name())!!
         val commandName = getText(ctx.aggregate_command_name())!!
@@ -493,11 +509,19 @@ class ZdlListenerImpl : ZdlBaseListener() {
         val withEvents = getServiceMethodEvents(location, ctx.with_events())
         val jd = javadoc(first(ctx.javadoc(), ctx.suffix_javadoc()))
 
+        val transition = ctx.aggregate_command_transition()
+        val fromStates = transition?.aggregate_command_from_states()
+            ?.aggregate_command_state()
+            ?.map { it.text }
+        val toState = transition?.aggregate_command_to_state()?.text
+
         val method = buildMap()
             .with("name", commandName)
             .with("aggregateName", aggregateName)
             .with("parameter", parameter)
             .with("parameterIsOptional", parameterIsOptional)
+            .with("from", fromStates)
+            .with("to", toState)
             .with("withEvents", withEvents)
             .with("javadoc", jd)
         currentStack.last().appendTo("commands", commandName, method)
@@ -506,6 +530,10 @@ class ZdlListenerImpl : ZdlBaseListener() {
         model.setLocation(location, getLocations(ctx))
         model.setLocation("$location.name", getLocations(ctx.aggregate_command_name()))
         model.setLocation("$location.parameter", getLocations(ctx.aggregate_command_parameter()))
+        transition?.let {
+            model.setLocation("$location.from", getLocations(it.aggregate_command_from_states()))
+            model.setLocation("$location.to", getLocations(it.aggregate_command_to_state()))
+        }
     }
 
     override fun exitAggregate_command(ctx: ZdlParser.Aggregate_commandContext) { currentStack.removeLast() }

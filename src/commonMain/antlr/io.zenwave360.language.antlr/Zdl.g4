@@ -60,9 +60,12 @@ SERVICE: 'service';
 AGGREGATE: 'aggregate';
 PARAM_ID: 'id';
 FOR: 'for';
+FROM: 'from';
 TO: 'to';
 WITH_EVENTS: 'withEvents';
 WITH: 'with'; // legacy service
+LIFECYCLE: 'lifecycle';
+INITIAL: 'initial';
 
 // field validators
 REQUIRED: 'required';
@@ -121,7 +124,7 @@ suffix_javadoc: JAVADOC;
 legacy_constants: LEGACY_CONSTANT*;
 
 // values
-keyword: ID | IMPORT | CONFIG | APIS | PLUGINS | DISABLED | ASYNCAPI | OPENAPI | ENTITY | AGGREGATE | INPUT | OUTPUT | EVENT | RELATIONSHIP | SERVICE | PARAM_ID | FOR | TO | WITH_EVENTS | WITH | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
+keyword: ID | IMPORT | CONFIG | APIS | PLUGINS | DISABLED | ASYNCAPI | OPENAPI | ENTITY | AGGREGATE | INPUT | OUTPUT | EVENT | RELATIONSHIP | SERVICE | PARAM_ID | FOR | FROM | TO | WITH_EVENTS | WITH | LIFECYCLE | INITIAL | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
 
 //complex_value: value | array | object;
 //value: simple | object;
@@ -243,12 +246,19 @@ relationship_field_max: MAXLENGTH LPAREN relationship_field_value RPAREN;
 relationship_field_value: INT;
 
 // aggregates
-aggregate: javadoc? annotations AGGREGATE aggregate_name LPAREN aggregate_root RPAREN LBRACE aggregate_command* RBRACE;
+aggregate: javadoc? annotations AGGREGATE aggregate_name LPAREN aggregate_root RPAREN LBRACE aggregate_lifecycle? aggregate_command* RBRACE;
 aggregate_name: ID;
 aggregate_root: ID;
-aggregate_command: javadoc? annotations aggregate_command_name LPAREN aggregate_command_parameter? RPAREN with_events? suffix_javadoc?;
+aggregate_lifecycle: LIFECYCLE aggregate_lifecycle_field INITIAL aggregate_lifecycle_initial_state;
+aggregate_lifecycle_field: ID;
+aggregate_lifecycle_initial_state: ID;
+aggregate_command: javadoc? annotations aggregate_command_name LPAREN aggregate_command_parameter? RPAREN aggregate_command_transition? with_events? suffix_javadoc?;
 aggregate_command_name: ID;
 aggregate_command_parameter: ID | ID OPTIONAL;
+aggregate_command_transition: FROM aggregate_command_from_states TO aggregate_command_to_state;
+aggregate_command_from_states: aggregate_command_state (COMMA aggregate_command_state)*;
+aggregate_command_state: ID;
+aggregate_command_to_state: ID;
 
 // services
 service: javadoc? annotations SERVICE service_name FOR LPAREN service_aggregates RPAREN LBRACE service_method* RBRACE;

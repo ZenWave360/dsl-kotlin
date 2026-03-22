@@ -117,6 +117,9 @@ class ZdlModelValidator {
                 model.addProblem(path("aggregates", key, "aggregateRoot"), aggregateRoot ?: "", "%s is not an entity")
             }
 
+            // Resolve enum type for lifecycle state validation (may be null if lifecycle absent or invalid)
+            val lifecycleEnumValues = validateLifecycle(model, key, value, aggregateRoot)
+
             @Suppress("UNCHECKED_CAST")
             val methods = JSONPath.get(value, "$.commands[*]", listOf<Map<String, Any?>>()) as List<Map<String, Any?>>
             for (method in methods) {
@@ -142,9 +145,107 @@ class ZdlModelValidator {
                         }
                     }
                 }
+                // Validate state transitions only when present (transitions are optional per command)
+                if (lifecycleEnumValues != null) {
+                    validateCommandTransition(model, key, methodName, method, lifecycleEnumValues)
+                }
             }
         }
         return null
+    }
+
+    /**
+     * Validates the aggregate lifecycle declaration:
+     * - statusField must exist as a field on the aggregate root entity
+     * - the field's type must be a known enum
+     * - initialState must be a valid value of that enum
+     *
+     * Returns the set of valid enum value names when lifecycle is present and fully valid, null otherwise.
+     */
+    private fun validateLifecycle(
+        model: ZdlModel,
+        aggregateKey: String,
+        aggregate: Any?,
+        aggregateRoot: String?
+    ): Set<String>? {
+        @Suppress("UNCHECKED_CAST")
+        val lifecycle = JSONPath.get(aggregate, "$.lifecycle") as? Map<String, Any?> ?: return null
+
+        val statusField = lifecycle["statusField"] as? String
+        val initialState = lifecycle["initialState"] as? String
+
+        // Validate statusField exists on the aggregate root entity
+        val fieldType = if (aggregateRoot != null && statusField != null)
+            JSONPath.get(model, "$.entities.$aggregateRoot.fields.$statusField.type") as? String
+        else null
+
+        if (statusField == null || fieldType == null) {
+            model.addProblem(
+                path("aggregates", aggregateKey, "lifecycle", "statusField"),
+                statusField ?: "",
+                "%s is not a field of the aggregate root entity"
+            )
+            return null
+        }
+
+        // Validate the field type is a known enum
+        if (!isEnum(model, fieldType)) {
+            model.addProblem(
+                path("aggregates", aggregateKey, "lifecycle", "statusField"),
+                fieldType,
+                "field type %s is not an enum"
+            )
+            return null
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        val enumValues = (JSONPath.get(model, "$.enums.$fieldType.values", mapOf<String, Any?>()) as? Map<String, Any?>)?.keys
+            ?: emptySet()
+
+        // Validate initialState is a valid enum value
+        if (initialState == null || !enumValues.contains(initialState)) {
+            model.addProblem(
+                path("aggregates", aggregateKey, "lifecycle", "initialState"),
+                initialState ?: "",
+                "%s is not a valid value of enum $fieldType"
+            )
+        }
+
+        return enumValues
+    }
+
+    /**
+     * Validates from/to state transitions on a command when they are present.
+     * Transitions are optional — commands without from/to are not reported as errors.
+     */
+    private fun validateCommandTransition(
+        model: ZdlModel,
+        aggregateKey: String,
+        methodName: String?,
+        method: Map<String, Any?>,
+        enumValues: Set<String>
+    ) {
+        @Suppress("UNCHECKED_CAST")
+        val fromStates = method["from"] as? List<String>
+        val toState = method["to"] as? String
+
+        fromStates?.forEachIndexed { i, state ->
+            if (!enumValues.contains(state)) {
+                model.addProblem(
+                    path("aggregates", aggregateKey, "commands", methodName ?: "", "from", "$i"),
+                    state,
+                    "%s is not a valid state value"
+                )
+            }
+        }
+
+        if (toState != null && !enumValues.contains(toState)) {
+            model.addProblem(
+                path("aggregates", aggregateKey, "commands", methodName ?: "", "to"),
+                toState,
+                "%s is not a valid state value"
+            )
+        }
     }
 
     private fun validateServices(model: ZdlModel): List<Map<String, Any?>>? {

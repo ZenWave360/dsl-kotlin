@@ -190,6 +190,46 @@ class ZdlListenerKotlinTest {
         // println(model)
     }
 
+    @Test
+    fun parseZdl_StateMachine() {
+        val model = parseZdl("state-machine.zdl")
+        val problems = JSONPath.get(model, "$.problems", emptyList<Any>()) as? List<*> ?: emptyList<Any>()
+        assertEquals(0, problems.size, "expected no validation problems but got: $problems")
+
+        // Aggregate with lifecycle
+        assertEquals("OrderAggregate", JSONPath.get(model, "$.aggregates.OrderAggregate.name"))
+
+        // Lifecycle declaration
+        assertEquals("status", JSONPath.get(model, "$.aggregates.OrderAggregate.lifecycle.statusField"))
+        assertEquals("DRAFT", JSONPath.get(model, "$.aggregates.OrderAggregate.lifecycle.initialState"))
+
+        // Command: single from-state transition
+        assertEquals(listOf("DRAFT"), JSONPath.get(model, "$.aggregates.OrderAggregate.commands.placeOrder.from"))
+        assertEquals("PLACED", JSONPath.get(model, "$.aggregates.OrderAggregate.commands.placeOrder.to"))
+        assertEquals(listOf("OrderPlaced"), JSONPath.get(model, "$.aggregates.OrderAggregate.commands.placeOrder.withEvents"))
+
+        assertEquals(listOf("PLACED"), JSONPath.get(model, "$.aggregates.OrderAggregate.commands.confirmPayment.from"))
+        assertEquals("PAID", JSONPath.get(model, "$.aggregates.OrderAggregate.commands.confirmPayment.to"))
+
+        assertEquals(listOf("PAID"), JSONPath.get(model, "$.aggregates.OrderAggregate.commands.shipOrder.from"))
+        assertEquals("SHIPPED", JSONPath.get(model, "$.aggregates.OrderAggregate.commands.shipOrder.to"))
+
+        // Command: multiple from-states
+        assertEquals(listOf("DRAFT", "PLACED"), JSONPath.get(model, "$.aggregates.OrderAggregate.commands.cancelOrder.from"))
+        assertEquals("CANCELLED", JSONPath.get(model, "$.aggregates.OrderAggregate.commands.cancelOrder.to"))
+
+        // Command without transition — from and to must be null
+        assertNull(JSONPath.get(model, "$.aggregates.OrderAggregate.commands.addNote.from"))
+        assertNull(JSONPath.get(model, "$.aggregates.OrderAggregate.commands.addNote.to"))
+        assertEquals(listOf("NoteAdded"), JSONPath.get(model, "$.aggregates.OrderAggregate.commands.addNote.withEvents"))
+
+        // Aggregate without lifecycle — lifecycle must be null, commands still parse normally
+        assertNull(JSONPath.get(model, "$.aggregates.SimpleAggregate.lifecycle"))
+        assertEquals(listOf("ItemCreated"), JSONPath.get(model, "$.aggregates.SimpleAggregate.commands.createItem.withEvents"))
+        assertNull(JSONPath.get(model, "$.aggregates.SimpleAggregate.commands.createItem.from"))
+        assertNull(JSONPath.get(model, "$.aggregates.SimpleAggregate.commands.createItem.to"))
+    }
+
     private fun parseZdl(fileName: String): ZdlModel {
         val content = readFileContent(fileName)
         return ZdlParser().parseModel(content)
