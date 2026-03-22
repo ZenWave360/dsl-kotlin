@@ -12,7 +12,7 @@ class GenerateFlowViewFromZfl(
     private val transformer: ZflToFlowViewModelTransformer = ZflToFlowViewModelTransformer(),
     private val layoutEngine: ElkFlowLayoutEngine = ElkFlowLayoutEngine()
 ) {
-    fun execute(zflContent: String): FlowViewModel {
+    suspend fun execute(zflContent: String): FlowViewModel {
         val model = parser.parseModel(zflContent)
         val semantic = semanticAnalyzer.analyze(model)
         val viewModel = transformer.transform(semantic) // FlowViewModel without layout

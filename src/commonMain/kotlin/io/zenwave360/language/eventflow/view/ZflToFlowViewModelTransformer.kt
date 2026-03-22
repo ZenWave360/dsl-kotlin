@@ -19,7 +19,7 @@ class ZflToFlowViewModelTransformer {
         val edgeList = mutableListOf<FlowEdge>()
 
         semanticModel.flows.forEach { flow ->
-            // 1. Register start events as nodes (no self-loop edge; policies reference them directly via eventId)
+            // 1. Register start events as nodes + self-loop TRIGGER edge (marks the flow entry point)
             flow.starts.forEach { start ->
                 nodeMap[eventId(start.name)] = FlowNode(
                     id = eventId(start.name),
@@ -28,6 +28,15 @@ class ZflToFlowViewModelTransformer {
                     system = null,
                     service = null,
                     sourceRef = start.sourceRef
+                )
+                edgeList.add(
+                    FlowEdge(
+                        id = edgeId(eventId(start.name), eventId(start.name)),
+                        source = eventId(start.name),
+                        target = eventId(start.name),
+                        type = FlowEdgeType.TRIGGER,
+                        sourceRef = start.sourceRef
+                    )
                 )
             }
 
@@ -100,32 +109,15 @@ class ZflToFlowViewModelTransformer {
                 }
             }
 
-            // 5. Register end nodes for each outcome type (only when events are mapped to them)
-            listOf(
-                Triple("completed", "Completed", flow.end.completed),
-                Triple("suspended", "Suspended", flow.end.suspended),
-                Triple("cancelled", "Cancelled", flow.end.cancelled)
-            ).forEach { (outcomeKey, outcomeLabel, outcomeEvents) ->
-                if (outcomeEvents.isNotEmpty()) {
-                    nodeMap[endId(outcomeKey)] = FlowNode(
-                        id = endId(outcomeKey),
-                        type = FlowNodeType.END,
-                        label = outcomeLabel,
-                        system = null,
-                        service = null,
-                        sourceRef = flow.end.sourceRef
-                    )
-                    outcomeEvents.forEach { eventName ->
-                        edgeList.add(FlowEdge(
-                            id = edgeId(eventId(eventName), endId(outcomeKey)),
-                            source = eventId(eventName),
-                            target = endId(outcomeKey),
-                            type = FlowEdgeType.CAUSATION,
-                            sourceRef = flow.end.sourceRef
-                        ))
-                    }
-                }
-            }
+            // 5. Always register exactly one END node per flow
+            nodeMap[endId("end")] = FlowNode(
+                id = endId("end"),
+                type = FlowNodeType.END,
+                label = "End",
+                system = null,
+                service = null,
+                sourceRef = flow.end.sourceRef
+            )
         }
 
         return FlowViewModel(

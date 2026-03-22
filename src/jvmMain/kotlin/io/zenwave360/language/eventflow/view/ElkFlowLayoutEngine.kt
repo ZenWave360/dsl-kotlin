@@ -1,5 +1,7 @@
 package io.zenwave360.language.eventflow.view
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.eclipse.elk.alg.layered.LayeredLayoutProvider
 import org.eclipse.elk.alg.layered.options.LayeredMetaDataProvider
 import org.eclipse.elk.alg.layered.options.LayeredOptions
@@ -31,10 +33,10 @@ actual class ElkFlowLayoutEngine actual constructor() {
         }
     }
 
-    actual fun layout(viewModel: FlowViewModel): FlowViewModel {
+    actual suspend fun layout(viewModel: FlowViewModel): FlowViewModel = withContext(Dispatchers.IO) {
         ensureInitialized()
         if (viewModel.nodes.isEmpty()) {
-            return viewModel.copy(
+            return@withContext viewModel.copy(
                 nodes = emptyList(),
                 edges = emptyList(),
                 layout = LayoutMetadata(
@@ -80,7 +82,7 @@ actual class ElkFlowLayoutEngine actual constructor() {
             )
         }
 
-        return viewModel.copy(
+        viewModel.copy(
             nodes = positionedNodes,
             edges = viewModel.edges,
             layout = LayoutMetadata(

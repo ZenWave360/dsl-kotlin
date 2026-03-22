@@ -21,6 +21,6 @@ package io.zenwave360.language.eventflow.view
  *  - JS:  stub/placeholder (ELK.js integration to be added later)
  */
 expect class ElkFlowLayoutEngine() {
-    fun layout(viewModel: FlowViewModel): FlowViewModel
+    suspend fun layout(viewModel: FlowViewModel): FlowViewModel
 }
 
