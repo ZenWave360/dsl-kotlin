@@ -25,7 +25,9 @@ val generateKotlinGrammarSource by tasks.registering(com.strumenta.antlrkotlin.g
 }
 
 val prepareJavaGrammar = tasks.register("prepareJavaGrammar", Copy::class) {
-    from("src/commonMain/antlr")
+    from("src/commonMain/antlr") {
+        include("**/*.g4") // only copy grammar files; _parser_members.java.txt is read at config time and must not be filtered (its shared `skipping` state would corrupt subsequent files)
+    }
     into("build/generated/antlr-java")
 
     val javaMembersContent = file("src/commonMain/antlr/io.zenwave360.language.antlr/_parser_members.java.txt").readText()
