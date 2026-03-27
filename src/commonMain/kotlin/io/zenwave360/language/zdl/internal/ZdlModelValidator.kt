@@ -29,10 +29,10 @@ class ZdlModelValidator {
         validateEntitiesFields(model, "inputs")
         validateEntitiesFields(model, "outputs")
         validateEntitiesFields(model, "events")
-        validateEntityLifecycles(model)
         validateAggregates(model)
         validateServices(model)
         validateRelationships(model)
+        validateLifecycles(model)
         return model
     }
 
@@ -118,9 +118,6 @@ class ZdlModelValidator {
                 model.addProblem(path("aggregates", key, "aggregateRoot"), aggregateRoot ?: "", "%s is not an entity")
             }
 
-            // Resolve enum type for lifecycle state validation (may be null if lifecycle absent or invalid)
-            val lifecycleEnumValues = validateLifecycle(model, key, value, aggregateRoot)
-
             @Suppress("UNCHECKED_CAST")
             val methods = JSONPath.get(value, "$.commands[*]", listOf<Map<String, Any?>>()) as List<Map<String, Any?>>
             for (method in methods) {
@@ -146,10 +143,6 @@ class ZdlModelValidator {
                         }
                     }
                 }
-                // Validate state transitions only when present (transitions are optional per command)
-                if (lifecycleEnumValues != null) {
-                    validateCommandTransition(model, key, methodName, method, lifecycleEnumValues)
-                }
             }
         }
         return null
@@ -157,9 +150,9 @@ class ZdlModelValidator {
 
     /**
      * Validates the aggregate lifecycle declaration:
-     * - statusField must exist as a field on the aggregate root entity
+     * - field must exist as a field on the aggregate root entity
      * - the field's type must be a known enum
-     * - initialState must be a valid value of that enum
+     * - initial must be a valid value of that enum
      *
      * Returns the set of valid enum value names when lifecycle is present and fully valid, null otherwise.
      */
@@ -172,18 +165,18 @@ class ZdlModelValidator {
         @Suppress("UNCHECKED_CAST")
         val lifecycle = JSONPath.get(aggregate, "$.lifecycle") as? Map<String, Any?> ?: return null
 
-        val statusField = lifecycle["statusField"] as? String
-        val initialState = lifecycle["initialState"] as? String
+        val field = lifecycle["field"] as? String
+        val initial = lifecycle["initial"] as? String
 
-        // Validate statusField exists on the aggregate root entity
-        val fieldType = if (aggregateRoot != null && statusField != null)
-            JSONPath.get(model, "$.entities.$aggregateRoot.fields.$statusField.type") as? String
+        // Validate field exists on the aggregate root entity
+        val fieldType = if (aggregateRoot != null && field != null)
+            JSONPath.get(model, "$.entities.$aggregateRoot.fields.$field.type") as? String
         else null
 
-        if (statusField == null || fieldType == null) {
+        if (field == null || fieldType == null) {
             model.addProblem(
-                path("aggregates", aggregateKey, "lifecycle", "statusField"),
-                statusField ?: "",
+                path("aggregates", aggregateKey, "lifecycle", "field"),
+                field ?: "",
                 "%s is not a field of the aggregate root entity"
             )
             return null
@@ -192,7 +185,7 @@ class ZdlModelValidator {
         // Validate the field type is a known enum
         if (!isEnum(model, fieldType)) {
             model.addProblem(
-                path("aggregates", aggregateKey, "lifecycle", "statusField"),
+                path("aggregates", aggregateKey, "lifecycle", "field"),
                 fieldType,
                 "field type %s is not an enum"
             )
@@ -203,11 +196,11 @@ class ZdlModelValidator {
         val enumValues = (JSONPath.get(model, "$.enums.$fieldType.values", mapOf<String, Any?>()) as? Map<String, Any?>)?.keys
             ?: emptySet()
 
-        // Validate initialState is a valid enum value
-        if (initialState == null || !enumValues.contains(initialState)) {
+        // Validate initial is a valid enum value
+        if (initial == null || !enumValues.contains(initial)) {
             model.addProblem(
-                path("aggregates", aggregateKey, "lifecycle", "initialState"),
-                initialState ?: "",
+                path("aggregates", aggregateKey, "lifecycle", "initial"),
+                initial ?: "",
                 "%s is not a valid value of enum $fieldType"
             )
         }
@@ -226,14 +219,13 @@ class ZdlModelValidator {
         method: Map<String, Any?>,
         enumValues: Set<String>
     ) {
-        @Suppress("UNCHECKED_CAST")
-        val fromStates = method["from"] as? List<String>
-        val toState = method["to"] as? String
+        val fromStates = JSONPath.get<List<String>>(method, "transition.from")
+        val toState = JSONPath.get<String>(method, "transition.to")
 
         fromStates?.forEachIndexed { i, state ->
             if (!enumValues.contains(state)) {
                 model.addProblem(
-                    path("aggregates", aggregateKey, "commands", methodName ?: "", "from", "$i"),
+                    path("aggregates", aggregateKey, "commands", methodName ?: "", "transition", "from", "$i"),
                     state,
                     "%s is not a valid state value"
                 )
@@ -242,18 +234,72 @@ class ZdlModelValidator {
 
         if (toState != null && !enumValues.contains(toState)) {
             model.addProblem(
-                path("aggregates", aggregateKey, "commands", methodName ?: "", "to"),
+                path("aggregates", aggregateKey, "commands", methodName ?: "", "transition", "to"),
                 toState,
                 "%s is not a valid state value"
             )
         }
     }
 
+
+    /**
+     * Single entry point for all lifecycle-related validations.
+     * Called once at the very end of [validate], after all other validation sections.
+     */
+    private fun validateLifecycles(model: ZdlModel) {
+        validateEntityLifecycles(model)
+        validateAggregateLifecycles(model)
+        validateServiceLifecycles(model)
+    }
+
+    /**
+     * Validates lifecycle declarations and command state transitions for every aggregate.
+     */
+    private fun validateAggregateLifecycles(model: ZdlModel) {
+        @Suppress("UNCHECKED_CAST")
+        val aggregates = JSONPath.get(model, "$.aggregates", mapOf<String, Any?>()) as Map<String, Any?>
+        for ((key, value) in aggregates) {
+            val aggregateRoot = JSONPath.get(value, "$.aggregateRoot") as? String
+            val lifecycleEnumValues = validateLifecycle(model, key, value, aggregateRoot)
+
+            @Suppress("UNCHECKED_CAST")
+            val methods = JSONPath.get(value, "$.commands[*]", listOf<Map<String, Any?>>()) as List<Map<String, Any?>>
+            for (method in methods) {
+                val methodName = JSONPath.get(method, "$.name") as? String
+                if (lifecycleEnumValues != null) {
+                    validateCommandTransition(model, key, methodName, method, lifecycleEnumValues)
+                }
+            }
+        }
+    }
+
+    /**
+     * Validates from/to state transitions declared on service methods.
+     */
+    private fun validateServiceLifecycles(model: ZdlModel) {
+        @Suppress("UNCHECKED_CAST")
+        val services = JSONPath.get(model, "$.services", mapOf<String, Any?>()) as Map<String, Any?>
+        for ((key, value) in services) {
+            @Suppress("UNCHECKED_CAST")
+            val serviceAggregates = JSONPath.get(value, "$.aggregates", listOf<String>()) as List<String>
+            @Suppress("UNCHECKED_CAST")
+            val methods = JSONPath.get(value, "$.methods[*]", listOf<Map<String, Any?>>()) as List<Map<String, Any?>>
+            for (method in methods) {
+                val methodName = JSONPath.get(method, "$.name") as? String
+                val hasTransition = method["from"] != null || method["to"] != null
+                if (hasTransition) {
+                    validateServiceMethodTransition(model, key, methodName, method, serviceAggregates)
+                }
+            }
+        }
+    }
+
+
     /**
      * Validates @lifecycle annotations on entities:
-     * - statusField must name a real field on the entity
+     * - field must name a real field on the entity
      * - that field's type must be a known enum
-     * - initialState must be a valid value of that enum
+     * - initial must be a valid value of that enum
      */
     private fun validateEntityLifecycles(model: ZdlModel) {
         @Suppress("UNCHECKED_CAST")
@@ -263,22 +309,28 @@ class ZdlModelValidator {
             val lifecycle = ((value as? Map<String, Any?>)?.get("options") as? Map<String, Any?>)
                 ?.get("lifecycle") as? Map<String, Any?> ?: continue
 
-            val statusField = lifecycle["statusField"] as? String
-            val initialState = lifecycle["initialState"] as? String
+            val field = lifecycle["field"] as? String
+            val initial = lifecycle["initial"] as? String
 
-            val fieldType = if (statusField != null)
-                JSONPath.get(model, "$.entities.$name.fields.$statusField.type") as? String
+            val fieldType = if (field != null)
+                JSONPath.get(model, "$.entities.$name.fields.$field.type") as? String
             else null
 
-            if (statusField == null || fieldType == null) {
-                model.addProblem(path("entities", name, "options", "lifecycle", "statusField"),
-                    statusField ?: "", "%s is not a field of this entity")
+            if (field == null || fieldType == null) {
+                model.addProblem(
+                    path("entities", name, "options", "lifecycle", "value", "field"),
+                    field ?: "", 
+                    "%s is not a field of this entity"
+                )
                 continue
             }
 
             if (!isEnum(model, fieldType)) {
-                model.addProblem(path("entities", name, "options", "lifecycle", "statusField"),
-                    fieldType, "field type %s is not an enum")
+                model.addProblem(
+                    path("entities", name, "options", "lifecycle", "value", "field"),
+                    fieldType, 
+                    "field type %s is not an enum"
+                )
                 continue
             }
 
@@ -286,9 +338,12 @@ class ZdlModelValidator {
             val enumValues = (JSONPath.get(model, "$.enums.$fieldType.values",
                 mapOf<String, Any?>()) as? Map<String, Any?>)?.keys ?: emptySet()
 
-            if (initialState == null || !enumValues.contains(initialState)) {
-                model.addProblem(path("entities", name, "options", "lifecycle", "initialState"),
-                    initialState ?: "", "%s is not a valid value of enum $fieldType")
+            if (initial == null || !enumValues.contains(initial)) {
+                model.addProblem(
+                    path("entities", name, "options", "lifecycle", "value", "initial"),
+                    initial ?: "", 
+                    "%s is not a valid value of enum $fieldType"
+                )
             }
         }
     }
@@ -302,8 +357,8 @@ class ZdlModelValidator {
         @Suppress("UNCHECKED_CAST")
         val lifecycle = ((JSONPath.get(model, "$.entities.$entityName") as? Map<String, Any?>)
             ?.get("options") as? Map<String, Any?>)?.get("lifecycle") as? Map<String, Any?> ?: return null
-        val statusField = lifecycle["statusField"] as? String ?: return null
-        val fieldType = JSONPath.get(model, "$.entities.$entityName.fields.$statusField.type") as? String ?: return null
+        val field = lifecycle["field"] as? String ?: return null
+        val fieldType = JSONPath.get(model, "$.entities.$entityName.fields.$field.type") as? String ?: return null
         if (!isEnum(model, fieldType)) return null
         @Suppress("UNCHECKED_CAST")
         return (JSONPath.get(model, "$.enums.$fieldType.values",
@@ -351,11 +406,6 @@ class ZdlModelValidator {
                         }
                     }
                 }
-                // Validate state transitions when present (optional per method)
-                val hasTransition = method["from"] != null || method["to"] != null
-                if (hasTransition) {
-                    validateServiceMethodTransition(model, key, methodName, method, serviceAggregates)
-                }
             }
         }
         return null
@@ -382,7 +432,11 @@ class ZdlModelValidator {
         // Rule 1: id parameter is required for transitions
         val paramId = method["paramId"] as? String
         if (paramId != "id") {
-            model.addProblem("$mPath.from", null, "state transitions require an id parameter")
+            model.addProblem(
+                "$mPath.options.transition.value.from",
+                null, 
+                "state transitions require an id parameter"
+            )
             return
         }
 
@@ -392,7 +446,6 @@ class ZdlModelValidator {
             else -> {
                 val returnType = method["returnType"] as? String
                 val parameter = method["parameter"] as? String
-                // prefer returnType, then parameter — whichever appears in the service's aggregate list
                 when {
                     returnType != null && serviceAggregates.contains(returnType) -> returnType
                     parameter != null && serviceAggregates.contains(parameter) -> parameter
@@ -402,33 +455,45 @@ class ZdlModelValidator {
         }
 
         if (targetEntity == null) {
-            model.addProblem("$mPath.from", null,
-                "state transitions require returnType or parameter to match one of the service aggregates")
+            model.addProblem(
+                "$mPath.options.transition.value",
+                null, 
+                "cannot determine target entity for state transition"
+            )
             return
         }
+
+        // Rule 3: validate from/to states
+        val fromStates = JSONPath.get<List<String>>(method, "transition.from")
+        val toState = JSONPath.get<String>(method, "transition.to")
 
         // Rule 3: entity must have @lifecycle
         val enumValues = getEntityLifecycleEnumValues(model, targetEntity)
         if (enumValues == null) {
-            model.addProblem("$mPath.from", targetEntity,
-                "entity %s does not have a @lifecycle annotation")
+            model.addProblem(
+                "$mPath.options.transition.value",
+                targetEntity,
+                "entity %s does not have a @lifecycle annotation"
+            )
             return
         }
 
         // Rule 4: validate individual from/to states
-        @Suppress("UNCHECKED_CAST")
-        val fromStates = method["from"] as? List<String>
-        val toState = method["to"] as? String
-
         fromStates?.forEachIndexed { i, state ->
             if (!enumValues.contains(state)) {
-                model.addProblem(path("services", serviceKey, "commands", methodName ?: "", "from", "$i"),
-                    state, "%s is not a valid state value")
+                model.addProblem(
+                    path("services", serviceKey, "methods", methodName ?: "", "options", "transition", "value", "from"),
+                    state, 
+                    "%s is not a valid state value"
+                )
             }
         }
         if (toState != null && !enumValues.contains(toState)) {
-            model.addProblem(path("services", serviceKey, "commands", methodName ?: "", "to"),
-                toState, "%s is not a valid state value")
+            model.addProblem(
+                path("services", serviceKey, "methods", methodName ?: "", "options", "transition", "value", "to"),
+                toState, 
+                "%s is not a valid state value"
+            )
         }
     }
 

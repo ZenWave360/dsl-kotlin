@@ -1,4 +1,5 @@
 @aggregate
+@lifecycle(field: status, initial: DRAFT)
 entity Order {
   status OrderStatus required
   note String
@@ -18,22 +19,21 @@ enum OrderStatus {
  * Order aggregate with state machine lifecycle.
  */
 aggregate OrderAggregate (Order) {
-  lifecycle status initial DRAFT
 
+  @transition(from: DRAFT, to: PLACED)
   placeOrder(PlaceOrderInput)
-    from DRAFT to PLACED
     withEvents OrderPlaced
 
+  @transition(from: PLACED, to: PAID)
   confirmPayment(ConfirmPaymentInput)
-    from PLACED to PAID
     withEvents PaymentConfirmed
 
+  @transition(from: PAID, to: SHIPPED)
   shipOrder(ShipOrderInput)
-    from PAID to SHIPPED
     withEvents OrderShipped
 
+  @transition(from: [DRAFT, PLACED], to: CANCELLED)
   cancelOrder(CancelOrderInput)
-    from DRAFT, PLACED to CANCELLED
     withEvents OrderCancelled
 
   // command with no transition — transitions are optional

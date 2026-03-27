@@ -246,19 +246,12 @@ relationship_field_max: MAXLENGTH LPAREN relationship_field_value RPAREN;
 relationship_field_value: INT;
 
 // aggregates
-aggregate: javadoc? annotations AGGREGATE aggregate_name LPAREN aggregate_root RPAREN LBRACE aggregate_lifecycle? aggregate_command* RBRACE;
+aggregate: javadoc? annotations AGGREGATE aggregate_name LPAREN aggregate_root RPAREN LBRACE aggregate_command* RBRACE;
 aggregate_name: ID;
 aggregate_root: ID;
-aggregate_lifecycle: LIFECYCLE aggregate_lifecycle_field INITIAL aggregate_lifecycle_initial_state;
-aggregate_lifecycle_field: ID;
-aggregate_lifecycle_initial_state: ID;
-aggregate_command: javadoc? annotations aggregate_command_name LPAREN aggregate_command_parameter? RPAREN aggregate_command_transition? with_events? suffix_javadoc?;
+aggregate_command: javadoc? annotations aggregate_command_name LPAREN aggregate_command_parameter? RPAREN with_events? suffix_javadoc?;
 aggregate_command_name: ID;
 aggregate_command_parameter: ID | ID OPTIONAL;
-aggregate_command_transition: FROM aggregate_command_from_states TO aggregate_command_to_state;
-aggregate_command_from_states: aggregate_command_state (COMMA aggregate_command_state)*;
-aggregate_command_state: ID;
-aggregate_command_to_state: ID;
 
 // services
 service: javadoc? annotations SERVICE service_name FOR LPAREN service_aggregates RPAREN LBRACE service_method* RBRACE;
@@ -268,16 +261,12 @@ service_method: javadoc? annotations service_method_name
     LPAREN
         (service_method_parameter_natural service_method_parameter_id | service_method_parameter_id)?
         COMMA? service_method_parameter?
-    RPAREN service_method_return? service_method_transition? with_events? suffix_javadoc?;
+    RPAREN service_method_return? with_events? suffix_javadoc?;
 service_method_name: ID;
 service_method_parameter_natural: '@natural';
 service_method_parameter_id: PARAM_ID | PARAM_ID OPTIONAL;
 service_method_parameter: ID | ID OPTIONAL;
 service_method_return: ID | ID ARRAY | ID OPTIONAL;
-service_method_transition: FROM service_method_from_states TO service_method_to_state;
-service_method_from_states: service_method_state (COMMA service_method_state)*;
-service_method_state: ID;
-service_method_to_state: ID;
 
 
 with_events: WITH_EVENTS (with_events_events)*;

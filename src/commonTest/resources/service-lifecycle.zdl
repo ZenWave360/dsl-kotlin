@@ -6,14 +6,14 @@
 // ── Entities ──────────────────────────────────────────────────────────────────
 
 @aggregate
-@lifecycle(statusField: "status", initialState: "DRAFT")
+@lifecycle(field: status, initial: DRAFT)
 entity Order {
   status OrderStatus required
   note String
 }
 
 @aggregate
-@lifecycle(statusField: "status", initialState: "OPEN")
+@lifecycle(field: status, initial: OPEN)
 entity Invoice {
   status InvoiceStatus required
   amount BigDecimal required
@@ -90,13 +90,13 @@ event ItemCreated {
 @rest("/orders")
 service OrderService for (Order) {
   // valid: id param + transition + single aggregate
+  @transition(from: DRAFT, to: PLACED)
   placeOrder(id, PlaceOrderInput) Order
-    from DRAFT to PLACED
     withEvents OrderPlaced
 
   // valid: multi-state from
+  @transition(from: [DRAFT, PLACED], to: CANCELLED)
   cancelOrder(id, CancelOrderInput) Order
-    from DRAFT, PLACED to CANCELLED
     withEvents OrderCancelled
 
   // valid: no transition — transitions are optional
@@ -110,12 +110,12 @@ service OrderService for (Order) {
 
 // Multi-aggregate service: target entity resolved via returnType (Order vs Invoice)
 service OrderInvoiceService for (Order, Invoice) {
+  @transition(from: DRAFT, to: PLACED)
   placeOrderMixed(id, PlaceOrderInput) Order
-    from DRAFT to PLACED
     withEvents OrderPlaced
 
+  @transition(from: OPEN, to: PAID)
   payInvoice(id, PayInvoiceInput) Invoice
-    from OPEN to PAID
     withEvents InvoicePaid
 }
 
