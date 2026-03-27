@@ -9,7 +9,7 @@ grammar Zdl;
                 val currentTokenIndex = currentToken!!.tokenIndex;
                 val prevToken = tokenStream.get(currentTokenIndex - 1); // getTokenStream().get(currentTokenIndex - 1);
                 if(prevToken?.text?.contains("\n") == true) {
-                    println("RULE_suffix_javadoc")
+                    // println("RULE_suffix_javadoc")
                     val t = currentToken!!;
                     return t;
                 }
@@ -60,9 +60,12 @@ SERVICE: 'service';
 AGGREGATE: 'aggregate';
 PARAM_ID: 'id';
 FOR: 'for';
+FROM: 'from';
 TO: 'to';
 WITH_EVENTS: 'withEvents';
 WITH: 'with'; // legacy service
+LIFECYCLE: 'lifecycle';
+INITIAL: 'initial';
 
 // field validators
 REQUIRED: 'required';
@@ -121,7 +124,7 @@ suffix_javadoc: JAVADOC;
 legacy_constants: LEGACY_CONSTANT*;
 
 // values
-keyword: ID | IMPORT | CONFIG | APIS | PLUGINS | DISABLED | ASYNCAPI | OPENAPI | ENTITY | AGGREGATE | INPUT | OUTPUT | EVENT | RELATIONSHIP | SERVICE | PARAM_ID | FOR | TO | WITH_EVENTS | WITH | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
+keyword: ID | IMPORT | CONFIG | APIS | PLUGINS | DISABLED | ASYNCAPI | OPENAPI | ENTITY | AGGREGATE | INPUT | OUTPUT | EVENT | RELATIONSHIP | SERVICE | PARAM_ID | FOR | FROM | TO | WITH_EVENTS | WITH | LIFECYCLE | INITIAL | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
 
 //complex_value: value | array | object;
 //value: simple | object;

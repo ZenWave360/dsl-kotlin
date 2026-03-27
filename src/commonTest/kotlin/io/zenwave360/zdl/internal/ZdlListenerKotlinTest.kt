@@ -190,6 +190,104 @@ class ZdlListenerKotlinTest {
         // println(model)
     }
 
+    @Test
+    fun parseZdl_ServiceLifecycle() {
+        val model = parseZdl("service-lifecycle.zdl")
+        val problems = JSONPath.get(model, "$.problems", emptyList<Any>()) as? List<*> ?: emptyList<Any>()
+        assertEquals(0, problems.size, "expected no validation problems but got: $problems")
+
+        // ── Entity @lifecycle annotation stored in options ────────────────────
+        assertEquals("status",  JSONPath.get(model, "$.entities.Order.options.lifecycle.field"))
+        assertEquals("DRAFT",   JSONPath.get(model, "$.entities.Order.options.lifecycle.initial"))
+        assertEquals("status",  JSONPath.get(model, "$.entities.Invoice.options.lifecycle.field"))
+        assertEquals("OPEN",    JSONPath.get(model, "$.entities.Invoice.options.lifecycle.initial"))
+        // entity without @lifecycle must have no lifecycle option
+        assertNull(JSONPath.get(model, "$.entities.Item.options.lifecycle"))
+
+        // ── Single-aggregate service: OrderService ────────────────────────────
+        // placeOrder: single from state
+        assertEquals(listOf("DRAFT"), JSONPath.get(model, "$.services.OrderService.methods.placeOrder.transition.from"))
+        assertEquals("PLACED",        JSONPath.get(model, "$.services.OrderService.methods.placeOrder.transition.to"))
+        assertEquals(listOf("OrderPlaced"), JSONPath.get(model, "$.services.OrderService.methods.placeOrder.withEvents"))
+        // @transition is also stored as a normal annotation in options.transition
+        assertEquals("DRAFT",  JSONPath.get(model, "$.services.OrderService.methods.placeOrder.options.transition.from"))
+        assertEquals("PLACED", JSONPath.get(model, "$.services.OrderService.methods.placeOrder.options.transition.to"))
+        // addNote has no @transition — options.transition must be absent
+        assertNull(JSONPath.get(model, "$.services.OrderService.methods.addNote.options.transition"))
+
+        // cancelOrder: multiple from states
+        assertEquals(listOf("DRAFT", "PLACED"), JSONPath.get(model, "$.services.OrderService.methods.cancelOrder.transition.from"))
+        assertEquals("CANCELLED",               JSONPath.get(model, "$.services.OrderService.methods.cancelOrder.transition.to"))
+
+        // addNote: no transition — from and to must be null
+        assertNull(JSONPath.get(model, "$.services.OrderService.methods.addNote.transition.from"))
+        assertNull(JSONPath.get(model, "$.services.OrderService.methods.addNote.transition.to"))
+
+        // createOrder: no id, no transition — must parse cleanly
+        assertNull(JSONPath.get(model, "$.services.OrderService.methods.createOrder.transition.from"))
+        assertNull(JSONPath.get(model, "$.services.OrderService.methods.createOrder.transition.to"))
+
+        // ── Multi-aggregate service: OrderInvoiceService ─────────────────────
+        // placeOrderMixed returnType=Order → resolved as target
+        assertEquals(listOf("DRAFT"), JSONPath.get(model, "$.services.OrderInvoiceService.methods.placeOrderMixed.transition.from"))
+        assertEquals("PLACED",        JSONPath.get(model, "$.services.OrderInvoiceService.methods.placeOrderMixed.transition.to"))
+
+        // payInvoice returnType=Invoice → resolved as target
+        assertEquals(listOf("OPEN"), JSONPath.get(model, "$.services.OrderInvoiceService.methods.payInvoice.transition.from"))
+        assertEquals("PAID",         JSONPath.get(model, "$.services.OrderInvoiceService.methods.payInvoice.transition.to"))
+
+        // ── ItemService: no lifecycle, no transitions — must parse cleanly ────
+        assertNull(JSONPath.get(model, "$.services.ItemService.methods.createItem.transition.from"))
+        assertNull(JSONPath.get(model, "$.services.ItemService.methods.createItem.transition.to"))
+    }
+
+    @Test
+    fun parseZdl_StateMachine() {
+        val model = parseZdl("state-machine.zdl")
+        val problems = JSONPath.get(model, "$.problems", emptyList<Any>()) as? List<*> ?: emptyList<Any>()
+        assertEquals(0, problems.size, "expected no validation problems but got: $problems")
+
+        // Aggregate with lifecycle
+        assertEquals("OrderAggregate", JSONPath.get(model, "$.aggregates.OrderAggregate.name"))
+
+        // @lifecycle is declared on the entity — visible in entity options
+        assertEquals("status", JSONPath.get(model, "$.entities.Order.options.lifecycle.field"))
+        assertEquals("DRAFT",  JSONPath.get(model, "$.entities.Order.options.lifecycle.initial"))
+
+        // Post-processor copies entity lifecycle to the aggregate for backward compatibility
+        assertEquals("status", JSONPath.get(model, "$.aggregates.OrderAggregate.lifecycle.field"))
+        assertEquals("DRAFT",  JSONPath.get(model, "$.aggregates.OrderAggregate.lifecycle.initial"))
+
+        // Command: single from-state transition
+        assertEquals(listOf("DRAFT"), JSONPath.get(model, "$.aggregates.OrderAggregate.commands.placeOrder.transition.from"))
+        assertEquals("PLACED", JSONPath.get(model, "$.aggregates.OrderAggregate.commands.placeOrder.transition.to"))
+        assertEquals(listOf("OrderPlaced"), JSONPath.get(model, "$.aggregates.OrderAggregate.commands.placeOrder.withEvents"))
+        // @transition is also stored as a normal annotation in options.transition
+        assertEquals("DRAFT", JSONPath.get(model, "$.aggregates.OrderAggregate.commands.placeOrder.options.transition.from"))
+        assertEquals("PLACED", JSONPath.get(model, "$.aggregates.OrderAggregate.commands.placeOrder.options.transition.to"))
+
+        assertEquals(listOf("PLACED"), JSONPath.get(model, "$.aggregates.OrderAggregate.commands.confirmPayment.transition.from"))
+        assertEquals("PAID", JSONPath.get(model, "$.aggregates.OrderAggregate.commands.confirmPayment.transition.to"))
+
+        assertEquals(listOf("PAID"), JSONPath.get(model, "$.aggregates.OrderAggregate.commands.shipOrder.transition.from"))
+        assertEquals("SHIPPED", JSONPath.get(model, "$.aggregates.OrderAggregate.commands.shipOrder.transition.to"))
+
+        // Command: multiple from-states
+        assertEquals(listOf("DRAFT", "PLACED"), JSONPath.get(model, "$.aggregates.OrderAggregate.commands.cancelOrder.transition.from"))
+        assertEquals("CANCELLED", JSONPath.get(model, "$.aggregates.OrderAggregate.commands.cancelOrder.transition.to"))
+
+        // Command without transition — from and to must be null
+        assertNull(JSONPath.get(model, "$.aggregates.OrderAggregate.commands.addNote.transition.from"))
+        assertNull(JSONPath.get(model, "$.aggregates.OrderAggregate.commands.addNote.transition.to"))
+        assertEquals(listOf("NoteAdded"), JSONPath.get(model, "$.aggregates.OrderAggregate.commands.addNote.withEvents"))
+
+        // Aggregate without lifecycle — lifecycle must be null, commands still parse normally
+        assertNull(JSONPath.get(model, "$.aggregates.SimpleAggregate.lifecycle"))
+        assertEquals(listOf("ItemCreated"), JSONPath.get(model, "$.aggregates.SimpleAggregate.commands.createItem.withEvents"))
+        assertNull(JSONPath.get(model, "$.aggregates.SimpleAggregate.commands.createItem.transition.from"))
+        assertNull(JSONPath.get(model, "$.aggregates.SimpleAggregate.commands.createItem.transition.to"))
+    }
+
     private fun parseZdl(fileName: String): ZdlModel {
         val content = readFileContent(fileName)
         return ZdlParser().parseModel(content)

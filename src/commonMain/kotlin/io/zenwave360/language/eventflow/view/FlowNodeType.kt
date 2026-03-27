@@ -1,4 +1,4 @@
-package io.zenwave360.language.eventflow.ir
+package io.zenwave360.language.eventflow.view
 
 import kotlinx.serialization.Serializable
 
@@ -13,3 +13,4 @@ enum class FlowNodeType {
     POLICY,
     END
 }
+

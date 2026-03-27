@@ -1,0 +1,127 @@
+/**
+ * Service lifecycle test fixture.
+ * Tests @lifecycle annotation on entities and from/to transitions on service methods.
+ */
+
+// ── Entities ──────────────────────────────────────────────────────────────────
+
+@aggregate
+@lifecycle(field: status, initial: DRAFT)
+entity Order {
+  status OrderStatus required
+  note String
+}
+
+@aggregate
+@lifecycle(field: status, initial: OPEN)
+entity Invoice {
+  status InvoiceStatus required
+  amount BigDecimal required
+}
+
+// entity without lifecycle — used to verify no errors for unmanaged entities
+@aggregate
+entity Item {
+  name String required
+}
+
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
+enum OrderStatus {
+  DRAFT, PLACED, PAID, SHIPPED, CANCELLED
+}
+
+enum InvoiceStatus {
+  OPEN, PAID, CANCELLED
+}
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+
+input PlaceOrderInput {
+  customerId String required
+}
+
+input CancelOrderInput {
+  reason String
+}
+
+input AddNoteInput {
+  note String required
+}
+
+input PayInvoiceInput {
+  paymentRef String required
+}
+
+input CreateItemInput {
+  name String required
+}
+
+// ── Events ────────────────────────────────────────────────────────────────────
+
+event OrderPlaced {
+  orderId String
+}
+
+event OrderCancelled {
+  orderId String
+  reason String
+}
+
+event NoteAdded {
+  orderId String
+}
+
+event OrderCreated {
+  orderId String
+}
+
+event InvoicePaid {
+  invoiceId String
+}
+
+event ItemCreated {
+  itemId String
+}
+
+// ── Services ──────────────────────────────────────────────────────────────────
+
+// Single-aggregate service: target entity resolved implicitly from the one aggregate
+@rest("/orders")
+service OrderService for (Order) {
+  // valid: id param + transition + single aggregate
+  @transition(from: DRAFT, to: PLACED)
+  placeOrder(id, PlaceOrderInput) Order
+    withEvents OrderPlaced
+
+  // valid: multi-state from
+  @transition(from: [DRAFT, PLACED], to: CANCELLED)
+  cancelOrder(id, CancelOrderInput) Order
+    withEvents OrderCancelled
+
+  // valid: no transition — transitions are optional
+  addNote(id, AddNoteInput) Order
+    withEvents NoteAdded
+
+  // valid: no id, no transition — always allowed
+  createOrder(PlaceOrderInput) Order
+    withEvents OrderCreated
+}
+
+// Multi-aggregate service: target entity resolved via returnType (Order vs Invoice)
+service OrderInvoiceService for (Order, Invoice) {
+  @transition(from: DRAFT, to: PLACED)
+  placeOrderMixed(id, PlaceOrderInput) Order
+    withEvents OrderPlaced
+
+  @transition(from: OPEN, to: PAID)
+  payInvoice(id, PayInvoiceInput) Invoice
+    withEvents InvoicePaid
+}
+
+// Service for entity without lifecycle — no transitions used, must pass cleanly
+service ItemService for (Item) {
+  createItem(CreateItemInput) Item
+    withEvents ItemCreated
+}
+

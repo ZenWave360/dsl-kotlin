@@ -26,12 +26,14 @@ import io.zenwave360.language.zdl.internal.ZdlListenerUtils.kebabCase
 import io.zenwave360.language.zdl.internal.ZdlListenerUtils.lowerCamelCase
 import io.zenwave360.language.zdl.internal.ZdlListenerUtils.pluralize
 import io.zenwave360.language.zdl.internal.ZdlListenerUtils.snakeCase
+import kotlin.collections.set
 
 class ZdlListenerImpl : ZdlBaseListener() {
 
     val model = ZdlModel()
     private val currentStack = ArrayDeque<MutableMap<String, Any?>>()
     private var currentCollection: String? = null
+    private var currentParentLocation: String? = null
 
 //    fun getModel(): ZdlModel = model
 
@@ -82,6 +84,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
         model.appendTo("apis", name, currentStack.last())
 
         val apiLocation = "apis.$name"
+        currentParentLocation = apiLocation
         model.setLocation(apiLocation, getLocations(ctx))
         model.setLocation("$apiLocation.name", getLocations(ctx.api_name()))
         model.setLocation("$apiLocation.type", getLocations(ctx.api_type()))
@@ -94,7 +97,10 @@ class ZdlListenerImpl : ZdlBaseListener() {
         currentStack.last().appendTo("config", name, value)
     }
 
-    override fun exitApi(ctx: ZdlParser.ApiContext) { currentStack.removeLast() }
+    override fun exitApi(ctx: ZdlParser.ApiContext) { 
+        currentStack.removeLast()
+        currentParentLocation = null
+    }
 
     override fun enterPlugin(ctx: ZdlParser.PluginContext) {
         val name = getText(ctx.plugin_name())!!
@@ -155,6 +161,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
         currentCollection = "entities"
 
         val entityLocation = "$currentCollection.$name"
+        currentParentLocation = entityLocation
         model.setLocation(entityLocation, getLocations(ctx))
         model.setLocation("$entityLocation.name", getLocations(entity.entity_name()))
         model.setLocation("$entityLocation.tableName", getLocations(entity.entity_table_name()))
@@ -187,8 +194,56 @@ class ZdlListenerImpl : ZdlBaseListener() {
         if (currentStack.isNotEmpty()) {
             currentStack.last().appendTo("options", name, value)
             currentStack.last().appendToList("optionsList", buildMap().with("name", name).with("value", value))
+            
+            // Use currentParentLocation to build option path
+            if (currentParentLocation != null) {
+                val optionLocation = "$currentParentLocation.options.$name"
+                model.setLocation(optionLocation, getLocations(ctx))
+                model.setLocation("$optionLocation.name", getLocations(ctx.option_name()))
+                
+                // Track option value location
+                ctx.option_value()?.let { optionValueCtx ->
+                    model.setLocation("$optionLocation.value", getLocations(optionValueCtx))
+                    
+                    // Track nested structure if complex value
+                    optionValueCtx.complex_value()?.let { complexValueCtx ->
+                        trackComplexValueLocations(optionLocation, complexValueCtx)
+                    }
+                }
+            }
         }
         super.enterOption(ctx)
+    }
+
+    private fun trackComplexValueLocations(baseLocationPath: String, ctx: ZdlParser.Complex_valueContext) {
+        // Track value if present
+        ctx.value()?.let { valueCtx ->
+            // Track object properties
+            valueCtx.object_()?.pair()?.forEachIndexed { index, pair ->
+                val key = getValueText(pair.string())?.toString() ?: return@forEachIndexed
+                val propertyPath = "$baseLocationPath.value.$key"
+                model.setLocation(propertyPath, getLocations(pair))
+            }
+            
+            // Track array elements
+            valueCtx.array()?.value()?.forEachIndexed { index, element ->
+                val elementPath = "$baseLocationPath.value[$index]"
+                model.setLocation(elementPath, getLocations(element))
+            }
+        }
+        
+        // Track pairs (key: value syntax)
+        ctx.pairs()?.pair()?.forEachIndexed { index, pair ->
+            val key = getValueText(pair.string())?.toString() ?: return@forEachIndexed
+            val propertyPath = "$baseLocationPath.value.$key"
+            model.setLocation(propertyPath, getLocations(pair))
+        }
+        
+        // Track array_plain (simple array syntax)
+        ctx.array_plain()?.simple()?.forEachIndexed { index, element ->
+            val elementPath = "$baseLocationPath.value[$index]"
+            model.setLocation(elementPath, getLocations(element))
+        }
     }
 
     override fun enterField(ctx: ZdlParser.FieldContext) {
@@ -220,6 +275,8 @@ class ZdlListenerImpl : ZdlBaseListener() {
 
         val entityName = currentStack.last()["name"]
         val entityLocation = "$currentCollection.$entityName.fields.$name"
+        val previousParentLocation = currentParentLocation
+        currentParentLocation = entityLocation
         model.setLocation(entityLocation, getLocations(ctx))
         model.setLocation("$entityLocation.name", getLocations(ctx.field_name()))
         model.setLocation("$entityLocation.type", getLocations(ctx.field_type()))
@@ -228,7 +285,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
         }
         model.setLocation("$entityLocation.javadoc", getLocations(first(ctx.javadoc(), ctx.suffix_javadoc())))
 
-        currentStack.addLast(field)
+        currentStack.addLast(field.with("_previousParentLocation", previousParentLocation))
     }
 
     private fun processFieldValidations(field_validations: List<ZdlParser.Field_validationsContext>?): Map<String, Any?> {
@@ -246,6 +303,8 @@ class ZdlListenerImpl : ZdlBaseListener() {
     }
 
     override fun exitField(ctx: ZdlParser.FieldContext) {
+        val previousLocation = currentStack.last()["_previousParentLocation"] as? String
+        currentParentLocation = previousLocation
         currentStack.removeLast()
         super.exitField(ctx)
     }
@@ -310,12 +369,16 @@ class ZdlListenerImpl : ZdlBaseListener() {
         model.appendTo("enums", name, currentStack.last())
 
         val entityLocation = "enums.$name"
+        currentParentLocation = entityLocation
         model.setLocation(entityLocation, getLocations(ctx))
         model.setLocation("$entityLocation.name", getLocations(ctx.enum_name()))
         model.setLocation("$entityLocation.body", getLocations(ctx.enum_body()))
     }
 
-    override fun exitEnum(ctx: ZdlParser.EnumContext) { currentStack.removeLast() }
+    override fun exitEnum(ctx: ZdlParser.EnumContext) { 
+        currentStack.removeLast()
+        currentParentLocation = null
+    }
 
     override fun enterEnum_value(ctx: ZdlParser.Enum_valueContext) {
         val name = getText(ctx.enum_value_name())!!
@@ -482,7 +545,9 @@ class ZdlListenerImpl : ZdlBaseListener() {
         model.setLocation("$location.aggregateRoot", getLocations(ctx.aggregate_root()))
     }
 
-    override fun exitAggregate(ctx: ZdlParser.AggregateContext) { currentStack.removeLast() }
+    override fun exitAggregate(ctx: ZdlParser.AggregateContext) {
+        currentStack.removeLast()
+    }
 
     override fun enterAggregate_command(ctx: ZdlParser.Aggregate_commandContext) {
         val aggregateName = getText((ctx.getParent() as ZdlParser.AggregateContext).aggregate_name())!!
@@ -498,6 +563,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
             .with("aggregateName", aggregateName)
             .with("parameter", parameter)
             .with("parameterIsOptional", parameterIsOptional)
+            .with("transition", null)
             .with("withEvents", withEvents)
             .with("javadoc", jd)
         currentStack.last().appendTo("commands", commandName, method)
@@ -508,7 +574,25 @@ class ZdlListenerImpl : ZdlBaseListener() {
         model.setLocation("$location.parameter", getLocations(ctx.aggregate_command_parameter()))
     }
 
-    override fun exitAggregate_command(ctx: ZdlParser.Aggregate_commandContext) { currentStack.removeLast() }
+    override fun exitAggregate_command(ctx: ZdlParser.Aggregate_commandContext) {
+        // Extract from/to transition from @transition annotation (after options have been merged)
+        val transitionOption = JSONPath.get<Map<*, *>>(currentStack.last(), "options.transition")
+        if (transitionOption != null) {
+            val aggregateName = getText((ctx.getParent() as ZdlParser.AggregateContext).aggregate_name())!!
+            val commandName = getText(ctx.aggregate_command_name())!!
+            val location = "aggregates.$aggregateName.commands.$commandName"
+            
+            val fromValue = transitionOption["from"]
+            val fromStates: List<String>? = when (fromValue) {
+                is List<*> -> fromValue.map { it.toString() }
+                is String -> listOf(fromValue)
+                else -> null
+            }
+            val toState = transitionOption["to"]?.toString()
+            currentStack.last()["transition"] = buildMap().with("from", fromStates).with("to", toState)
+        }
+        currentStack.removeLast()
+    }
 
     override fun enterService(ctx: ZdlParser.ServiceContext) {
         val serviceName = getText(ctx.service_name())!!
@@ -559,6 +643,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
             .with("returnType", returnType)
             .with("returnTypeIsArray", returnTypeIsArray)
             .with("returnTypeIsOptional", returnTypeIsOptional)
+            .with("transition", null)
             .with("withEvents", withEvents)
             .with("javadoc", jd)
         currentStack.last().appendTo("methods", methodName, method)
@@ -570,7 +655,25 @@ class ZdlListenerImpl : ZdlBaseListener() {
         model.setLocation("$location.returnType", getLocations(ctx.service_method_return()))
     }
 
-    override fun exitService_method(ctx: ZdlParser.Service_methodContext) { currentStack.removeLast() }
+    override fun exitService_method(ctx: ZdlParser.Service_methodContext) {
+        // Extract from/to transition from @transition annotation (after options have been merged)
+        val transitionOption = JSONPath.get<Map<*, *>>(currentStack.last(), "options.transition")
+        if (transitionOption != null) {
+            val serviceName = getText((ctx.getParent() as ZdlParser.ServiceContext).service_name())!!
+            val methodName = getText(ctx.service_method_name())!!
+            val location = "services.$serviceName.methods.$methodName"
+            
+            val fromValue = transitionOption["from"]
+            val fromStates: List<String>? = when (fromValue) {
+                is List<*> -> fromValue.map { it.toString() }
+                is String -> listOf(fromValue)
+                else -> null
+            }
+            val toState = transitionOption["to"]?.toString()
+            currentStack.last()["transition"] = buildMap().with("from", fromStates).with("to", toState)
+        }
+        currentStack.removeLast()
+    }
 
     private fun getServiceMethodEvents(location: String, ctx: ZdlParser.With_eventsContext?): List<Any> {
         model.setLocation("$location.withEvents", getLocations(ctx))

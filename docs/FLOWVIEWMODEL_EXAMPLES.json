@@ -2,447 +2,470 @@
   "schema": "zfl.eventflow.view@1",
   "nodes": [
     {
-      "id": "start:BillingCycleEnded",
-      "type": "START",
-      "label": "BillingCycleEnded",
-      "position": {
-        "x": 20.0,
-        "y": 20.0
-      },
-      "dimensions": {
-        "width": 180.0,
-        "height": 56.0
-      },
-      "system": null,
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
-      }
-    },
-    {
-      "id": "start:CustomerRequestsSubscriptionRenewal",
+      "id": "event:CustomerRequestsSubscriptionRenewal",
       "type": "START",
       "label": "CustomerRequestsSubscriptionRenewal",
-      "position": {
-        "x": 20.0,
-        "y": 156.0
-      },
-      "dimensions": {
-        "width": 180.0,
-        "height": 56.0
-      },
       "system": null,
+      "service": null,
       "sourceRef": {
         "file": "<zfl>",
         "line": 1,
         "column": 1
+      },
+      "position": {
+        "x": 32.0,
+        "y": 143.33333333333334
+      },
+      "dimensions": {
+        "width": 180.0,
+        "height": 56.0
       }
     },
     {
-      "id": "start:PaymentTimeout",
+      "id": "event:BillingCycleEnded",
+      "type": "START",
+      "label": "BillingCycleEnded",
+      "system": null,
+      "service": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
+      "position": {
+        "x": 2372.0,
+        "y": 403.3333333333333
+      },
+      "dimensions": {
+        "width": 180.0,
+        "height": 56.0
+      }
+    },
+    {
+      "id": "event:PaymentTimeout",
       "type": "START",
       "label": "PaymentTimeout",
+      "system": null,
+      "service": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
       "position": {
-        "x": 20.0,
-        "y": 292.0
+        "x": 232.0,
+        "y": 42.0
       },
       "dimensions": {
         "width": 180.0,
         "height": 56.0
-      },
-      "system": null,
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
-      }
-    },
-    {
-      "id": "policy:CustomerRequestsSubscriptionRenewal:renewSubscription",
-      "type": "POLICY",
-      "label": "when CustomerRequestsSubscriptionRenewal do renewSubscription",
-      "position": {
-        "x": 220.0,
-        "y": 20.0
-      },
-      "dimensions": {
-        "width": 220.0,
-        "height": 64.0
-      },
-      "system": null,
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
-      }
-    },
-    {
-      "id": "policy:PaymentTimeout:cancelRenewal",
-      "type": "POLICY",
-      "label": "when PaymentTimeout do cancelRenewal",
-      "position": {
-        "x": 220.0,
-        "y": 164.0
-      },
-      "dimensions": {
-        "width": 220.0,
-        "height": 64.0
-      },
-      "system": null,
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
-      }
-    },
-    {
-      "id": "command:cancelRenewal",
-      "type": "COMMAND",
-      "label": "cancelRenewal",
-      "position": {
-        "x": 420.0,
-        "y": 420.0
-      },
-      "dimensions": {
-        "width": 180.0,
-        "height": 56.0
-      },
-      "system": "Subscription",
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
       }
     },
     {
       "id": "command:renewSubscription",
       "type": "COMMAND",
       "label": "renewSubscription",
+      "system": "Subscription",
+      "service": "SubscriptionService",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
       "position": {
-        "x": 420.0,
-        "y": 556.0
+        "x": 832.0,
+        "y": 143.33333333333334
       },
       "dimensions": {
         "width": 180.0,
         "height": 56.0
-      },
-      "system": "Subscription",
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
-      }
-    },
-    {
-      "id": "event:RenewalCancelled",
-      "type": "EVENT",
-      "label": "RenewalCancelled",
-      "position": {
-        "x": 620.0,
-        "y": 420.0
-      },
-      "dimensions": {
-        "width": 160.0,
-        "height": 48.0
-      },
-      "system": "Subscription",
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
-      }
-    },
-    {
-      "id": "event:SubscriptionRenewed",
-      "type": "EVENT",
-      "label": "SubscriptionRenewed",
-      "position": {
-        "x": 620.0,
-        "y": 548.0
-      },
-      "dimensions": {
-        "width": 160.0,
-        "height": 48.0
-      },
-      "system": "Subscription",
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
-      }
-    },
-    {
-      "id": "policy:SubscriptionRenewed:chargePayment",
-      "type": "POLICY",
-      "label": "when SubscriptionRenewed do chargePayment",
-      "position": {
-        "x": 820.0,
-        "y": 20.0
-      },
-      "dimensions": {
-        "width": 220.0,
-        "height": 64.0
-      },
-      "system": null,
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
       }
     },
     {
       "id": "command:chargePayment",
       "type": "COMMAND",
       "label": "chargePayment",
+      "system": "Payments",
+      "service": "PaymentService",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
       "position": {
-        "x": 1020.0,
-        "y": 220.0
+        "x": 1992.0,
+        "y": 143.33333333333334
       },
       "dimensions": {
         "width": 180.0,
         "height": 56.0
-      },
-      "system": "Payments",
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
-      }
-    },
-    {
-      "id": "event:PaymentFailed",
-      "type": "EVENT",
-      "label": "PaymentFailed",
-      "position": {
-        "x": 1220.0,
-        "y": 220.0
-      },
-      "dimensions": {
-        "width": 160.0,
-        "height": 48.0
-      },
-      "system": "Payments",
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
-      }
-    },
-    {
-      "id": "event:PaymentSucceeded",
-      "type": "EVENT",
-      "label": "PaymentSucceeded",
-      "position": {
-        "x": 1220.0,
-        "y": 348.0
-      },
-      "dimensions": {
-        "width": 160.0,
-        "height": 48.0
-      },
-      "system": "Payments",
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
-      }
-    },
-    {
-      "id": "policy:PaymentFailed:retryPayment",
-      "type": "POLICY",
-      "label": "when PaymentFailed do retryPayment if less than 3 attempts",
-      "position": {
-        "x": 1420.0,
-        "y": 20.0
-      },
-      "dimensions": {
-        "width": 220.0,
-        "height": 64.0
-      },
-      "system": null,
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
-      }
-    },
-    {
-      "id": "policy:PaymentFailed:suspendSubscription",
-      "type": "POLICY",
-      "label": "when PaymentFailed do suspendSubscription if 3 or more attempts",
-      "position": {
-        "x": 1420.0,
-        "y": 164.0
-      },
-      "dimensions": {
-        "width": 220.0,
-        "height": 64.0
-      },
-      "system": null,
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
-      }
-    },
-    {
-      "id": "policy:PaymentSucceeded,BillingCycleEnded:recordPayment",
-      "type": "POLICY",
-      "label": "when PaymentSucceeded,BillingCycleEnded do recordPayment",
-      "position": {
-        "x": 1420.0,
-        "y": 308.0
-      },
-      "dimensions": {
-        "width": 220.0,
-        "height": 64.0
-      },
-      "system": null,
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
-      }
-    },
-    {
-      "id": "command:recordPayment",
-      "type": "COMMAND",
-      "label": "recordPayment",
-      "position": {
-        "x": 1620.0,
-        "y": 220.0
-      },
-      "dimensions": {
-        "width": 180.0,
-        "height": 56.0
-      },
-      "system": "Payments",
-      "sourceRef": {
-        "file": "<zfl>",
-        "line": 1,
-        "column": 1
       }
     },
     {
       "id": "command:retryPayment",
       "type": "COMMAND",
       "label": "retryPayment",
-      "position": {
-        "x": 1620.0,
-        "y": 356.0
-      },
-      "dimensions": {
-        "width": 180.0,
-        "height": 56.0
-      },
       "system": "Payments",
+      "service": "PaymentService",
       "sourceRef": {
         "file": "<zfl>",
         "line": 1,
         "column": 1
+      },
+      "position": {
+        "x": 3172.0,
+        "y": 270.0
+      },
+      "dimensions": {
+        "width": 180.0,
+        "height": 56.0
       }
     },
     {
       "id": "command:suspendSubscription",
       "type": "COMMAND",
       "label": "suspendSubscription",
+      "system": "Subscription",
+      "service": "SubscriptionService",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
       "position": {
-        "x": 1620.0,
-        "y": 420.0
+        "x": 3172.0,
+        "y": 126.0
       },
       "dimensions": {
         "width": 180.0,
         "height": 56.0
-      },
-      "system": "Subscription",
+      }
+    },
+    {
+      "id": "command:recordPayment",
+      "type": "COMMAND",
+      "label": "recordPayment",
+      "system": "Payments",
+      "service": "PaymentService",
       "sourceRef": {
         "file": "<zfl>",
         "line": 1,
         "column": 1
+      },
+      "position": {
+        "x": 3172.0,
+        "y": 412.66666666666663
+      },
+      "dimensions": {
+        "width": 180.0,
+        "height": 56.0
       }
     },
     {
-      "id": "event:PaymentRecorded",
-      "type": "EVENT",
-      "label": "PaymentRecorded",
+      "id": "command:cancelRenewal",
+      "type": "COMMAND",
+      "label": "cancelRenewal",
+      "system": "Subscription",
+      "service": "SubscriptionService",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
       "position": {
-        "x": 1820.0,
-        "y": 220.0
+        "x": 1032.0,
+        "y": 42.0
+      },
+      "dimensions": {
+        "width": 180.0,
+        "height": 56.0
+      }
+    },
+    {
+      "id": "event:SubscriptionRenewed",
+      "type": "EVENT",
+      "label": "SubscriptionRenewed",
+      "system": "Subscription",
+      "service": "SubscriptionService",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
+      "position": {
+        "x": 1212.0,
+        "y": 147.33333333333334
       },
       "dimensions": {
         "width": 160.0,
         "height": 48.0
-      },
+      }
+    },
+    {
+      "id": "event:PaymentSucceeded",
+      "type": "EVENT",
+      "label": "PaymentSucceeded",
       "system": "Payments",
+      "service": "PaymentService",
       "sourceRef": {
         "file": "<zfl>",
         "line": 1,
         "column": 1
+      },
+      "position": {
+        "x": 2382.0,
+        "y": 539.3333333333333
+      },
+      "dimensions": {
+        "width": 160.0,
+        "height": 48.0
+      }
+    },
+    {
+      "id": "event:PaymentFailed",
+      "type": "EVENT",
+      "label": "PaymentFailed",
+      "system": "Payments",
+      "service": "PaymentService",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
+      "position": {
+        "x": 2385.3333333333335,
+        "y": 138.0
+      },
+      "dimensions": {
+        "width": 160.0,
+        "height": 48.0
       }
     },
     {
       "id": "event:PaymentRetryScheduled",
       "type": "EVENT",
       "label": "PaymentRetryScheduled",
-      "position": {
-        "x": 1820.0,
-        "y": 348.0
-      },
-      "dimensions": {
-        "width": 160.0,
-        "height": 48.0
-      },
       "system": "Payments",
+      "service": "PaymentService",
       "sourceRef": {
         "file": "<zfl>",
         "line": 1,
         "column": 1
+      },
+      "position": {
+        "x": 3552.0,
+        "y": 274.0
+      },
+      "dimensions": {
+        "width": 160.0,
+        "height": 48.0
       }
     },
     {
       "id": "event:SubscriptionSuspended",
       "type": "EVENT",
       "label": "SubscriptionSuspended",
-      "position": {
-        "x": 1820.0,
-        "y": 420.0
-      },
-      "dimensions": {
-        "width": 160.0,
-        "height": 48.0
-      },
       "system": "Subscription",
+      "service": "SubscriptionService",
       "sourceRef": {
         "file": "<zfl>",
         "line": 1,
         "column": 1
+      },
+      "position": {
+        "x": 3552.0,
+        "y": 130.0
+      },
+      "dimensions": {
+        "width": 160.0,
+        "height": 48.0
+      }
+    },
+    {
+      "id": "event:PaymentRecorded",
+      "type": "EVENT",
+      "label": "PaymentRecorded",
+      "system": "Payments",
+      "service": "PaymentService",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
+      "position": {
+        "x": 3552.0,
+        "y": 416.66666666666663
+      },
+      "dimensions": {
+        "width": 160.0,
+        "height": 48.0
+      }
+    },
+    {
+      "id": "event:RenewalCancelled",
+      "type": "EVENT",
+      "label": "RenewalCancelled",
+      "system": "Subscription",
+      "service": "SubscriptionService",
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
+      "position": {
+        "x": 1412.0,
+        "y": 46.0
+      },
+      "dimensions": {
+        "width": 160.0,
+        "height": 48.0
+      }
+    },
+    {
+      "id": "policy:CustomerRequestsSubscriptionRenewal:renewSubscription",
+      "type": "POLICY",
+      "label": "when CustomerRequestsSubscriptionRenewal do renewSubscription",
+      "system": null,
+      "service": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
+      "position": {
+        "x": 412.0,
+        "y": 139.33333333333334
+      },
+      "dimensions": {
+        "width": 220.0,
+        "height": 64.0
+      }
+    },
+    {
+      "id": "policy:SubscriptionRenewed:chargePayment",
+      "type": "POLICY",
+      "label": "when SubscriptionRenewed do chargePayment",
+      "system": null,
+      "service": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
+      "position": {
+        "x": 1572.0,
+        "y": 139.33333333333334
+      },
+      "dimensions": {
+        "width": 220.0,
+        "height": 64.0
+      }
+    },
+    {
+      "id": "policy:PaymentFailed:retryPayment",
+      "type": "POLICY",
+      "label": "when PaymentFailed do retryPayment if less than 3 attempts",
+      "system": null,
+      "service": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
+      "position": {
+        "x": 2752.0,
+        "y": 266.0
+      },
+      "dimensions": {
+        "width": 220.0,
+        "height": 64.0
+      }
+    },
+    {
+      "id": "policy:PaymentFailed:suspendSubscription",
+      "type": "POLICY",
+      "label": "when PaymentFailed do suspendSubscription if 3 or more attempts",
+      "system": null,
+      "service": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
+      "position": {
+        "x": 2752.0,
+        "y": 122.0
+      },
+      "dimensions": {
+        "width": 220.0,
+        "height": 64.0
+      }
+    },
+    {
+      "id": "policy:PaymentSucceeded,BillingCycleEnded:recordPayment",
+      "type": "POLICY",
+      "label": "when PaymentSucceeded,BillingCycleEnded do recordPayment",
+      "system": null,
+      "service": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
+      "position": {
+        "x": 2752.0,
+        "y": 410.0
+      },
+      "dimensions": {
+        "width": 220.0,
+        "height": 64.0
+      }
+    },
+    {
+      "id": "policy:PaymentTimeout:cancelRenewal",
+      "type": "POLICY",
+      "label": "when PaymentTimeout do cancelRenewal",
+      "system": null,
+      "service": null,
+      "sourceRef": {
+        "file": "<zfl>",
+        "line": 1,
+        "column": 1
+      },
+      "position": {
+        "x": 612.0,
+        "y": 38.0
+      },
+      "dimensions": {
+        "width": 220.0,
+        "height": 64.0
       }
     },
     {
       "id": "end:completed",
       "type": "END",
       "label": "Completed",
-      "position": {
-        "x": 2020.0,
-        "y": 20.0
-      },
-      "dimensions": {
-        "width": 180.0,
-        "height": 56.0
-      },
       "system": null,
+      "service": null,
       "sourceRef": {
         "file": "<zfl>",
         "line": 1,
         "column": 1
+      },
+      "position": {
+        "x": 32.0,
+        "y": 32.0
+      },
+      "dimensions": {
+        "width": 180.0,
+        "height": 56.0
       }
     }
   ],
   "edges": [
     {
-      "id": "from[start:CustomerRequestsSubscriptionRenewal]to[event:CustomerRequestsSubscriptionRenewal]",
-      "source": "start:CustomerRequestsSubscriptionRenewal",
+      "id": "from[event:CustomerRequestsSubscriptionRenewal]to[event:CustomerRequestsSubscriptionRenewal]",
+      "source": "event:CustomerRequestsSubscriptionRenewal",
       "target": "event:CustomerRequestsSubscriptionRenewal",
       "type": "TRIGGER",
       "label": null,
@@ -453,8 +476,8 @@
       }
     },
     {
-      "id": "from[start:BillingCycleEnded]to[event:BillingCycleEnded]",
-      "source": "start:BillingCycleEnded",
+      "id": "from[event:BillingCycleEnded]to[event:BillingCycleEnded]",
+      "source": "event:BillingCycleEnded",
       "target": "event:BillingCycleEnded",
       "type": "TRIGGER",
       "label": null,
@@ -465,8 +488,8 @@
       }
     },
     {
-      "id": "from[start:PaymentTimeout]to[event:PaymentTimeout]",
-      "source": "start:PaymentTimeout",
+      "id": "from[event:PaymentTimeout]to[event:PaymentTimeout]",
+      "source": "event:PaymentTimeout",
       "target": "event:PaymentTimeout",
       "type": "TRIGGER",
       "label": null,
@@ -729,28 +752,8 @@
       }
     }
   ],
-  "systemGroups": [
-    {
-      "systemName": "Subscription",
-      "bounds": {
-        "x": 380.0,
-        "y": 380.0,
-        "width": 1640.0,
-        "height": 272.0
-      }
-    },
-    {
-      "systemName": "Payments",
-      "bounds": {
-        "x": 980.0,
-        "y": 180.0,
-        "width": 1040.0,
-        "height": 272.0
-      }
-    }
-  ],
   "layout": {
-    "engine": "zfl-timeline",
+    "engine": "elk-layered",
     "direction": "LR",
     "rankSpacing": 200.0,
     "nodeSpacing": 80.0
@@ -758,7 +761,8 @@
   "bounds": {
     "x": 0.0,
     "y": 0.0,
-    "width": 2220.0,
-    "height": 632.0
-  }
+    "width": 3732.0,
+    "height": 607.3333333333333
+  },
+  "systemGroups": null
 }

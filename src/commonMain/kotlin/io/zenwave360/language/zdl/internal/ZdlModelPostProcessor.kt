@@ -41,6 +41,29 @@ class ZdlModelPostProcessor {
                 }
             }
 
+            for ((name, entityValue) in entities) {
+                @Suppress("UNCHECKED_CAST")
+                val entity = entityValue as? MutableMap<String, Any?> ?: continue
+                val entityLifecycle = JSONPath.get<Map<*, *>>(entity, "$.options.lifecycle") ?: continue
+                entity["lifecycle"] = entityLifecycle
+            }
+
+            // Copy @lifecycle from the aggregateRoot entity into the aggregate
+            for ((_, aggregateValue) in aggregates) {
+                @Suppress("UNCHECKED_CAST")
+                val aggregate = aggregateValue as? MutableMap<String, Any?> ?: continue
+                val aggregateLifecycle = JSONPath.get<Map<*, *>>(aggregate, "$.options.lifecycle")
+
+                val aggregateRoot = aggregate["aggregateRoot"] as? String ?: continue
+                @Suppress("UNCHECKED_CAST")
+                val rootEntity = entities[aggregateRoot] as? MutableMap<String, Any?> ?: continue
+                val entityLifecycle = JSONPath.get<Map<*, *>>(rootEntity, "$.options.lifecycle")
+
+                val lifecycle = entityLifecycle ?: aggregateLifecycle
+                rootEntity["lifecycle"] = lifecycle
+                aggregate["lifecycle"] = lifecycle
+            }
+
             val allEntitiesAndEnums = mutableMapOf<String, Any?>()
             allEntitiesAndEnums.putAll(aggregates)
             allEntitiesAndEnums.putAll(entities)

@@ -25,7 +25,9 @@ val generateKotlinGrammarSource by tasks.registering(com.strumenta.antlrkotlin.g
 }
 
 val prepareJavaGrammar = tasks.register("prepareJavaGrammar", Copy::class) {
-    from("src/commonMain/antlr")
+    from("src/commonMain/antlr") {
+        include("**/*.g4") // only copy grammar files; _parser_members.java.txt is read at config time and must not be filtered (its shared `skipping` state would corrupt subsequent files)
+    }
     into("build/generated/antlr-java")
 
     val javaMembersContent = file("src/commonMain/antlr/io.zenwave360.language.antlr/_parser_members.java.txt").readText()
@@ -106,6 +108,10 @@ repositories {
     mavenCentral()
 }
 
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+    compilerOptions.freeCompilerArgs.add("-Xexpect-actual-classes")
+}
+
 kotlin {
     jvm {
         withJava() // Enables Java compilation for the JVM target
@@ -135,6 +141,7 @@ kotlin {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
                 implementation("com.strumenta:antlr-kotlin-runtime:1.0.3")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
             }
             kotlin.srcDir(generateKotlinGrammarSource)
         }
@@ -143,15 +150,21 @@ kotlin {
                 implementation(kotlin("test"))
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
             }
         }
         val jvmMain by getting {
             dependencies {
                 compileOnly("org.antlr:antlr4-runtime:$antlrVersion")
+                implementation("org.eclipse.elk:org.eclipse.elk.alg.layered:0.10.0")
             }
         }
         val jvmTest by getting
-        val jsMain by getting
+        val jsMain by getting {
+            dependencies {
+                implementation(npm("elkjs", "0.9.3"))
+            }
+        }
         val jsTest by getting {
             dependencies {
                 implementation(npm("fs", "0.0.1-security"))

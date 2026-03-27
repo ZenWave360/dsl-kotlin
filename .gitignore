@@ -45,3 +45,4 @@ build/
 
 ### Mac OS ###
 .DS_Store
+/.mcp_data/identifier-embeddings-cache.json

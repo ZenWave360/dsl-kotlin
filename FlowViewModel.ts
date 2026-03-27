@@ -1,12 +1,16 @@
 /**
- * TypeScript representation of FlowViewModel and related types
- * Converted from Kotlin source files in io.zenwave360.language.eventflow
+ * TypeScript interfaces mirroring the JSON serialization of
+ * io.zenwave360.language.eventflow.view.FlowViewModel (and its dependencies).
+ *
+ * No behaviour — structure only. Communication between Kotlin and TypeScript
+ * is done by passing JSON objects whose shape is defined here.
  */
 
-/**
- * Represents a precise location in a source file.
- * Lines and columns are 1-based.
- */
+// ============================================================================
+// io.zenwave360.language.source
+// ============================================================================
+
+/** Precise location in a source file. Lines and columns are 1-based. */
 export interface SourceRef {
   file: string;
   line: number;
@@ -14,12 +18,10 @@ export interface SourceRef {
 }
 
 // ============================================================================
-// FlowIR - Canonical IR Types
+// io.zenwave360.language.eventflow.view — enums
 // ============================================================================
 
-/**
- * Semantic types of nodes in an event flow.
- */
+/** Semantic type of a node in an event flow. */
 export enum FlowNodeType {
   START = "START",
   COMMAND = "COMMAND",
@@ -28,17 +30,53 @@ export enum FlowNodeType {
   END = "END"
 }
 
-/**
- * Semantic meaning of a relationship between nodes.
- */
+/** Semantic meaning of a relationship between two flow nodes. */
 export enum FlowEdgeType {
   CAUSATION = "CAUSATION",
   TRIGGER = "TRIGGER",
-  CONDITIONAL = "CONDITIONAL"
+  CONDITIONAL = "CONDITIONAL",
+  ERROR = "ERROR"
 }
 
+/** Layout direction produced by the layout engine. */
+export enum Direction {
+  LR = "LR",
+  TB = "TB"
+}
+
+// ============================================================================
+// io.zenwave360.language.eventflow.view — value types
+// ============================================================================
+
+/** Absolute (x, y) position in the canvas. */
+export interface Point {
+  x: number;
+  y: number;
+}
+
+/** Width and height of a node. */
+export interface Dimensions {
+  width: number;
+  height: number;
+}
+
+/** Axis-aligned bounding box. */
+export interface FlowBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+// ============================================================================
+// io.zenwave360.language.eventflow.view — main types
+// ============================================================================
+
 /**
- * A node in an event-driven flow (IR representation).
+ * A node in an event-driven flow.
+ *
+ * Semantic properties are always present. Layout properties (position,
+ * dimensions) are null until the layout engine has been applied.
  */
 export interface FlowNode {
   id: string;
@@ -47,55 +85,14 @@ export interface FlowNode {
   system: string | null;
   service: string | null;
   sourceRef: SourceRef;
+  /** Null until layout is applied. */
+  position: Point | null;
+  /** Null until layout is applied. */
+  dimensions: Dimensions | null;
 }
 
-/**
- * Directed relationship between two flow nodes (IR representation).
- */
+/** Directed relationship between two flow nodes. */
 export interface FlowEdge {
-  id: string;
-  source: string;
-  target: string;
-  type: FlowEdgeType;
-  label?: string | null;
-  sourceRef?: SourceRef | null;
-}
-
-/**
- * Canonical, language-agnostic representation of an event-driven flow.
- * This model is semantic, deterministic, and layout-agnostic.
- */
-export interface FlowIR {
-  nodes: FlowNode[];
-  edges: FlowEdge[];
-}
-
-// ============================================================================
-// FlowViewModel - View/Layout Types
-// ============================================================================
-
-export interface Point {
-  x: number;
-  y: number;
-}
-
-export interface Dimensions {
-  width: number;
-  height: number;
-}
-
-export interface FlowNodeView {
-  id: string;
-  type: FlowNodeType;
-  label: string;
-  position: Point;
-  dimensions: Dimensions;
-  system: string | null;
-  service: string | null;
-  sourceRef: SourceRef;
-}
-
-export interface FlowEdgeView {
   id: string;
   source: string;
   target: string;
@@ -104,23 +101,13 @@ export interface FlowEdgeView {
   sourceRef: SourceRef | null;
 }
 
-export interface FlowBounds {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
+/** Visual grouping of nodes that belong to the same system (swim lane). */
 export interface FlowSystemGroupView {
   systemName: string;
   bounds: FlowBounds;
 }
 
-export enum Direction {
-  LR = "LR",
-  TB = "TB"
-}
-
+/** Metadata describing the algorithm used to position the flow. */
 export interface LayoutMetadata {
   engine: string;
   direction: Direction;
@@ -128,120 +115,24 @@ export interface LayoutMetadata {
   nodeSpacing: number;
 }
 
-export interface FlowViewModel {
-  schema: string;
-  nodes: FlowNodeView[];
-  edges: FlowEdgeView[];
-  systemGroups: FlowSystemGroupView[];
-  layout: LayoutMetadata;
-  bounds: FlowBounds;
-}
-
 /**
- * Factory function to create a FlowViewModel with default values
+ * Unified view model for an event-driven flow diagram.
+ *
+ * Before layout: nodes and edges are populated; layout, bounds, and
+ * systemGroups are null.
+ * After layout: all fields are populated and every node has position and
+ * dimensions set.
  */
-export function createFlowViewModel(
-  partial: Partial<FlowViewModel> & {
-    nodes: FlowNodeView[];
-    edges: FlowEdgeView[];
-    systemGroups: FlowSystemGroupView[];
-    layout: LayoutMetadata;
-    bounds: FlowBounds;
-  }
-): FlowViewModel {
-  return {
-    schema: "zfl.eventflow.view@1",
-    ...partial
-  };
-}
-
-// ============================================================================
-// ZFL Semantic Model Types
-// ============================================================================
-
-export enum Severity {
-  INFO = "INFO",
-  WARNING = "WARNING",
-  ERROR = "ERROR"
-}
-
-export interface ZflSemanticDiagnostic {
-  message: string;
-  severity: Severity;
-  sourceRef: SourceRef | null;
-}
-
-export interface ZflActor {
-  name: string;
-  sourceRef: SourceRef | null;
-}
-
-export interface ZflCommand {
-  name: string;
-  system: string | null;
-  service: string | null;
-  actor: string | null;
-  sourceRef: SourceRef;
-}
-
-export interface ZflEvent {
-  name: string;
-  description: string | null;
-  system: string | null;
-  service: string | null;
-  isError: boolean;
-  sourceRef: SourceRef;
-}
-
-export interface ZflPolicy {
-  description: string;
-  triggers: string[];
-  condition: string | null;
-  command: string;
-  events: string[];
-  sourceRef: SourceRef;
-}
-
-export interface ZflStart {
-  description: string;
-  name: string;
-  actor: string | null;
-  timer: string | null;
-  system: string | null;
-  sourceRef: SourceRef;
-}
-
-export interface ZflEnd {
-  completed: string[];
-  suspended: string[];
-  cancelled: string[];
-  sourceRef: SourceRef;
-}
-
-export interface ZflFlow {
-  name: string;
-  description: string;
-  starts: ZflStart[];
-  policies: ZflPolicy[];
-  commands: ZflCommand[];
-  events: ZflEvent[];
-  end: ZflEnd;
-}
-
-export interface ZflService {
-  name: string;
-  boundedContext: boolean;
-}
-
-export interface ZflSystem {
-  name: string;
-  services: Record<string, ZflService>;
-}
-
-export interface ZflSemanticModel {
-  flows: ZflFlow[];
-  systems: Record<string, ZflSystem>;
-  actors: Record<string, ZflActor>;
-  diagnostics: ZflSemanticDiagnostic[];
+export interface FlowViewModel {
+  /** Schema version, e.g. "zfl.eventflow.view@1". */
+  schema: string;
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+  /** Null until layout is applied. */
+  layout: LayoutMetadata | null;
+  /** Null until layout is applied. */
+  bounds: FlowBounds | null;
+  /** Null until layout is applied. */
+  systemGroups: FlowSystemGroupView[] | null;
 }
 

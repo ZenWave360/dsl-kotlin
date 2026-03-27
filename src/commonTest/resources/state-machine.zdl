@@ -1,0 +1,101 @@
+@aggregate
+@lifecycle(field: status, initial: DRAFT)
+entity Order {
+  status OrderStatus required
+  note String
+}
+
+@aggregate
+entity Item {
+  name String required
+}
+
+enum OrderStatus {
+  DRAFT, PLACED, PAID, SHIPPED, CANCELLED
+}
+
+
+/**
+ * Order aggregate with state machine lifecycle.
+ */
+aggregate OrderAggregate (Order) {
+
+  @transition(from: DRAFT, to: PLACED)
+  placeOrder(PlaceOrderInput)
+    withEvents OrderPlaced
+
+  @transition(from: PLACED, to: PAID)
+  confirmPayment(ConfirmPaymentInput)
+    withEvents PaymentConfirmed
+
+  @transition(from: PAID, to: SHIPPED)
+  shipOrder(ShipOrderInput)
+    withEvents OrderShipped
+
+  @transition(from: [DRAFT, PLACED], to: CANCELLED)
+  cancelOrder(CancelOrderInput)
+    withEvents OrderCancelled
+
+  // command with no transition — transitions are optional
+  addNote(AddNoteInput)
+    withEvents NoteAdded
+}
+
+/**
+ * Aggregate without lifecycle — state machine is optional.
+ */
+aggregate SimpleAggregate (Item) {
+  createItem(CreateItemInput)
+    withEvents ItemCreated
+}
+
+input PlaceOrderInput {
+  customerId String required
+}
+
+input ConfirmPaymentInput {
+  paymentRef String required
+}
+
+input ShipOrderInput {
+  trackingNumber String required
+}
+
+input CancelOrderInput {
+  reason String
+}
+
+input AddNoteInput {
+  note String required
+}
+
+input CreateItemInput {
+  name String required
+}
+
+event OrderPlaced {
+  orderId String
+}
+
+event PaymentConfirmed {
+  orderId String
+}
+
+event OrderShipped {
+  orderId String
+  trackingNumber String
+}
+
+event OrderCancelled {
+  orderId String
+  reason String
+}
+
+event NoteAdded {
+  orderId String
+}
+
+event ItemCreated {
+  itemId String
+}
+
