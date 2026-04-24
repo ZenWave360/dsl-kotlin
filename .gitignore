@@ -20,6 +20,8 @@ target/
 *.iml
 *.ipr
 
+/.gradle*
+
 ### Eclipse ###
 .apt_generated
 .classpath

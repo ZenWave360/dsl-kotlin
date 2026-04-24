@@ -70,18 +70,25 @@ class ZdlListenerImpl : ZdlBaseListener() {
     override fun enterApi(ctx: ZdlParser.ApiContext) {
         val name = getText(ctx.api_name())!!
         val type = getText(ctx.api_type())
-        val role = getText(ctx.api_role(), "provider")
+        val role = when {
+            ctx.api_role() != null -> getText(ctx.api_role())
+            type == "zdl" -> "client"
+            else -> "provider"
+        }
+        val uri = getValueText(ctx.api_uri()?.string())
         val jd = javadoc(ctx.javadoc())
-        currentStack.addLast(
-            buildMap()
+        val apiModel = buildMap()
             .with("name", name)
             .with("type", type)
             .with("role", role)
+            .with("uri", uri)
             .with("javadoc", jd)
             .with("options", buildMap())
             .with("config", buildMap())
-        )
-        model.appendTo("apis", name, currentStack.last())
+        apiModel.appendTo("config", "uri", uri)
+
+        currentStack.addLast(apiModel)
+        model.appendTo("apis", name, apiModel)
 
         val apiLocation = "apis.$name"
         currentParentLocation = apiLocation
@@ -89,11 +96,16 @@ class ZdlListenerImpl : ZdlBaseListener() {
         model.setLocation("$apiLocation.name", getLocations(ctx.api_name()))
         model.setLocation("$apiLocation.type", getLocations(ctx.api_type()))
         ctx.api_role()?.let { model.setLocation("$apiLocation.role", getLocations(it)) }
+        ctx.api_uri()?.let { model.setLocation("$apiLocation.uri", getLocations(it)) }
     }
 
     override fun enterApi_config(ctx: ZdlParser.Api_configContext) {
         val name = ctx.field_name().text
         val value = getComplexValue(ctx.complex_value())
+        if ("uri" == name && currentStack.last()["uri"] == null) {
+            currentStack.last()["uri"] = value
+            model.setLocation("apis.${currentStack.last()["name"]}.uri", getLocations(ctx.complex_value()))
+        }
         currentStack.last().appendTo("config", name, value)
     }
 

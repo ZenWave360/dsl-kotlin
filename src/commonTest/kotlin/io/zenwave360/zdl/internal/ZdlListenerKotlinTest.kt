@@ -145,6 +145,51 @@ class ZdlListenerKotlinTest {
     }
 
     @Test
+    fun parseZdl_Apis_OldAndNewSyntaxProduceSameModel() {
+        val oldSyntax = """
+            apis {
+                asyncapi(provider) OrdersAPI {
+                    uri "orders/src/main/resources/apis/asyncapi.yml"
+                }
+                asyncapi(client) RestaurantsAsyncAPI {
+                    uri "restaurants/src/main/resources/apis/asyncapi.yml"
+                }
+                openapi(provider) OrdersOpenAPI {
+                    uri "orders/src/main/resources/apis/openapi.yml"
+                }
+            }
+        """.trimIndent()
+
+        val newSyntax = """
+            apis {
+                asyncapi provider OrdersAPI "orders/src/main/resources/apis/asyncapi.yml"
+                asyncapi client RestaurantsAsyncAPI "restaurants/src/main/resources/apis/asyncapi.yml"
+                openapi provider OrdersOpenAPI "orders/src/main/resources/apis/openapi.yml"
+                zdl SharedKernel "shared-kernel/src/main/resources/models/shared-kernel.zdl"
+            }
+        """.trimIndent()
+
+        val oldModel = ZdlParser().parseModel(oldSyntax)
+        val newModel = ZdlParser().parseModel(newSyntax)
+
+        assertEquals(0, (JSONPath.get(oldModel, "$.problems", emptyList<Any>()) as? List<*>)?.size ?: 0)
+        assertEquals(0, (JSONPath.get(newModel, "$.problems", emptyList<Any>()) as? List<*>)?.size ?: 0)
+
+        assertEquals(JSONPath.get<String>(oldModel, "$.apis.OrdersAPI.uri"), JSONPath.get(newModel, "$.apis.OrdersAPI.uri"))
+        assertEquals(JSONPath.get<String>(oldModel, "$.apis.RestaurantsAsyncAPI.uri"), JSONPath.get(newModel, "$.apis.RestaurantsAsyncAPI.uri"))
+        assertEquals(JSONPath.get<String>(oldModel, "$.apis.OrdersOpenAPI.uri"), JSONPath.get(newModel, "$.apis.OrdersOpenAPI.uri"))
+
+        assertEquals("asyncapi", JSONPath.get(newModel, "$.apis.OrdersAPI.type"))
+        assertEquals("provider", JSONPath.get(newModel, "$.apis.OrdersAPI.role"))
+        assertEquals("orders/src/main/resources/apis/asyncapi.yml", JSONPath.get(newModel, "$.apis.OrdersAPI.config.uri"))
+        assertEquals("openapi", JSONPath.get(newModel, "$.apis.OrdersOpenAPI.type"))
+        assertEquals("orders/src/main/resources/apis/openapi.yml", JSONPath.get(newModel, "$.apis.OrdersOpenAPI.config.uri"))
+        assertEquals("zdl", JSONPath.get(newModel, "$.apis.SharedKernel.type"))
+        assertEquals("client", JSONPath.get(newModel, "$.apis.SharedKernel.role"))
+        assertEquals("shared-kernel/src/main/resources/models/shared-kernel.zdl", JSONPath.get(newModel, "$.apis.SharedKernel.config.uri"))
+    }
+
+    @Test
     fun parseZdl_Legacy() {
         val model = parseZdl("legacy.jdl")
         assertEquals(1, (JSONPath.get(model, "$.services") as? Map<*, *>)?.size ?: 0)
