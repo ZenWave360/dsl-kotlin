@@ -1,5 +1,6 @@
-package io.zenwave360.zdl.internal
+package io.zenwave360.language.zdl.internal
 
+import io.zenwave360.language.readTestFile
 import io.zenwave360.language.utils.JSONPath
 import io.zenwave360.language.zdl.ZdlParser
 import io.zenwave360.language.zdl.ZdlModel

@@ -184,9 +184,8 @@ flow_event_name: ID;
 
 // end block
 flow_end: javadoc? annotations END LBRACE flow_end_outcomes RBRACE;
-flow_end_outcomes: flow_end_completed? flow_end_suspended? flow_end_cancelled?;
-flow_end_completed: COMPLETED COLON flow_end_outcome_list;
-flow_end_suspended: SUSPENDED COLON flow_end_outcome_list;
-flow_end_cancelled: CANCELLED COLON flow_end_outcome_list;
+flow_end_outcomes: flow_end_outcome+;
+flow_end_outcome: flow_end_outcome_name COLON flow_end_outcome_list;
+flow_end_outcome_name: keyword;
 flow_end_outcome_list: flow_end_outcome_event (COMMA flow_end_outcome_event)*;
 flow_end_outcome_event: ID;

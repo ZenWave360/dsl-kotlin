@@ -1,9 +1,9 @@
-package io.zenwave360.zfl.internal
+package io.zenwave360.language.zfl.internal
 
 import io.zenwave360.language.utils.JSONPath
 import io.zenwave360.language.zfl.ZflModel
 import io.zenwave360.language.zfl.ZflParser
-import io.zenwave360.zdl.internal.readTestFile
+import io.zenwave360.language.readTestFile
 import kotlin.test.*
 
 class ZflListenerKotlinTest {
@@ -180,6 +180,23 @@ class ZflListenerKotlinTest {
         assertEquals("PaymentRecorded", outcomes["completed"]?.get(0))
         assertEquals("SubscriptionSuspended", outcomes["suspended"]?.get(0))
         assertEquals("RenewalCancelled", outcomes["cancelled"]?.get(0))
+    }
+
+    @Test
+    fun parseZfl_FreeFormEndOutcomes() {
+        val model = parseZfl("flow/place-order-flow.zfl")
+
+        @Suppress("UNCHECKED_CAST")
+        val outcomes = JSONPath.get(
+            model,
+            "$.flows.PlaceOrderFlow.end.outcomes",
+            emptyMap<String, List<String>>()
+        ) as? Map<String, List<String>> ?: emptyMap()
+
+        assertEquals(3, outcomes.size)
+        assertEquals(listOf("OrderConfirmationSent"), outcomes["completed"])
+        assertEquals(listOf("StockUnavailableNotificationSent"), outcomes["stockGone"])
+        assertEquals(listOf("PaymentFailedNotificationSent"), outcomes["paymentDeclined"])
     }
 
     private fun parseZfl(fileName: String): ZflModel {

@@ -1,9 +1,9 @@
-package io.zenwave360.eventflow.view
+package io.zenwave360.language.eventflow.view
 
 import io.zenwave360.language.eventflow.view.*
 import io.zenwave360.language.zfl.ZflParser
 import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
-import io.zenwave360.zdl.internal.readTestFile
+import io.zenwave360.language.readTestFile
 import kotlin.test.*
 
 class ZflToFlowViewModelTransformerTest {
@@ -22,10 +22,12 @@ class ZflToFlowViewModelTransformerTest {
         val commandNodes = viewModel.nodes.filter { it.type == FlowNodeType.COMMAND }
         val eventNodes = viewModel.nodes.filter { it.type == FlowNodeType.EVENT }
         val policyNodes = viewModel.nodes.filter { it.type == FlowNodeType.POLICY }
+        val endNodes = viewModel.nodes.filter { it.type == FlowNodeType.END }
 
         assertEquals(6, commandNodes.size, "Should have 6 command nodes")
         assertEquals(7, eventNodes.size, "Should have 7 event nodes")
         assertEquals(6, policyNodes.size, "Should have 6 policy nodes")
+        assertEquals(1, endNodes.size, "Should have 1 end node")
 
         val renewCommand = commandNodes.find { it.id == "command:renewSubscription" }
         assertNotNull(renewCommand)
@@ -107,6 +109,14 @@ class ZflToFlowViewModelTransformerTest {
             it.type == FlowEdgeType.CONDITIONAL
         }
         assertNotNull(policyToCommandConditional, "Should have conditional edge from policy to command")
+
+        val completedEndEdge = viewModel.edges.find {
+            it.source == "event:PaymentRecorded" &&
+            it.target == "end:end" &&
+            it.type == FlowEdgeType.TRIGGER &&
+            it.label == "completed"
+        }
+        assertNotNull(completedEndEdge, "Should connect completed outcome event to the shared end node")
     }
 
 
@@ -147,7 +157,7 @@ class ZflToFlowViewModelTransformerTest {
             .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)))
 
         assertEquals(5, viewModel.nodes.size)
-        assertEquals(4, viewModel.edges.size)
+        assertEquals(5, viewModel.edges.size)
 
         val triggerEdge = viewModel.edges.find { it.type == FlowEdgeType.TRIGGER }
         assertNotNull(triggerEdge)
@@ -158,5 +168,34 @@ class ZflToFlowViewModelTransformerTest {
         assertNotNull(causationEdge)
         assertEquals("command:doSomething", causationEdge.source)
         assertEquals("event:SomethingDone", causationEdge.target)
+
+        val endEdge = viewModel.edges.find {
+            it.source == "event:SomethingDone" &&
+            it.target == "end:end" &&
+            it.label == "completed"
+        }
+        assertNotNull(endEdge)
+    }
+
+    @Test
+    fun testTransform_PlaceOrderFlow_DeduplicatesSharedCausationAndConnectsEndOutcomes() {
+        val content = readTestFile("flow/place-order-flow.zfl")
+        val model = ZflParser().parseModel(content)
+        val semanticModel = ZflSemanticAnalyzer().analyze(model)
+
+        val viewModel = ZflToFlowViewModelTransformer().transform(semanticModel)
+
+        val releaseStockEdges = viewModel.edges.filter {
+            it.source == "command:releaseStock" &&
+            it.target == "event:StockReleased" &&
+            it.type == FlowEdgeType.CAUSATION
+        }
+        assertEquals(1, releaseStockEdges.size, "Shared command causation should be deduplicated")
+
+        val endEdges = viewModel.edges.filter { it.target == "end:end" }
+        assertEquals(3, endEdges.size, "Shared end node should have one edge per end outcome event")
+        assertTrue(endEdges.any { it.source == "event:OrderConfirmationSent" && it.label == "completed" })
+        assertTrue(endEdges.any { it.source == "event:StockUnavailableNotificationSent" && it.label == "stockGone" })
+        assertTrue(endEdges.any { it.source == "event:PaymentFailedNotificationSent" && it.label == "paymentDeclined" })
     }
 }

@@ -1,10 +1,12 @@
-package io.zenwave360.eventflow.view
+package io.zenwave360.language.eventflow.view
 
 import io.zenwave360.language.eventflow.view.*
 import io.zenwave360.language.zfl.ZflParser
 import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
-import io.zenwave360.zdl.internal.readTestFile
+import io.zenwave360.language.readTestFile
+import kotlin.collections.get
 import kotlin.test.*
+import kotlin.text.iterator
 
 class FlowLayoutEngineTest {
 

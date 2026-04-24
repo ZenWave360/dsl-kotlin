@@ -1,17 +1,17 @@
-package io.zenwave360.zdl.internal
+package io.zenwave360.language.utils
 
-import io.zenwave360.language.utils.JSONPath
+import io.zenwave360.language.readTestFile
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class JSONPathTest {
 
@@ -40,16 +40,16 @@ class JSONPathTest {
             else -> this.content
         }
     }
-    
+
     @Test
     fun testValidatorExpressions() {
         // Test all JSONPath expressions used in validators and source code
         val relationships = JSONPath.get(jsonMap, "$.relationships[*][*]", listOf<Map<String, Any?>>())
         assertTrue(relationships.isNotEmpty())
-        
+
         val allFields = JSONPath.get(jsonMap, "$..fields[*]", listOf<Map<String, Any?>>())
         assertTrue(allFields.size > 20)
-        
+
         // Test accessing properties from relationship objects
         if (relationships.isNotEmpty()) {
             val firstRelationship = relationships.first()
@@ -58,11 +58,11 @@ class JSONPathTest {
             assertNotNull(JSONPath.get(firstRelationship, "$.from"))
             assertNotNull(JSONPath.get(firstRelationship, "$.to"))
         }
-        
+
         // Test service method access patterns
         val serviceMethods = JSONPath.get(jsonMap, "$.services.OrdersService.methods[*]", listOf<Map<String, Any?>>())
         assertTrue(serviceMethods.isNotEmpty())
-        
+
         // Test location access with special bracket notation
         val location = JSONPath.get<IntArray>(jsonMap, "$.locations.['entities.Customer.body']")
         assertNotNull(location)
@@ -85,7 +85,10 @@ class JSONPathTest {
     fun testNestedMapAccess() {
         assertEquals("asyncapi", JSONPath.get(jsonMap, "$.apis.default.type"))
         assertEquals("provider", JSONPath.get(jsonMap, "$.apis.default.role"))
-        assertEquals("orders/src/main/resources/apis/asyncapi.yml", JSONPath.get(jsonMap, "$.apis.default.config.uri"))
+        assertEquals(
+            "orders/src/main/resources/apis/asyncapi.yml",
+            JSONPath.get(jsonMap, "$.apis.default.config.uri")
+        )
         assertEquals("client", JSONPath.get(jsonMap, "$.apis.RestaurantsAsyncAPI.role"))
     }
 
@@ -120,9 +123,20 @@ class JSONPathTest {
     @Test
     fun testComplexNestedAccess() {
         assertEquals("Instant", JSONPath.get(jsonMap, "$.entities.CustomerOrder.fields.orderTime.type"))
-        assertEquals("Instant.now()", JSONPath.get(jsonMap, "$.entities.CustomerOrder.fields.orderTime.initialValue"))
-        assertNotNull(JSONPath.get<Any>(jsonMap, "$.entities.CustomerOrder.fields.orderTime.validations.required"))
-        assertEquals("orderTime javadoc", JSONPath.get(jsonMap, "$.entities.CustomerOrder.fields.orderTime.javadoc"))
+        assertEquals(
+            "Instant.now()",
+            JSONPath.get(jsonMap, "$.entities.CustomerOrder.fields.orderTime.initialValue")
+        )
+        assertNotNull(
+            JSONPath.get<Any>(
+                jsonMap,
+                "$.entities.CustomerOrder.fields.orderTime.validations.required"
+            )
+        )
+        assertEquals(
+            "orderTime javadoc",
+            JSONPath.get(jsonMap, "$.entities.CustomerOrder.fields.orderTime.javadoc")
+        )
     }
 
     @Test
@@ -134,11 +148,13 @@ class JSONPathTest {
         )
         assertEquals(
             2,
-            JSONPath.get<Map<*, *>>(jsonMap, "$.services.OrdersService.methods.cancelOrder.options")?.size ?: 0
+            JSONPath.get<Map<*, *>>(jsonMap, "$.services.OrdersService.methods.cancelOrder.options")?.size
+                ?: 0
         )
         assertEquals(
             2,
-            JSONPath.get<List<*>>(jsonMap, "$.services.OrdersService.methods.cancelOrder.optionsList")?.size ?: 0
+            JSONPath.get<List<*>>(jsonMap, "$.services.OrdersService.methods.cancelOrder.optionsList")?.size
+                ?: 0
         )
         assertEquals(
             "/search",
@@ -154,11 +170,17 @@ class JSONPathTest {
     fun testRelationships() {
         assertEquals(
             "Customer",
-            JSONPath.get(jsonMap, "$.relationships.OneToOne.OneToOne_Customer{address}_Address{customer}.from")
+            JSONPath.get(
+                jsonMap,
+                "$.relationships.OneToOne.OneToOne_Customer{address}_Address{customer}.from"
+            )
         )
         assertEquals(
             true,
-            JSONPath.get(jsonMap, "$.relationships.OneToOne.OneToOne_Customer{address}_Address{customer}.toOptions.Id")
+            JSONPath.get(
+                jsonMap,
+                "$.relationships.OneToOne.OneToOne_Customer{address}_Address{customer}.toOptions.Id"
+            )
         )
     }
 
@@ -232,11 +254,11 @@ class JSONPathTest {
         // Test recursive descent with wildcard
         val allFields = JSONPath.get(jsonMap, "$..fields[*]", listOf<Map<String, Any?>>())
         assertEquals(109, allFields.size)
-        
+
         // Test recursive descent to specific property
         val allNames = JSONPath.get(jsonMap, "$..name", listOf<String>())
         assertTrue(allNames.size > 10)
-        
+
         // Test recursive descent with array access
         val allTypes = JSONPath.get(jsonMap, "$..fields[*].type", listOf<String>())
         assertEquals(109, allTypes.size)

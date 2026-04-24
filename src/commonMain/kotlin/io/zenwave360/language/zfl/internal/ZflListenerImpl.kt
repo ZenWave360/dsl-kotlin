@@ -249,17 +249,14 @@ class ZflListenerImpl : ZflBaseListener() {
     }
 
     override fun enterFlow_end_outcomes(ctx: ZflParser.Flow_end_outcomesContext) {
-        val completedEvents = if (ctx.flow_end_completed() != null)
-            getOutcomeEvents(ctx.flow_end_completed()?.flow_end_outcome_list()) else null
-        val suspendedEvents = if (ctx.flow_end_suspended() != null)
-            getOutcomeEvents(ctx.flow_end_suspended()?.flow_end_outcome_list()) else null
-        val cancelledEvents = if (ctx.flow_end_cancelled() != null)
-            getOutcomeEvents(ctx.flow_end_cancelled()?.flow_end_outcome_list()) else null
-
         val outcomes = buildMap()
-            .with("completed", completedEvents)
-            .with("suspended", suspendedEvents)
-            .with("cancelled", cancelledEvents)
+        ctx.flow_end_outcome().forEach { outcome ->
+            val outcomeName = outcome.flow_end_outcome_name()?.text
+            val outcomeEvents = getOutcomeEvents(outcome.flow_end_outcome_list())
+            if (outcomeName != null) {
+                outcomes.with(outcomeName, outcomeEvents)
+            }
+        }
 
         currentStack.last().appendToWithMap("outcomes", outcomes)
     }

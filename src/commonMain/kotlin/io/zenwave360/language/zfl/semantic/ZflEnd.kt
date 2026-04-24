@@ -5,8 +5,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ZflEnd(
-    val completed: List<String> = emptyList(),
-    val suspended: List<String> = emptyList(),
-    val cancelled: List<String> = emptyList(),
+    val outcomes: Map<String, List<String>> = emptyMap(),
     val sourceRef: SourceRef
 )

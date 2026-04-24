@@ -1,10 +1,10 @@
-package io.zenwave360.eventflow.e2e
+package io.zenwave360.language.eventflow.e2e
 
 import io.zenwave360.language.eventflow.view.*
 import io.zenwave360.language.zfl.ZflParser
 import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
 import io.zenwave360.language.zfl.semantic.toJsonString
-import io.zenwave360.zdl.internal.readTestFile
+import io.zenwave360.language.readTestFile
 import kotlin.test.*
 
 /**
@@ -218,6 +218,32 @@ class ZflToFlowViewModelE2ETest {
         // Verify we have policy nodes
         val policyNodes = viewModel.nodes.filter { it.type.name == "POLICY" }
         assertEquals(3, policyNodes.size, "Should have 3 policy nodes")
+    }
+
+    @Test
+    fun testE2E_PlaceOrderFlow_EndOutcomesUseSharedEndNode() {
+        val zflContent = readTestFile("flow/place-order-flow.zfl")
+
+        val viewModel = ZflParser().parseModel(zflContent)
+            .let { ZflSemanticAnalyzer().analyze(it) }
+            .let { ZflToFlowViewModelTransformer().transform(it) }
+            .let { FlowLayoutEngine().layout(it) }
+
+        val endNodes = viewModel.nodes.filter { it.type == FlowNodeType.END }
+        assertEquals(1, endNodes.size, "Should have a single shared end node")
+
+        val endEdges = viewModel.edges.filter { it.target == "end:end" }
+        assertEquals(3, endEdges.size, "Should have one terminal edge per outcome event")
+        assertTrue(endEdges.any { it.source == "event:OrderConfirmationSent" && it.label == "completed" })
+        assertTrue(endEdges.any { it.source == "event:StockUnavailableNotificationSent" && it.label == "stockGone" })
+        assertTrue(endEdges.any { it.source == "event:PaymentFailedNotificationSent" && it.label == "paymentDeclined" })
+
+        val releaseStockCausationEdges = viewModel.edges.filter {
+            it.source == "command:releaseStock" &&
+            it.target == "event:StockReleased" &&
+            it.type == FlowEdgeType.CAUSATION
+        }
+        assertEquals(1, releaseStockCausationEdges.size, "Shared command causation edge should not be duplicated")
     }
 
     @Test

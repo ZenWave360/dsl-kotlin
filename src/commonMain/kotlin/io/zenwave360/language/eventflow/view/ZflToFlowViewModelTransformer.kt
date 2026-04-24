@@ -16,9 +16,11 @@ class ZflToFlowViewModelTransformer {
 
     fun transform(semanticModel: ZflSemanticModel): FlowViewModel {
         val nodeMap = mutableMapOf<String, FlowNode>()
-        val edgeList = mutableListOf<FlowEdge>()
+        val edgeMap = linkedMapOf<String, FlowEdge>()
 
         semanticModel.flows.forEach { flow ->
+            val endNodeId = endId("end")
+
             // 1. Register start events as nodes + self-loop TRIGGER edge (marks the flow entry point)
             flow.starts.forEach { start ->
                 nodeMap[eventId(start.name)] = FlowNode(
@@ -29,7 +31,8 @@ class ZflToFlowViewModelTransformer {
                     service = null,
                     sourceRef = start.sourceRef
                 )
-                edgeList.add(
+                addEdge(
+                    edgeMap,
                     FlowEdge(
                         id = edgeId(eventId(start.name), eventId(start.name)),
                         source = eventId(start.name),
@@ -77,7 +80,8 @@ class ZflToFlowViewModelTransformer {
                 // connect policy triggers (events) to policy node
                 val edgeType = if (policy.condition != null) FlowEdgeType.CONDITIONAL else FlowEdgeType.TRIGGER
                 policy.triggers.forEach { eventName ->
-                    edgeList.add(
+                    addEdge(
+                        edgeMap,
                         FlowEdge(
                             id = edgeId(eventId(eventName), policyNodeId(policy)),
                             source = eventId(eventName),
@@ -88,7 +92,8 @@ class ZflToFlowViewModelTransformer {
                     )
                 }
                 // connect policy node to command (once, not once per trigger)
-                edgeList.add(
+                addEdge(
+                    edgeMap,
                     FlowEdge(
                         id = edgeId(policyNodeId(policy), commandId(policy.command)),
                         source = policyNodeId(policy),
@@ -99,36 +104,67 @@ class ZflToFlowViewModelTransformer {
                 )
                 // connect command to events
                 policy.events.forEach { eventName ->
-                    edgeList.add(FlowEdge(
-                        id = edgeId(commandId(policy.command), eventId(eventName)),
-                        source = commandId(policy.command),
-                        target = eventId(eventName),
-                        type = FlowEdgeType.CAUSATION,
-                        sourceRef = policy.sourceRef
-                    ))
+                    addEdge(
+                        edgeMap,
+                        FlowEdge(
+                            id = edgeId(commandId(policy.command), eventId(eventName)),
+                            source = commandId(policy.command),
+                            target = eventId(eventName),
+                            type = FlowEdgeType.CAUSATION,
+                            sourceRef = policy.sourceRef
+                        )
+                    )
                 }
             }
 
             // 5. Always register exactly one END node per flow
-            nodeMap[endId("end")] = FlowNode(
-                id = endId("end"),
+            nodeMap[endNodeId] = FlowNode(
+                id = endNodeId,
                 type = FlowNodeType.END,
                 label = "End",
                 system = null,
                 service = null,
                 sourceRef = flow.end.sourceRef
             )
+
+            flow.end.outcomes.forEach { (outcomeName, eventNames) ->
+                eventNames.forEach { eventName ->
+                    addEdge(
+                        edgeMap,
+                        FlowEdge(
+                            id = labeledEdgeId(eventId(eventName), endNodeId, outcomeName),
+                            source = eventId(eventName),
+                            target = endNodeId,
+                            type = FlowEdgeType.TRIGGER,
+                            label = outcomeName,
+                            sourceRef = flow.end.sourceRef
+                        )
+                    )
+                }
+            }
         }
 
         return FlowViewModel(
             nodes = nodeMap.values.toList(),
-            edges = edgeList
+            edges = edgeMap.values.toList()
         )
     }
+
+    private fun addEdge(edgeMap: MutableMap<String, FlowEdge>, edge: FlowEdge) {
+        val key = edgeDedupKey(edge)
+        if (!edgeMap.containsKey(key)) {
+            edgeMap[key] = edge
+        }
+    }
+
+    private fun edgeDedupKey(edge: FlowEdge): String =
+        listOf(edge.source, edge.target, edge.type.name, edge.label ?: "").joinToString("|")
 
     private fun eventId(event: String): String = "event:${event}"
     private fun commandId(command: String): String = "command:${command}"
     private fun edgeId(source: String, target: String): String = "from[$source]to[$target]"
+    private fun labeledEdgeId(source: String, target: String, label: String): String =
+        "from[$source]to[$target]label[$label]"
     private fun endId(end: String): String = "end:${end}"
     private fun policyNodeId(policy: ZflPolicy): String =
         "policy:${policy.triggers.joinToString(",")}:${policy.command}"
@@ -139,4 +175,3 @@ class ZflToFlowViewModelTransformer {
 
 /** Backward-compatibility alias; use [ZflToFlowViewModelTransformer] for new code. */
 typealias ZflToFlowIrTransformer = ZflToFlowViewModelTransformer
-

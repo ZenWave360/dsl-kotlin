@@ -1,4 +1,4 @@
-package io.zenwave360.zdl.internal
+package io.zenwave360.language
 
 @JsModule("fs")
 @JsNonModule

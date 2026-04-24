@@ -11,6 +11,7 @@ class ZflSemanticAnalyzer {
         val systems = mutableMapOf<String, ZflSystem>()
         val flows = mutableListOf<ZflFlow>()
         val commandByName = mutableMapOf<String, ZflCommand>()
+        val diagnostics = mutableListOf<ZflSemanticDiagnostic>()
 
         model.getSystems().values.forEach { systemData ->
             val systemModel = systemData.asMapOrReturn { return@forEach }
@@ -111,12 +112,12 @@ class ZflSemanticAnalyzer {
                 }
             }
             
+            val endOutcomes = flowModel.getStringListMap("end.outcomes")
             val end = ZflEnd(
-                completed = JSONPath.get(flowModel, "end.outcomes.completed", emptyList<String>()),
-                suspended = JSONPath.get(flowModel, "end.outcomes.suspended", emptyList<String>()),
-                cancelled = JSONPath.get(flowModel, "end.outcomes.cancelled", emptyList<String>()),
+                outcomes = endOutcomes,
                 sourceRef = sourceRefOf(flowName, "end")
             )
+            diagnostics += validateEndOutcomes(flowName, endOutcomes, events.keys)
 
             flows += ZflFlow(
                 name = flowName,
@@ -132,8 +133,39 @@ class ZflSemanticAnalyzer {
         return ZflSemanticModel(
             flows = flows,
             systems = systems,
-            actors = actors
+            actors = actors,
+            diagnostics = diagnostics
         )
+    }
+
+    private fun validateEndOutcomes(
+        flowName: String,
+        outcomes: Map<String, List<String>>,
+        declaredEvents: Set<String>
+    ): List<ZflSemanticDiagnostic> {
+        val diagnostics = mutableListOf<ZflSemanticDiagnostic>()
+
+        if (!outcomes.containsKey("completed")) {
+            diagnostics += ZflSemanticDiagnostic(
+                message = "Flow '$flowName' must define a 'completed' end outcome.",
+                severity = Severity.ERROR,
+                sourceRef = sourceRefOf(flowName, "end")
+            )
+        }
+
+        outcomes.forEach { (outcomeName, eventNames) ->
+            eventNames
+                .filterNot(declaredEvents::contains)
+                .forEach { eventName ->
+                    diagnostics += ZflSemanticDiagnostic(
+                        message = "Flow '$flowName' end outcome '$outcomeName' references unknown event '$eventName'.",
+                        severity = Severity.ERROR,
+                        sourceRef = sourceRefOf(flowName, "end")
+                    )
+                }
+        }
+
+        return diagnostics
     }
 
     /**
@@ -161,6 +193,12 @@ class ZflSemanticAnalyzer {
     @Suppress("UNCHECKED_CAST")
     private fun Map<String, Any?>.getMapList(key: String): List<Map<String, Any?>> =
         this[key] as? List<Map<String, Any?>> ?: emptyList()
+
+    @Suppress("UNCHECKED_CAST")
+    private fun Map<String, Any?>.getStringListMap(path: String): Map<String, List<String>> =
+        (JSONPath.get(this, path) as? Map<String, *>)?.mapValues { (_, value) ->
+            value as? List<String> ?: emptyList()
+        } ?: emptyMap()
 
     private fun Map<String, Any?>.getString(key: String): String =
         this[key] as? String ?: ""

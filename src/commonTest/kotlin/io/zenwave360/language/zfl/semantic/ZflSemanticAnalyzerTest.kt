@@ -1,9 +1,7 @@
-package io.zenwave360.zfl.semantic
+package io.zenwave360.language.zfl.semantic
 
 import io.zenwave360.language.zfl.ZflParser
-import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
-import io.zenwave360.language.zfl.semantic.toJsonString
-import io.zenwave360.zdl.internal.readTestFile
+import io.zenwave360.language.readTestFile
 import kotlin.test.*
 
 class ZflSemanticAnalyzerTest {
@@ -115,6 +113,81 @@ class ZflSemanticAnalyzerTest {
         val paymentRecorded = flow.events.find { it.name == "PaymentRecorded" }
         assertNotNull(paymentRecorded)
         assertEquals("Payments", paymentRecorded.system)
+    }
+
+    @Test
+    fun testAnalyze_FreeFormEndOutcomes() {
+        val content = readTestFile("flow/place-order-flow.zfl")
+        val model = ZflParser().parseModel(content)
+        val semanticModel = ZflSemanticAnalyzer().analyze(model)
+
+        val flow = semanticModel.flows.first()
+        assertEquals(listOf("OrderConfirmationSent"), flow.end.outcomes["completed"])
+        assertEquals(listOf("StockUnavailableNotificationSent"), flow.end.outcomes["stockGone"])
+        assertEquals(listOf("PaymentFailedNotificationSent"), flow.end.outcomes["paymentDeclined"])
+        assertTrue(semanticModel.diagnostics.isEmpty(), "Expected no diagnostics for valid free-form outcomes")
+    }
+
+    @Test
+    fun testAnalyze_MissingCompletedOutcomeAddsDiagnostic() {
+        val zflContent = """
+            systems {
+                TestSystem {
+                    service TestService {
+                        commands: doSomething
+                    }
+                }
+            }
+            flow TestFlow {
+                start UserAction {
+                }
+                when UserAction {
+                    command doSomething
+                    event SomethingDone
+                }
+                end {
+                    success: SomethingDone
+                }
+            }
+        """.trimIndent()
+
+        val model = ZflParser().parseModel(zflContent)
+        val semanticModel = ZflSemanticAnalyzer().analyze(model)
+
+        assertEquals(1, semanticModel.diagnostics.size)
+        assertEquals(Severity.ERROR, semanticModel.diagnostics.first().severity)
+        assertTrue(semanticModel.diagnostics.first().message.contains("must define a 'completed' end outcome"))
+    }
+
+    @Test
+    fun testAnalyze_UnknownEndOutcomeEventAddsDiagnostic() {
+        val zflContent = """
+            systems {
+                TestSystem {
+                    service TestService {
+                        commands: doSomething
+                    }
+                }
+            }
+            flow TestFlow {
+                start UserAction {
+                }
+                when UserAction {
+                    command doSomething
+                    event SomethingDone
+                }
+                end {
+                    completed: MissingEvent
+                }
+            }
+        """.trimIndent()
+
+        val model = ZflParser().parseModel(zflContent)
+        val semanticModel = ZflSemanticAnalyzer().analyze(model)
+
+        assertEquals(1, semanticModel.diagnostics.size)
+        assertEquals(Severity.ERROR, semanticModel.diagnostics.first().severity)
+        assertTrue(semanticModel.diagnostics.first().message.contains("references unknown event 'MissingEvent'"))
     }
 
     @Test
