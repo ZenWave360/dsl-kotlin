@@ -91,8 +91,6 @@ class FlowLayoutEngine {
 
         // Separate nodes by type for processing
         val startNodes = nodes.filter { it.type == FlowNodeType.START }.sortedBy { it.id }
-        val endNodes = nodes.filter { it.type == FlowNodeType.END }.sortedBy { it.id }
-
         // Position 0: All START nodes
         var currentPosition = 0
         startNodes.forEach { node ->
@@ -107,16 +105,15 @@ class FlowLayoutEngine {
         startNodes.forEach { processed.add(it.id) }
 
         // Process nodes in waves, respecting dependencies and event storming order
-        while (processed.size < nodes.size - endNodes.size) {
+        while (processed.size < nodes.size) {
             val readyNodes = nodes.filter { node ->
                 !processed.contains(node.id) &&
-                node.type != FlowNodeType.END &&
                 (inEdges[node.id]?.all { processed.contains(it) } ?: true)
             }
 
             if (readyNodes.isEmpty()) {
                 // Handle remaining unprocessed nodes (disconnected or cyclic)
-                nodes.filter { !processed.contains(it.id) && it.type != FlowNodeType.END }.forEach { node ->
+                nodes.filter { !processed.contains(it.id) }.forEach { node ->
                     nodePosition[node.id] = currentPosition
                     processed.add(node.id)
                 }
@@ -145,12 +142,6 @@ class FlowLayoutEngine {
 
             currentPosition++
         }
-
-        // Position END nodes at the rightmost position
-        endNodes.forEach { node ->
-            nodePosition[node.id] = currentPosition
-        }
-
         // Group nodes by their timeline position
         val timeline = mutableMapOf<Int, MutableList<String>>()
         nodePosition.forEach { (nodeId, position) ->
@@ -246,7 +237,6 @@ class FlowLayoutEngine {
             FlowNodeType.COMMAND -> Dimensions(width = 180.0, height = 56.0)
             FlowNodeType.EVENT -> Dimensions(width = 160.0, height = 48.0)
             FlowNodeType.POLICY -> Dimensions(width = 220.0, height = 64.0)
-            FlowNodeType.END -> Dimensions(width = 180.0, height = 56.0)
         }
     }
 

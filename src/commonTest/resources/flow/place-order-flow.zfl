@@ -1,38 +1,38 @@
-@import(catalog: "com.arcadia-editions.domain:catalog:RELEASE")
-@import(orders: "com.arcadia-editions.domain:orders:RELEASE")
-@import(payments: "com.arcadia-editions.domain:payments:RELEASE")
-@import(fulfillment: "com.arcadia-editions.domain:fulfillment:RELEASE")
-@import(notifications: "com.arcadia-editions.domain:notifications:RELEASE")
+@import(catalog: "com.arcadia-editions.domain:catalog-products:RELEASE")
+@import(orders: "com.arcadia-editions.domain:orders-checkout:RELEASE")
+@import(payments: "com.arcadia-editions.domain:payments-processing:RELEASE")
+@import(fulfillment: "com.arcadia-editions.domain:fulfillment-shipping:RELEASE")
+@import(notifications: "com.arcadia-editions.domain:notifications-consumer:RELEASE")
 
 config {
-    basePackage "io.arcadia.editions"
+    basePackage "com.arcadia.editions"
     persistence jpa
 }
 
 systems {
-    @zdl("catalog/model.zdl")
-    Catalog {
-        service CatalogService
+    @zdl("catalog-products-api/domain-model.zdl")
+    CatalogProducts {
+        service CatalogProductsService for (ProductAggregate,OtherAggregate)
     }
 
-    @zdl("orders/model.zdl")
-    Orders {
-        service OrderService
+    @zdl("orders-checkout-api/domain-model.zdl")
+    OrdersCheckout {
+        service OrdersCheckoutService
     }
 
-    @zdl("payments/model.zdl")
-    Payments {
-        service PaymentService
+    @zdl("payments-processing-api/domain-model.zdl")
+    PaymentsProcessing {
+        service PaymentsProcessingService
     }
 
-    @zdl("fulfillment/model.zdl")
-    Fulfillment {
-        service FulfillmentService
+    @zdl("fulfillment-shipping-api/domain-model.zdl")
+    FulfillmentShipping {
+        service FulfillmentShippingService
     }
 
-    @zdl("notifications/model.zdl")
-    Notifications {
-        service NotificationService
+    @zdl("notifications-consumer-api/domain-model.zdl")
+    NotificationsConsumer {
+        service NotificationsConsumerService
     }
 }
 
@@ -47,66 +47,58 @@ flow PlaceOrderFlow {
 
     @actor(Customer)
     start CustomerPlacesOrder {
-        customerId String
-        productId String
-        quantity Integer
-        paymentMethodId String
-        shippingAddressId String
+
     }
 
     // Stock is reserved first — during a hot drop this is the critical constraint
     when CustomerPlacesOrder do reserveStock {
-        service Catalog.CatalogService
+        service CatalogProducts.CatalogProductsService
         event StockReserved
         event StockUnavailable
     }
 
     when StockReserved do createOrder {
-        service Orders.OrderService
+        service OrdersCheckout.OrdersCheckoutService
         event OrderCreated
     }
 
     when OrderCreated do authorizePayment {
-        service Payments.PaymentService
+        service PaymentsProcessing.PaymentsProcessingService
         event PaymentAuthorized
         event PaymentFailed
     }
 
     when PaymentAuthorized do confirmOrder {
-        service Orders.OrderService
+        service OrdersCheckout.OrdersCheckoutService
         event OrderConfirmed
     }
 
     when OrderConfirmed do scheduleFulfillment {
-        service Fulfillment.FulfillmentService
+        service FulfillmentShipping.FulfillmentShippingService
         event FulfillmentScheduled
     }
 
-    when FulfillmentScheduled do sendOrderConfirmation {
-        service Notifications.NotificationService
+    when OrderConfirmed do sendOrderConfirmation {
+        service NotificationsConsumer.NotificationsConsumerService
         event OrderConfirmationSent
     }
 
     // Failure path: stock gone during a hot drop
     when StockUnavailable do sendStockUnavailableNotification {
-        service Notifications.NotificationService
+        service NotificationsConsumer.NotificationsConsumerService
         event StockUnavailableNotificationSent
     }
 
     // Failure path: payment declined — release reserved stock
-    when PaymentFailed do releaseStock {
-        service Catalog.CatalogService
-        event StockReleased
-    }
-
-    when StockReleased do cancelOrder {
-        service Orders.OrderService
+    when PaymentFailed do cancelOrder {
+        service CatalogProducts.CatalogProductsService
         event OrderCancelled
+        event PaymentFailedNotificationSent
     }
 
-    when OrderCancelled do sendPaymentFailedNotification {
-        service Notifications.NotificationService
-        event PaymentFailedNotificationSent
+    when OrderCancelled do releaseStock {
+        service NotificationsConsumer.NotificationsConsumerService
+        event StockReleased
     }
 
     // Timeout path: customer started checkout but never completed payment
@@ -115,9 +107,8 @@ flow PlaceOrderFlow {
         orderId String
     }
 
-    when PaymentTimeout do releaseStock {
-        service Catalog.CatalogService
-        event StockReleased
+    when PaymentTimeout do cancelOrder {
+        service CatalogProducts.CatalogProductsService
     }
 
     end {

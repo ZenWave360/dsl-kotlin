@@ -17,6 +17,8 @@ data class FlowNode(
     val system: String?,
     val service: String?,
     val sourceRef: SourceRef,
+    /** Marks this event as a terminal outcome when present. */
+    val endOutcomeLabels: List<String>? = null,
     /** Absolute position (x, y) in the canvas. Null until layout is applied. */
     val position: Point? = null,
     /** Width and height of the node. Null until layout is applied. */
@@ -28,4 +30,3 @@ data class Point(val x: Double, val y: Double)
 
 @Serializable
 data class Dimensions(val width: Double, val height: Double)
-

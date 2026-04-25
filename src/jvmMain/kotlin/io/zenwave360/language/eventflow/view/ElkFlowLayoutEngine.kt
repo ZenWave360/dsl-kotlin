@@ -100,7 +100,6 @@ actual class ElkFlowLayoutEngine actual constructor() {
         FlowNodeType.COMMAND -> Dimensions(width = 180.0, height = 124.0)
         FlowNodeType.EVENT   -> Dimensions(width = 180.0, height = 124.0)
         FlowNodeType.POLICY  -> Dimensions(width = 180.0, height = 124.0)
-        FlowNodeType.END     -> Dimensions(width = 180.0, height = 124.0)
     }
 
     private fun calculateBounds(nodes: List<FlowNode>): FlowBounds {

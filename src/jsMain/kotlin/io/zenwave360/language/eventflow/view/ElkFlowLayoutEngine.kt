@@ -117,7 +117,6 @@ actual class ElkFlowLayoutEngine actual constructor() {
         FlowNodeType.COMMAND -> Dimensions(width = 180.0, height = 56.0)
         FlowNodeType.EVENT   -> Dimensions(width = 160.0, height = 48.0)
         FlowNodeType.POLICY  -> Dimensions(width = 220.0, height = 64.0)
-        FlowNodeType.END     -> Dimensions(width = 180.0, height = 56.0)
     }
 
     private fun calculateSystemGroups(nodes: List<FlowNode>): List<FlowSystemGroupView> =

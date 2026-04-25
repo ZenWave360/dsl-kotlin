@@ -22,12 +22,9 @@ class ZflToFlowViewModelTransformerTest {
         val commandNodes = viewModel.nodes.filter { it.type == FlowNodeType.COMMAND }
         val eventNodes = viewModel.nodes.filter { it.type == FlowNodeType.EVENT }
         val policyNodes = viewModel.nodes.filter { it.type == FlowNodeType.POLICY }
-        val endNodes = viewModel.nodes.filter { it.type == FlowNodeType.END }
-
         assertEquals(6, commandNodes.size, "Should have 6 command nodes")
         assertEquals(7, eventNodes.size, "Should have 7 event nodes")
-        assertEquals(6, policyNodes.size, "Should have 6 policy nodes")
-        assertEquals(1, endNodes.size, "Should have 1 end node")
+        assertEquals(5, policyNodes.size, "Actor starts should connect directly to the first command")
 
         val renewCommand = commandNodes.find { it.id == "command:renewSubscription" }
         assertNotNull(renewCommand)
@@ -75,19 +72,17 @@ class ZflToFlowViewModelTransformerTest {
         }
         assertNotNull(startToEvent, "Should have trigger edge from start to event")
 
-        val eventToPolicy = viewModel.edges.find {
+        val actorStartToCommand = viewModel.edges.find {
             it.source == "event:CustomerRequestsSubscriptionRenewal" &&
-            it.target == "policy:CustomerRequestsSubscriptionRenewal:renewSubscription" &&
-            it.type == FlowEdgeType.TRIGGER
-        }
-        assertNotNull(eventToPolicy, "Should have trigger edge from event to policy")
-
-        val policyToCommand = viewModel.edges.find {
-            it.source == "policy:CustomerRequestsSubscriptionRenewal:renewSubscription" &&
             it.target == "command:renewSubscription" &&
             it.type == FlowEdgeType.TRIGGER
         }
-        assertNotNull(policyToCommand, "Should have trigger edge from policy to command")
+        assertNotNull(actorStartToCommand, "Actor start should connect directly to the first command")
+
+        assertNull(
+            viewModel.nodes.find { it.id == "policy:CustomerRequestsSubscriptionRenewal:renewSubscription" },
+            "Actor starts should not render an intermediate policy node"
+        )
 
         val causationEdge = viewModel.edges.find {
             it.source == "command:renewSubscription" &&
@@ -110,13 +105,9 @@ class ZflToFlowViewModelTransformerTest {
         }
         assertNotNull(policyToCommandConditional, "Should have conditional edge from policy to command")
 
-        val completedEndEdge = viewModel.edges.find {
-            it.source == "event:PaymentRecorded" &&
-            it.target == "end:end" &&
-            it.type == FlowEdgeType.TRIGGER &&
-            it.label == "completed"
-        }
-        assertNotNull(completedEndEdge, "Should connect completed outcome event to the shared end node")
+        val completedEvent = viewModel.nodes.find { it.id == "event:PaymentRecorded" }
+        assertNotNull(completedEvent)
+        assertEquals(listOf("completed"), completedEvent.endOutcomeLabels)
     }
 
 
@@ -155,8 +146,8 @@ class ZflToFlowViewModelTransformerTest {
         val viewModel = ZflToFlowViewModelTransformer()
             .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)))
 
-        assertEquals(5, viewModel.nodes.size)
-        assertEquals(5, viewModel.edges.size)
+        assertEquals(4, viewModel.nodes.size)
+        assertEquals(4, viewModel.edges.size)
 
         val triggerEdge = viewModel.edges.find { it.type == FlowEdgeType.TRIGGER }
         assertNotNull(triggerEdge)
@@ -168,12 +159,9 @@ class ZflToFlowViewModelTransformerTest {
         assertEquals("command:doSomething", causationEdge.source)
         assertEquals("event:SomethingDone", causationEdge.target)
 
-        val endEdge = viewModel.edges.find {
-            it.source == "event:SomethingDone" &&
-            it.target == "end:end" &&
-            it.label == "completed"
-        }
-        assertNotNull(endEdge)
+        val doneEvent = viewModel.nodes.find { it.id == "event:SomethingDone" }
+        assertNotNull(doneEvent)
+        assertEquals(listOf("completed"), doneEvent.endOutcomeLabels)
     }
 
     @Test
@@ -191,10 +179,11 @@ class ZflToFlowViewModelTransformerTest {
         }
         assertEquals(1, releaseStockEdges.size, "Shared command causation should be deduplicated")
 
-        val endEdges = viewModel.edges.filter { it.target == "end:end" }
-        assertEquals(3, endEdges.size, "Shared end node should have one edge per end outcome event")
-        assertTrue(endEdges.any { it.source == "event:OrderConfirmationSent" && it.label == "completed" })
-        assertTrue(endEdges.any { it.source == "event:StockUnavailableNotificationSent" && it.label == "stockGone" })
-        assertTrue(endEdges.any { it.source == "event:PaymentFailedNotificationSent" && it.label == "paymentDeclined" })
+        val orderConfirmationSent = viewModel.nodes.find { it.id == "event:OrderConfirmationSent" }
+        val stockUnavailableNotificationSent = viewModel.nodes.find { it.id == "event:StockUnavailableNotificationSent" }
+        val paymentFailedNotificationSent = viewModel.nodes.find { it.id == "event:PaymentFailedNotificationSent" }
+        assertEquals(listOf("completed"), orderConfirmationSent?.endOutcomeLabels)
+        assertEquals(listOf("stockGone"), stockUnavailableNotificationSent?.endOutcomeLabels)
+        assertEquals(listOf("paymentDeclined"), paymentFailedNotificationSent?.endOutcomeLabels)
     }
 }

@@ -53,7 +53,7 @@ class FlowLayoutEngineTest {
         val viewModel = layoutEngine.layout(flowViewModel)
 
         // Verify nodes are created
-        assertEquals(5, viewModel.nodes.size, "Should have 5 nodes")
+        assertEquals(4, viewModel.nodes.size, "Should have 4 nodes")
 
         // Verify all nodes have positions
         viewModel.nodes.forEach { node ->
@@ -144,7 +144,7 @@ class FlowLayoutEngineTest {
         val viewModel = layoutEngine.layout(flowViewModel)
 
         // Verify nodes
-        assertEquals(23, viewModel.nodes.size, "Should have 23 nodes (7 commands + 7 events + 3 starts + 6 policies)")
+        assertEquals(21, viewModel.nodes.size, "Should have 21 nodes (6 commands + 7 events + 3 starts + 5 policies)")
 
         // Verify all nodes have valid positions and dimensions
         viewModel.nodes.forEach { node ->

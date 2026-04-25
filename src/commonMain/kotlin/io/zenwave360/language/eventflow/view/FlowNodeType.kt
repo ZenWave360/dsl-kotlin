@@ -10,7 +10,5 @@ enum class FlowNodeType {
     START,
     COMMAND,
     EVENT,
-    POLICY,
-    END
+    POLICY
 }
-

@@ -48,7 +48,7 @@ class ZflToFlowViewModelE2ETest {
         // Step 4: Transform to FlowViewModel (without layout)
         val unpositioned = ZflToFlowViewModelTransformer().transform(semanticModel)
         assertNotNull(unpositioned, "FlowViewModel should be created")
-        assertEquals(5, unpositioned.nodes.size, "Should have 4 nodes (1 command + 1 event + 1 start + 1 policy + 1 end)")
+        assertEquals(4, unpositioned.nodes.size, "Should have 4 nodes (1 command + 1 event + 1 start + 1 policy)")
 
         // Step 5: Apply layout to create positioned FlowViewModel
         val viewModel = FlowLayoutEngine().layout(unpositioned)
@@ -75,7 +75,7 @@ class ZflToFlowViewModelE2ETest {
 
         // Step 9: Validate FlowViewModel content
         assertEquals("zfl.eventflow.view@1", viewModel.schema)
-        assertEquals(5, viewModel.nodes.size)
+        assertEquals(4, viewModel.nodes.size)
         assertEquals(4, viewModel.edges.size)
         assertTrue(viewModel.bounds!!.width > 0)
         assertTrue(viewModel.bounds!!.height > 0)
@@ -104,7 +104,7 @@ class ZflToFlowViewModelE2ETest {
         val unpositioned = ZflToFlowViewModelTransformer().transform(semanticModel)
         println(unpositioned.toJsonString())
         assertNotNull(unpositioned, "FlowViewModel should be created")
-        assertEquals(23, unpositioned.nodes.size, "Should have 23 nodes (7 commands + 7 events + 3 starts + 6 policies)")
+        assertEquals(21, unpositioned.nodes.size, "Should have 21 nodes (6 commands + 7 events + 3 starts + 5 policies)")
 
         // Step 5: Apply layout to create positioned FlowViewModel
         val viewModel = FlowLayoutEngine().layout(unpositioned)
@@ -131,7 +131,7 @@ class ZflToFlowViewModelE2ETest {
 
         // Step 9: Validate FlowViewModel content
         assertEquals("zfl.eventflow.view@1", viewModel.schema)
-        assertEquals(23, viewModel.nodes.size)
+        assertEquals(21, viewModel.nodes.size)
         assertTrue(viewModel.edges.isNotEmpty())
         assertTrue(viewModel.systemGroups?.isNotEmpty() ?: false)
 //        assertEquals(3, viewModel.systemGroups?.size, "Should have 3 system groups")
@@ -217,7 +217,7 @@ class ZflToFlowViewModelE2ETest {
     }
 
     @Test
-    fun testE2E_PlaceOrderFlow_EndOutcomesUseSharedEndNode() {
+    fun testE2E_PlaceOrderFlow_EndOutcomesMarkTerminalEvents() {
         val zflContent = readTestFile("flow/place-order-flow.zfl")
 
         val viewModel = ZflParser().parseModel(zflContent)
@@ -225,14 +225,18 @@ class ZflToFlowViewModelE2ETest {
             .let { ZflToFlowViewModelTransformer().transform(it) }
             .let { FlowLayoutEngine().layout(it) }
 
-        val endNodes = viewModel.nodes.filter { it.type == FlowNodeType.END }
-        assertEquals(1, endNodes.size, "Should have a single shared end node")
-
-        val endEdges = viewModel.edges.filter { it.target == "end:end" }
-        assertEquals(3, endEdges.size, "Should have one terminal edge per outcome event")
-        assertTrue(endEdges.any { it.source == "event:OrderConfirmationSent" && it.label == "completed" })
-        assertTrue(endEdges.any { it.source == "event:StockUnavailableNotificationSent" && it.label == "stockGone" })
-        assertTrue(endEdges.any { it.source == "event:PaymentFailedNotificationSent" && it.label == "paymentDeclined" })
+        assertEquals(
+            listOf("completed"),
+            viewModel.nodes.find { it.id == "event:OrderConfirmationSent" }?.endOutcomeLabels
+        )
+        assertEquals(
+            listOf("stockGone"),
+            viewModel.nodes.find { it.id == "event:StockUnavailableNotificationSent" }?.endOutcomeLabels
+        )
+        assertEquals(
+            listOf("paymentDeclined"),
+            viewModel.nodes.find { it.id == "event:PaymentFailedNotificationSent" }?.endOutcomeLabels
+        )
 
         val releaseStockCausationEdges = viewModel.edges.filter {
             it.source == "command:releaseStock" &&
