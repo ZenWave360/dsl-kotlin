@@ -199,6 +199,28 @@ class ZflListenerKotlinTest {
         assertEquals(listOf("PaymentFailedNotificationSent"), outcomes["paymentDeclined"])
     }
 
+    @Test
+    fun parseZfl_SystemServiceForClause_ProducesZdlLikeAggregatesField() {
+        val model = ZflParser().parseModel(
+            """
+                systems {
+                    CatalogProducts {
+                        service CatalogProductsService for (ProductAggregate, OtherAggregate)
+                    }
+                }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            listOf("ProductAggregate", "OtherAggregate"),
+            JSONPath.get(model, "$.systems.CatalogProducts.services.CatalogProductsService.aggregates")
+        )
+        assertEquals(
+            emptySet<String>(),
+            JSONPath.get(model, "$.systems.CatalogProducts.services.CatalogProductsService.commands")
+        )
+    }
+
     private fun parseZfl(fileName: String): ZflModel {
         val content = readTestFile(fileName)
         return ZflParser().parseModel(content)

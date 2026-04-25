@@ -143,8 +143,7 @@ class ZflToFlowViewModelTransformerTest {
             flow SimpleFlow {
                 start UserAction {
                 }
-                when UserAction {
-                    command doSomething
+                when UserAction do doSomething {
                     event SomethingDone
                 }
                 end {

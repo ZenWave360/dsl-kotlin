@@ -38,8 +38,7 @@ class FlowLayoutEngineTest {
                 start UserAction {
                 }
                 
-                when UserAction {
-                    command doSomething
+                when UserAction do doSomething {
                     event SomethingDone
                 }
             }
@@ -94,8 +93,7 @@ class FlowLayoutEngineTest {
                 }
                 
                 @if("condition")
-                when TestEvent {
-                    command testCommand
+                when TestEvent do testCommand {
                     event ResultEvent
                 }
             }
@@ -187,18 +185,15 @@ class FlowLayoutEngineTest {
                 start Event1 {
                 }
 
-                when Event1 {
-                    command cmd1
+                when Event1 do cmd1 {
                     event Event2
                 }
 
-                when Event2 {
-                    command cmd2
+                when Event2 do cmd2 {
                     event Event3
                 }
 
-                when Event3 {
-                    command cmd3
+                when Event3 do cmd3 {
                     event Event4
                 }
             }

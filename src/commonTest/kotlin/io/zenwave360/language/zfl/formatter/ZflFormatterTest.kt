@@ -33,8 +33,7 @@ class ZflFormatterTest {
             
             
             // comment about the flow   
-            when   UserAction   {
-            command  doSomething
+            when   UserAction   do   doSomething   {
             event SomethingDone    
             }
             
@@ -58,8 +57,7 @@ class ZflFormatterTest {
 
 
                 // comment about the flow
-                when UserAction {
-                    command doSomething
+                when UserAction do doSomething {
                     event SomethingDone
                 }
 

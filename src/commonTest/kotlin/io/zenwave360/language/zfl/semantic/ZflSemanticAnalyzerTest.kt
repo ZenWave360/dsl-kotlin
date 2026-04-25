@@ -141,8 +141,7 @@ class ZflSemanticAnalyzerTest {
             flow TestFlow {
                 start UserAction {
                 }
-                when UserAction {
-                    command doSomething
+                when UserAction do doSomething {
                     event SomethingDone
                 }
                 end {
@@ -172,8 +171,7 @@ class ZflSemanticAnalyzerTest {
             flow TestFlow {
                 start UserAction {
                 }
-                when UserAction {
-                    command doSomething
+                when UserAction do doSomething {
                     event SomethingDone
                 }
                 end {
@@ -215,8 +213,7 @@ class ZflSemanticAnalyzerTest {
                 start SystemAction {
                 }
 
-                when UserAction {
-                    command testCommand
+                when UserAction do testCommand {
                     event TestEvent
                 }
             }

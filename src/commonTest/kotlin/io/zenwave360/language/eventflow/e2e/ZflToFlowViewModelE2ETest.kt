@@ -28,8 +28,7 @@ class ZflToFlowViewModelE2ETest {
                 start UserAction {
                 }
                 
-                when UserAction {
-                    command doSomething
+                when UserAction do doSomething {
                     event SomethingDone
                 }
             }
@@ -177,21 +176,18 @@ class ZflToFlowViewModelE2ETest {
                 start PaymentRequested {
                 }
 
-                when PaymentRequested {
-                    command processPayment
+                when PaymentRequested do processPayment {
                     event PaymentSucceeded
                     event PaymentFailed
                 }
 
                 @if("retry count < 3")
-                when PaymentFailed {
-                    command retryPayment
+                when PaymentFailed do retryPayment {
                     event PaymentRetried
                 }
 
                 @if("retry count >= 3")
-                when PaymentFailed {
-                    command cancelPayment
+                when PaymentFailed do cancelPayment {
                     event PaymentCancelled
                 }
             }
@@ -262,8 +258,7 @@ class ZflToFlowViewModelE2ETest {
                 start TestEvent {
                 }
 
-                when TestEvent {
-                    command testCommand
+                when TestEvent do testCommand {
                     event ResultEvent
                 }
             }

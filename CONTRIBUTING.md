@@ -23,6 +23,9 @@
 
 # Publish to local Maven repository
 ./gradlew clean publishToMavenLocal
+
+# Build and publish to Maven repository
+./gradlew clean build publishToMavenLocal
 ```
 
 ## Release Process

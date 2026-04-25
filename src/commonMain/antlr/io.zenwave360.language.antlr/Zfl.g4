@@ -48,6 +48,8 @@ COMMANDS: 'commands';
 EVENTS: 'events';
 START: 'start';
 WHEN: 'when';
+DO: 'do';
+FOR: 'for';
 COMMAND: 'command';
 EVENT: 'event';
 IF: 'if';
@@ -111,7 +113,7 @@ javadoc: JAVADOC;
 suffix_javadoc: JAVADOC;
 
 // values
-keyword: ID | IMPORT | CONFIG | FLOW | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | COMMAND | EVENT | IF | ELSE | POLICY | END | COMPLETED | SUSPENDED | CANCELLED | AND | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
+keyword: ID | IMPORT | CONFIG | FLOW | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | DO | FOR | COMMAND | EVENT | IF | ELSE | POLICY | END | COMPLETED | SUSPENDED | CANCELLED | AND | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
 
 //complex_value: value | array | object;
 //value: simple | object;
@@ -154,8 +156,9 @@ system: javadoc? annotations system_name LBRACE system_body RBRACE;
 system_name: ID;
 system_body: system_services;
 system_services: system_service*;
-system_service: SERVICE system_service_name (LBRACE system_service_body RBRACE)?;
+system_service: SERVICE system_service_name (FOR LPAREN system_service_aggregates RPAREN)? (LBRACE system_service_body RBRACE)?;
 system_service_name: ID;
+system_service_aggregates: ID (COMMA ID)*;
 system_service_body: COMMANDS COLON system_service_command_list;
 system_service_command_list: ID (COMMA ID)*;
 
@@ -169,15 +172,14 @@ flow_start: javadoc? annotations START flow_start_name LBRACE fields RBRACE;
 flow_start_name: ID;
 
 // when blocks
-flow_when: javadoc? annotations WHEN flow_when_trigger LBRACE flow_when_body RBRACE;
+flow_when: javadoc? annotations WHEN flow_when_trigger DO flow_command_name LBRACE flow_when_body RBRACE;
 flow_when_trigger: flow_when_event_trigger (AND flow_when_event_trigger)*;
 flow_when_event_trigger: ID;
-flow_when_body: flow_when_service? flow_when_command? (flow_when_event)*;
+flow_when_body: flow_when_service? (flow_when_event)*;
 flow_when_service: SERVICE flow_when_service_name;
 flow_when_service_name: flow_when_service_system_name DOT flow_when_service_service_name;
 flow_when_service_system_name: ID;
 flow_when_service_service_name: ID;
-flow_when_command: COMMAND flow_command_name;
 flow_command_name: ID;
 flow_when_event: EVENT flow_event_name;
 flow_event_name: ID;

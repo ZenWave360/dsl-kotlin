@@ -116,6 +116,7 @@ class ZflListenerImpl : ZflBaseListener() {
         val service = buildMap()
             .with("name", serviceName)
             .with("options", buildMap())
+            .with("aggregates", getArray(ctx.system_service_aggregates(), ","))
             .with("commands", mutableSetOf<Any?>())
         
         currentStack.addLast(service)
@@ -218,7 +219,7 @@ class ZflListenerImpl : ZflBaseListener() {
                 .with("commands", mutableSetOf<Any?>()) } as MutableMap<String, Any>
 
         //
-        val commandName = getText(ctx.flow_when_body().flow_when_command()?.flow_command_name())
+        val commandName = getText(ctx.flow_command_name())
         whenBlock["command"] = commandName
         @Suppress("UNCHECKED_CAST")
         (service["commands"] as MutableCollection<Any?>).add(commandName)

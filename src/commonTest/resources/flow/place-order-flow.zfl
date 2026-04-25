@@ -55,67 +55,57 @@ flow PlaceOrderFlow {
     }
 
     // Stock is reserved first — during a hot drop this is the critical constraint
-    when CustomerPlacesOrder {
+    when CustomerPlacesOrder do reserveStock {
         service Catalog.CatalogService
-        command reserveStock
         event StockReserved
         event StockUnavailable
     }
 
-    when StockReserved {
+    when StockReserved do createOrder {
         service Orders.OrderService
-        command createOrder
         event OrderCreated
     }
 
-    when OrderCreated {
+    when OrderCreated do authorizePayment {
         service Payments.PaymentService
-        command authorizePayment
         event PaymentAuthorized
         event PaymentFailed
     }
 
-    when PaymentAuthorized {
+    when PaymentAuthorized do confirmOrder {
         service Orders.OrderService
-        command confirmOrder
         event OrderConfirmed
     }
 
-    when OrderConfirmed {
+    when OrderConfirmed do scheduleFulfillment {
         service Fulfillment.FulfillmentService
-        command scheduleFulfillment
         event FulfillmentScheduled
     }
 
-    when FulfillmentScheduled {
+    when FulfillmentScheduled do sendOrderConfirmation {
         service Notifications.NotificationService
-        command sendOrderConfirmation
         event OrderConfirmationSent
     }
 
     // Failure path: stock gone during a hot drop
-    when StockUnavailable {
+    when StockUnavailable do sendStockUnavailableNotification {
         service Notifications.NotificationService
-        command sendStockUnavailableNotification
         event StockUnavailableNotificationSent
     }
 
     // Failure path: payment declined — release reserved stock
-    when PaymentFailed {
+    when PaymentFailed do releaseStock {
         service Catalog.CatalogService
-        command releaseStock
         event StockReleased
     }
 
-    when StockReleased {
+    when StockReleased do cancelOrder {
         service Orders.OrderService
-        command cancelOrder
         event OrderCancelled
     }
 
-    when OrderCancelled {
+    when OrderCancelled do sendPaymentFailedNotification {
         service Notifications.NotificationService
-        command sendPaymentFailedNotification
         event PaymentFailedNotificationSent
     }
 
@@ -125,9 +115,8 @@ flow PlaceOrderFlow {
         orderId String
     }
 
-    when PaymentTimeout {
+    when PaymentTimeout do releaseStock {
         service Catalog.CatalogService
-        command releaseStock
         event StockReleased
     }
 
