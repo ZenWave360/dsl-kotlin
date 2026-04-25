@@ -8,6 +8,11 @@ import org.antlr.v4.kotlinruntime.CharStreams
 import org.antlr.v4.kotlinruntime.CommonTokenStream
 import org.antlr.v4.kotlinruntime.tree.ParseTreeWalker
 
+data class ZdlParseResult(
+    val tree: io.zenwave360.language.antlr.ZdlParser.ZdlContext,
+    val tokens: CommonTokenStream
+)
+
 class ZdlParser {
 
     companion object {
@@ -33,14 +38,22 @@ class ZdlParser {
         return this
     }
 
-    fun parseModel(model: String): ZdlModel {
-        val zdl = CharStreams.fromString(model)
+    fun parse(input: String): ZdlParseResult {
+        val zdl = CharStreams.fromString(input)
         val lexer = ZdlLexer(zdl)
         val tokens = CommonTokenStream(lexer)
         val parser = io.zenwave360.language.antlr.ZdlParser(tokens)
-        val listener = ZdlListenerImpl()
         val zdlRoot = parser.zdl()
-        ParseTreeWalker.DEFAULT.walk(listener, zdlRoot)
+        return ZdlParseResult(
+            tree = zdlRoot,
+            tokens = tokens
+        )
+    }
+
+    fun parseModel(model: String): ZdlModel {
+        val parseResult = parse(model)
+        val listener = ZdlListenerImpl()
+        ParseTreeWalker.DEFAULT.walk(listener, parseResult.tree)
 
         var zdlModel = listener.model
         zdlModel = ZdlModelPostProcessor.postProcess(zdlModel)
