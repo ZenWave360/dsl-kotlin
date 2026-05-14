@@ -29,7 +29,7 @@ class ZflToFlowViewModelE2ETest {
                 }
                 
                 when UserAction do doSomething {
-                    event SomethingDone
+                    emits SomethingDone
                 }
             }
         """.trimIndent()
@@ -48,7 +48,7 @@ class ZflToFlowViewModelE2ETest {
         // Step 4: Transform to FlowViewModel (without layout)
         val unpositioned = ZflToFlowViewModelTransformer().transform(semanticModel)
         assertNotNull(unpositioned, "FlowViewModel should be created")
-        assertEquals(4, unpositioned.nodes.size, "Should have 4 nodes (1 command + 1 event + 1 start + 1 policy)")
+        assertEquals(4, unpositioned.nodes.size, "Should have 4 nodes (1 command + 1 emits + 1 start + 1 policy)")
 
         // Step 5: Apply layout to create positioned FlowViewModel
         val viewModel = FlowLayoutEngine().layout(unpositioned)
@@ -177,18 +177,18 @@ class ZflToFlowViewModelE2ETest {
                 }
 
                 when PaymentRequested do processPayment {
-                    event PaymentSucceeded
-                    event PaymentFailed
+                    emits PaymentSucceeded
+                    emits PaymentFailed
                 }
 
                 @if("retry count < 3")
                 when PaymentFailed do retryPayment {
-                    event PaymentRetried
+                    emits PaymentRetried
                 }
 
                 @if("retry count >= 3")
                 when PaymentFailed do cancelPayment {
-                    event PaymentCancelled
+                    emits PaymentCancelled
                 }
             }
         """.trimIndent()
@@ -234,8 +234,8 @@ class ZflToFlowViewModelE2ETest {
             viewModel.nodes.find { it.id == "event:StockUnavailableNotificationSent" }?.endOutcomeLabels
         )
         assertEquals(
-            listOf("paymentDeclined"),
-            viewModel.nodes.find { it.id == "event:PaymentFailedNotificationSent" }?.endOutcomeLabels
+            listOf("orderCancelled"),
+            viewModel.nodes.find { it.id == "event:OrderCancelledNotificationSent" }?.endOutcomeLabels
         )
 
         val releaseStockCausationEdges = viewModel.edges.filter {
@@ -244,6 +244,14 @@ class ZflToFlowViewModelE2ETest {
             it.type == FlowEdgeType.CAUSATION
         }
         assertEquals(1, releaseStockCausationEdges.size, "Shared command causation edge should not be duplicated")
+
+        assertNotNull(
+            viewModel.edges.find {
+                it.source == "command:reserveStock" &&
+                it.target == "event:StockReserved" &&
+                it.type == FlowEdgeType.CAUSATION
+            }
+        )
     }
 
     @Test
@@ -263,7 +271,7 @@ class ZflToFlowViewModelE2ETest {
                 }
 
                 when TestEvent do testCommand {
-                    event ResultEvent
+                    emits ResultEvent
                 }
             }
         """.trimIndent()

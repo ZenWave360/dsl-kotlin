@@ -34,7 +34,7 @@ class ZflFormatterTest {
             
             // comment about the flow   
             when   UserAction   do   doSomething   {
-            event SomethingDone    
+            emits SomethingDone    
             }
             
             end   {
@@ -58,7 +58,7 @@ class ZflFormatterTest {
 
                 // comment about the flow
                 when UserAction do doSomething {
-                    event SomethingDone
+                    emits SomethingDone
                 }
 
                 end {
@@ -119,6 +119,83 @@ class ZflFormatterTest {
              */
             flow SampleFlow {
                 start Trigger {}
+            }
+        """.trimIndent() + "\n"
+
+        val formatted = ZflFormatter().format(input)
+
+        assertEquals(expected, formatted)
+    }
+
+    @Test
+    fun format_keeps_comma_separated_when_triggers_single_line() {
+        val input = """
+            flow TestFlow {
+            when PaymentDeclined,PaymentFailed,PaymentVoided do releaseStock {
+            emits StockReleased
+            }
+            }
+        """.trimIndent()
+
+        val expected = """
+            flow TestFlow {
+                when PaymentDeclined, PaymentFailed, PaymentVoided do releaseStock {
+                    emits StockReleased
+                }
+            }
+        """.trimIndent() + "\n"
+
+        val formatted = ZflFormatter().format(input)
+
+        assertEquals(expected, formatted)
+    }
+
+    @Test
+    fun format_normalizes_pipe_separated_when_triggers_to_multiline() {
+        val input = """
+            flow TestFlow {
+            when PaymentDeclined | PaymentFailed | PaymentVoided | ReservationExpired do releaseStock {
+            emits StockReleased
+            }
+            }
+        """.trimIndent()
+
+        val expected = """
+            flow TestFlow {
+                when PaymentDeclined
+                    | PaymentFailed
+                    | PaymentVoided
+                    | ReservationExpired
+                do releaseStock {
+                    emits StockReleased
+                }
+            }
+        """.trimIndent() + "\n"
+
+        val formatted = ZflFormatter().format(input)
+
+        assertEquals(expected, formatted)
+    }
+
+    @Test
+    fun format_preserves_response_signal_declarations() {
+        val input = """
+            flow TestFlow {
+            do reserveStock {
+            service Stock.StockService
+            response StockUnavailable
+            emits response StockReserved
+            }
+            }
+        """.trimIndent()
+
+        val expected = """
+            flow TestFlow {
+                do reserveStock {
+                    service Stock.StockService
+                    response StockUnavailable
+                    emits response StockReserved
+                }
             }
         """.trimIndent() + "\n"
 

@@ -13,6 +13,8 @@ internal class AntlrTokenFormatter(
         val writer = FormatterWriter(indentSize)
         var pendingWhitespace = StringBuilder()
         var previousVisibleToken: Token? = null
+        var inWhenHeader = false
+        var whenHeaderUsesPipeLayout = false
 
         tokens.tokens.forEach { token ->
             if (token.type == Token.EOF) return@forEach
@@ -41,13 +43,34 @@ internal class AntlrTokenFormatter(
                     val whitespace = pendingWhitespace.toString()
                     pendingWhitespace = StringBuilder()
 
+                    if (text == "when") {
+                        inWhenHeader = true
+                        whenHeaderUsesPipeLayout = false
+                    }
+
+                    if (inWhenHeader && text == "|") {
+                        if (!whenHeaderUsesPipeLayout) {
+                            writer.increaseIndent()
+                            whenHeaderUsesPipeLayout = true
+                        }
+                        if (!writer.isAtLineStart) {
+                            writer.writeNewlines(1)
+                        }
+                        writer.writeToken(text)
+                        previousVisibleToken = token
+                        return@forEach
+                    }
+
                     val newlineCount = countNewlines(whitespace)
                     val closingBraceOnNewLine = text == "}" && newlineCount > 0
                     if (closingBraceOnNewLine) {
                         writer.decreaseIndent()
                     }
 
-                    if (newlineCount > 0) {
+                    if (inWhenHeader && whenHeaderUsesPipeLayout && text == "do") {
+                        writer.decreaseIndent()
+                        writer.writeNewlines(1)
+                    } else if (newlineCount > 0) {
                         writer.writeNewlines(newlineCount)
                     } else if (shouldInsertSpace(previousVisibleToken, token, whitespace)) {
                         writer.writeSpace()
@@ -57,6 +80,10 @@ internal class AntlrTokenFormatter(
 
                     if (text == "{") {
                         writer.increaseIndent()
+                        if (inWhenHeader) {
+                            inWhenHeader = false
+                            whenHeaderUsesPipeLayout = false
+                        }
                     } else if (text == "}" && !closingBraceOnNewLine) {
                         // Inline empty blocks like "{}" still close the indentation scope.
                         writer.decreaseIndent()

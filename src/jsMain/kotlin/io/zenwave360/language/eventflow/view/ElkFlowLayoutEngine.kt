@@ -49,28 +49,49 @@ actual class ElkFlowLayoutEngine actual constructor() {
     }
 
     private fun buildElkGraph(viewModel: FlowViewModel): dynamic {
+        val partitions = ElkLayoutConstraints.partitions(viewModel)
+        val modelOrder = ElkLayoutConstraints.nodeModelOrder(viewModel)
         val layoutOptions = js("{}")
         layoutOptions["elk.algorithm"] = "layered"
         layoutOptions["elk.direction"] = "RIGHT"
         layoutOptions["elk.spacing.nodeNode"] = nodeSpacing
         layoutOptions["elk.layered.spacing.nodeNodeBetweenLayers"] = rankSpacing
+        layoutOptions["elk.partitioning.activate"] = true
+        layoutOptions["elk.layered.considerModelOrder.strategy"] = "NODES_AND_EDGES"
+        layoutOptions["elk.layered.crossingMinimization.forceNodeModelOrder"] = true
 
-        val children = viewModel.nodes.map { node ->
+        val children = viewModel.nodes
+            .sortedBy { modelOrder[it.id] ?: Int.MAX_VALUE }
+            .mapIndexed { index, node ->
             val dims = semanticNodeSize(node.type)
             val child = js("{}")
+            val childLayoutOptions = js("{}")
             child.id = node.id
             child.width = dims.width
             child.height = dims.height
+            childLayoutOptions["elk.partitioning.partition"] = partitions[node.id] ?: 0
+            childLayoutOptions["elk.priority"] = index
+            child.layoutOptions = childLayoutOptions
             child
         }.toTypedArray()
 
-        val edges = viewModel.edges.map { edge ->
-            val e = js("{}")
-            e.id = edge.id
-            e.sources = arrayOf(edge.source)
-            e.targets = arrayOf(edge.target)
-            e
-        }.toTypedArray()
+        val edges = viewModel.edges
+            .filter { edge -> edge.source != edge.target }
+            .sortedWith(
+                compareBy<FlowEdge>(
+                    { modelOrder[it.source] ?: Int.MAX_VALUE },
+                    { modelOrder[it.target] ?: Int.MAX_VALUE },
+                    { edgeTypePriority(it.type) }
+                )
+            )
+            .map { edge ->
+                val e = js("{}")
+                e.id = edge.id
+                e.sources = arrayOf(edge.source)
+                e.targets = arrayOf(edge.target)
+                e
+            }
+            .toTypedArray()
 
         val graph = js("{}")
         graph.id = "root"
@@ -97,9 +118,15 @@ actual class ElkFlowLayoutEngine actual constructor() {
                 dimensions = semanticNodeSize(node.type)
             )
         }
+        val adjustedNodes = StartNodePostLayout.apply(
+            nodes = positionedNodes,
+            edges = viewModel.edges,
+            canvasPadding = canvasPadding,
+            desiredGap = rankSpacing
+        )
 
         return viewModel.copy(
-            nodes = positionedNodes,
+            nodes = adjustedNodes,
             edges = viewModel.edges,
             layout = LayoutMetadata(
                 engine = "elk-layered",
@@ -107,9 +134,18 @@ actual class ElkFlowLayoutEngine actual constructor() {
                 rankSpacing = rankSpacing,
                 nodeSpacing = nodeSpacing
             ),
-            systemGroups = calculateSystemGroups(positionedNodes),
-            bounds = calculateBounds(positionedNodes)
+            systemGroups = calculateSystemGroups(adjustedNodes),
+            bounds = calculateBounds(adjustedNodes)
         )
+    }
+
+    private fun edgeTypePriority(type: FlowEdgeType): Int = when (type) {
+        FlowEdgeType.CALL -> 0
+        FlowEdgeType.CAUSATION -> 1
+        FlowEdgeType.OUTCOME_HANDLER -> 2
+        FlowEdgeType.TRIGGER -> 3
+        FlowEdgeType.CONDITIONAL -> 4
+        FlowEdgeType.ERROR -> 5
     }
 
     private fun semanticNodeSize(type: FlowNodeType): Dimensions = when (type) {

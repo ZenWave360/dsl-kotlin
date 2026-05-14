@@ -39,7 +39,7 @@ class FlowLayoutEngineTest {
                 }
                 
                 when UserAction do doSomething {
-                    event SomethingDone
+                    emits SomethingDone
                 }
             }
         """.trimIndent()
@@ -94,7 +94,7 @@ class FlowLayoutEngineTest {
                 
                 @if("condition")
                 when TestEvent do testCommand {
-                    event ResultEvent
+                    emits ResultEvent
                 }
             }
         """.trimIndent()
@@ -117,7 +117,7 @@ class FlowLayoutEngineTest {
         assertEquals(180.0, commandNode.dimensions!!.width, "Command width should be 180")
         assertEquals(56.0, commandNode.dimensions!!.height, "Command height should be 56")
 
-        // Verify EVENT dimensions
+        // Verify event dimensions
         assertNotNull(eventNode, "Should have an event node")
         assertEquals(160.0, eventNode.dimensions!!.width, "Event width should be 160")
         assertEquals(48.0, eventNode.dimensions!!.height, "Event height should be 48")
@@ -186,15 +186,15 @@ class FlowLayoutEngineTest {
                 }
 
                 when Event1 do cmd1 {
-                    event Event2
+                    emits Event2
                 }
 
                 when Event2 do cmd2 {
-                    event Event3
+                    emits Event3
                 }
 
                 when Event3 do cmd3 {
-                    event Event4
+                    emits Event4
                 }
             }
         """.trimIndent()
@@ -221,6 +221,83 @@ class FlowLayoutEngineTest {
             assertEquals(viewModel1.nodes[i].position, viewModel2.nodes[i].position, "Node position should be stable")
             assertEquals(viewModel1.nodes[i].position, viewModel3.nodes[i].position, "Node position should be stable")
         }
+    }
+
+    @Test
+    fun testLayout_DirectCallPlacesCalleeToTheRight() {
+        val zflContent = """
+            flow CallFlow {
+                @actor(Customer)
+                start StartOrderCheckout {
+                }
+
+                when StartOrderCheckout do startOrderCheckout {
+                    service OrdersCheckout.OrdersCheckoutService
+                    call reserveStock
+                    on StockReserved emits OrderCreated
+                    on StockUnavailable emits StockUnavailable
+                    emits OrderCreated
+                    emits StockUnavailable
+                }
+
+                do reserveStock {
+                    service CatalogProducts.CatalogProductsService
+                    emits StockReserved
+                    emits StockUnavailable
+                }
+
+                end {
+                    completed: OrderCreated
+                    stockGone: StockUnavailable
+                }
+            }
+        """.trimIndent()
+
+        val model = ZflParser().parseModel(zflContent)
+        val semanticModel = ZflSemanticAnalyzer().analyze(model)
+        val transformer = ZflToFlowViewModelTransformer()
+        val flowViewModel = transformer.transform(semanticModel)
+
+        val viewModel = FlowLayoutEngine().layout(flowViewModel)
+
+        val caller = viewModel.nodes.first { it.id == "command:startOrderCheckout" }
+        val callee = viewModel.nodes.first { it.id == "command:reserveStock" }
+        assertTrue(callee.position!!.x >= caller.position!!.x, "Direct call target should not be placed to the left of the caller")
+    }
+
+    @Test
+    fun testLayout_SiblingTargetsPreferCommandsAboveEvents() {
+        val zflContent = """
+            flow MixedSiblingFlow {
+                start StartCheckout {
+                }
+
+                when StartCheckout do beginCheckout {
+                    service OrdersCheckout.OrdersCheckoutService
+                    call reserveStock
+                    emits CheckoutStarted
+                }
+
+                do reserveStock {
+                    service CatalogProducts.CatalogProductsService
+                    emits StockReserved
+                }
+            }
+        """.trimIndent()
+
+        val model = ZflParser().parseModel(zflContent)
+        val semanticModel = ZflSemanticAnalyzer().analyze(model)
+        val flowViewModel = ZflToFlowViewModelTransformer().transform(semanticModel)
+
+        val viewModel = FlowLayoutEngine().layout(flowViewModel)
+
+        val source = viewModel.nodes.first { it.id == "command:beginCheckout" }
+        val callee = viewModel.nodes.first { it.id == "command:reserveStock" }
+        val emittedEvent = viewModel.nodes.first { it.id == "event:CheckoutStarted" }
+
+        assertTrue(callee.position!!.x >= source.position!!.x, "Callee should be to the right of the source command")
+        assertTrue(emittedEvent.position!!.x >= source.position!!.x, "Emitted event should be to the right of the source command")
+        assertTrue(callee.position!!.y < emittedEvent.position!!.y, "Sibling command targets should be placed above sibling event targets")
     }
 }
 

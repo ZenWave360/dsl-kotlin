@@ -1,8 +1,8 @@
 package io.zenwave360.language.zfl.semantic
 
-import io.zenwave360.language.zfl.ZflModel
 import io.zenwave360.language.source.SourceRef
 import io.zenwave360.language.utils.JSONPath
+import io.zenwave360.language.zfl.ZflModel
 
 class ZflSemanticAnalyzer {
 
@@ -10,29 +10,12 @@ class ZflSemanticAnalyzer {
         val actors = mutableMapOf<String, ZflActor>()
         val systems = mutableMapOf<String, ZflSystem>()
         val flows = mutableListOf<ZflFlow>()
-        val commandByName = mutableMapOf<String, ZflCommand>()
         val diagnostics = mutableListOf<ZflSemanticDiagnostic>()
 
         model.getSystems().values.forEach { systemData ->
             val systemModel = systemData.asMapOrReturn { return@forEach }
             val systemName = systemModel.getString("name")
-
             systems[systemName] = ZflSystem(systemName)
-
-            systemModel.getMap("services").values.forEach { serviceData ->
-                val service = serviceData.asMapOrReturn { return@forEach }
-                val serviceName = service.getString("name")
-
-                service.getList("commands").forEach { commandName ->
-                    commandByName["$systemName.$serviceName.$commandName"] = ZflCommand(
-                        name = commandName,
-                        system = systemName,
-                        service = serviceName,
-                        actor = null,
-                        sourceRef = sourceRefOf("todo", commandName)
-                    )
-                }
-            }
         }
 
         model.getFlows().values.forEach { flowData ->
@@ -40,13 +23,12 @@ class ZflSemanticAnalyzer {
             val flowName = flowModel.getString("name")
 
             val starts = mutableListOf<ZflStart>()
-
-            // 1. Starts
             flowModel.getMap("starts").values.forEach { startData ->
                 val start = startData.asMapOrReturn { return@forEach }
                 val startName = start.getString("name")
                 val actor = JSONPath.get<String>(start, "options.actor")
-                val timer = JSONPath.get<String>(start, "options.timer")
+                val timer = JSONPath.get<String>(start, "options.time")
+                    ?: JSONPath.get<String>(start, "options.timer")
                 val system = JSONPath.get<String>(start, "options.system")
                 starts += ZflStart(
                     description = start.getString("javadoc"),
@@ -56,8 +38,6 @@ class ZflSemanticAnalyzer {
                     system = system,
                     sourceRef = sourceRefOf(flowName, startName)
                 )
-
-                // Starts → actors
                 actor?.let { actorName ->
                     actors.getOrPut(actorName) {
                         ZflActor(actorName, sourceRefOf(flowName, startName))
@@ -65,53 +45,66 @@ class ZflSemanticAnalyzer {
                 }
             }
 
-            // 2. Events + policies + whens from whens
-            val events = mutableMapOf<String, ZflEvent>()
-            val policies = mutableListOf<ZflPolicy>()
-
-            flowModel.getMapList("whens").forEach { whenModel ->
-                val commandName = whenModel.getString("command")
-                val systemName = whenModel.getString("system")
-                val serviceName = whenModel.getString("service")
-                val actor = JSONPath.get<String>(whenModel, "options.actor")
-                val command = commandByName.getOrPut("$systemName.$serviceName.$commandName") {
-                    ZflCommand(
-                        name = commandName,
-                        system = systemName,
-                        service = serviceName,
-                        actor = actor,
-                        sourceRef = sourceRefOf(flowName, commandName)
-                    )
+            val commandByName = mutableMapOf<String, ZflCommand>()
+            val actionModels = flowModel.getMap("actions")
+            actionModels.values.forEach { actionData ->
+                val actionModel = actionData.asMapOrReturn { return@forEach }
+                val command = toCommand(flowName, actionModel, diagnostics)
+                commandByName[command.name] = command
+                command.system?.let { systemName ->
+                    if (!systems.containsKey(systemName)) {
+                        systems[systemName] = ZflSystem(systemName)
+                    }
                 }
+            }
 
-                val triggers = whenModel.getList("triggers")
-                val eventNames = whenModel.getList("events")
-
-                // Store when clause
-                policies += ZflPolicy(
-                    description = whenModel.getString("javadoc"),
-                    triggers = triggers,
-                    condition = JSONPath.get<String>(whenModel, "options.if"),
-                    command = commandName,
-                    events = eventNames,
-                    sourceRef = sourceRefOf(flowName, commandName)
-                )
-
-                // emitted events
-                eventNames.forEach { eventName ->
-                    events.getOrPut(eventName) {
+            val events = mutableMapOf<String, ZflEvent>()
+            commandByName.values.forEach { command ->
+                command.emits.forEach { outcome ->
+                    events.getOrPut(outcome) {
                         ZflEvent(
-                            name = eventName,
-                            description = null, // TODO: get from model
+                            name = outcome,
+                            description = null,
                             system = command.system,
                             service = command.service,
-                            isError = false, // TODO: annotate in ZFL
-                            sourceRef = sourceRefOf(flowName, eventName)
+                            isError = false,
+                            sourceRef = sourceRefOf(flowName, outcome)
                         )
                     }
                 }
             }
-            
+
+            val policies = mutableListOf<ZflPolicy>()
+            flowModel.getMapList("whens").forEach { whenModel ->
+                val actionName = whenModel.getString("action")
+                val command = commandByName[actionName]
+                if (command == null) {
+                    diagnostics += ZflSemanticDiagnostic(
+                        message = "Flow '$flowName' references unknown action '$actionName' in when clause.",
+                        severity = Severity.ERROR,
+                        sourceRef = sourceRefOf(flowName, actionName)
+                    )
+                    return@forEach
+                }
+
+                policies += ZflPolicy(
+                    description = whenModel.getString("javadoc"),
+                    triggers = whenModel.getList("triggers"),
+                    condition = JSONPath.get<String>(whenModel, "options.if"),
+                    command = actionName,
+                    events = command.emits,
+                    sourceRef = sourceRefOf(flowName, actionName)
+                )
+            }
+
+            diagnostics += validateWhenTriggers(
+                flowName = flowName,
+                startNames = starts.map { it.name }.toSet(),
+                whens = flowModel.getMapList("whens"),
+                declaredEvents = events.keys
+            )
+            diagnostics += validateCalls(flowName, commandByName.values.toList())
+
             val endOutcomes = flowModel.getStringListMap("end.outcomes")
             val end = ZflEnd(
                 outcomes = endOutcomes,
@@ -136,6 +129,171 @@ class ZflSemanticAnalyzer {
             actors = actors,
             diagnostics = diagnostics
         )
+    }
+
+    private fun toCommand(
+        flowName: String,
+        actionModel: Map<String, Any?>,
+        diagnostics: MutableList<ZflSemanticDiagnostic>
+    ): ZflCommand {
+        val actionName = actionModel.getString("name")
+        val systemName = actionModel.getStringOrNull("system")
+        val serviceName = actionModel.getStringOrNull("service")
+        val steps = mutableListOf<ZflActionStep>()
+        val directEmits = mutableListOf<String>()
+        val directResponses = mutableListOf<String>()
+
+        var pendingCall: MutableCallStep? = null
+
+        actionModel.getMapList("steps").forEach { stepModel ->
+            when (stepModel.getString("type")) {
+                "service" -> {
+                    flushPendingCall(pendingCall, steps)
+                    pendingCall = null
+                    val stepSystem = stepModel.getString("system")
+                    val stepService = stepModel.getString("service")
+                    steps += ZflServiceStep(stepSystem, stepService)
+                }
+
+                "call" -> {
+                    flushPendingCall(pendingCall, steps)
+                    pendingCall = MutableCallStep(stepModel.getString("action"))
+                }
+
+                "on" -> {
+                    if (pendingCall == null) {
+                        diagnostics += ZflSemanticDiagnostic(
+                            message = "Action '$actionName' has 'on ${stepModel.getString("outcome")}' without a preceding call.",
+                            severity = Severity.ERROR,
+                            sourceRef = sourceRefOf(flowName, actionName)
+                        )
+                    } else {
+                        pendingCall.handlers += ZflOutcomeHandler(
+                            outcome = stepModel.getString("outcome"),
+                            action = stepModel.getStringOrNull("action"),
+                            emits = stepModel.getStringOrNull("emits")
+                        )
+                    }
+                }
+
+                "signal" -> {
+                    flushPendingCall(pendingCall, steps)
+                    pendingCall = null
+                    val outcome = stepModel.getString("outcome")
+                    val emits = stepModel.getBoolean("emits")
+                    val response = stepModel.getBoolean("response")
+                    steps += ZflSignalStep(
+                        outcome = outcome,
+                        emits = emits,
+                        response = response
+                    )
+                    if (emits) {
+                        directEmits += outcome
+                    }
+                    if (response) {
+                        directResponses += outcome
+                    }
+                }
+            }
+        }
+
+        flushPendingCall(pendingCall, steps)
+
+        if (systemName == null || serviceName == null) {
+            diagnostics += ZflSemanticDiagnostic(
+                message = "Action '$actionName' must declare a service.",
+                severity = Severity.ERROR,
+                sourceRef = sourceRefOf(flowName, actionName)
+            )
+        }
+
+        val emittedOutcomes = directEmits.ifEmpty {
+            actionModel.getList("emits")
+        }
+        val responseOutcomes = directResponses.ifEmpty {
+            actionModel.getList("responses")
+        }
+
+        return ZflCommand(
+            name = actionName,
+            system = systemName,
+            service = serviceName,
+            actor = JSONPath.get<String>(actionModel, "options.actor"),
+            emits = emittedOutcomes,
+            responses = responseOutcomes,
+            steps = steps,
+            sourceRef = sourceRefOf(flowName, actionName)
+        )
+    }
+
+    private fun flushPendingCall(call: MutableCallStep?, steps: MutableList<ZflActionStep>) {
+        if (call != null) {
+            steps += ZflCallStep(call.action, call.handlers.toList())
+        }
+    }
+
+    private fun validateCalls(
+        flowName: String,
+        commands: List<ZflCommand>
+    ): List<ZflSemanticDiagnostic> {
+        val commandNames = commands.map { it.name }.toSet()
+        val diagnostics = mutableListOf<ZflSemanticDiagnostic>()
+
+        commands.forEach { command ->
+            command.steps.filterIsInstance<ZflCallStep>().forEach { call ->
+                val calledCommand = commands.find { it.name == call.action }
+                if (call.action !in commandNames) {
+                    diagnostics += ZflSemanticDiagnostic(
+                        message = "Action '${command.name}' calls unknown action '${call.action}'.",
+                        severity = Severity.ERROR,
+                        sourceRef = sourceRefOf(flowName, command.name)
+                    )
+                }
+
+                call.handlers.forEach { handler ->
+                    if (calledCommand != null && handler.outcome !in calledCommand.outcomes()) {
+                        diagnostics += ZflSemanticDiagnostic(
+                            message = "Action '${command.name}' handles unknown outcome '${handler.outcome}' from action '${call.action}'.",
+                            severity = Severity.ERROR,
+                            sourceRef = sourceRefOf(flowName, command.name)
+                        )
+                    }
+                    if (handler.action != null && handler.action !in commandNames) {
+                        diagnostics += ZflSemanticDiagnostic(
+                            message = "Action '${command.name}' handles outcome '${handler.outcome}' with unknown action '${handler.action}'.",
+                            severity = Severity.ERROR,
+                            sourceRef = sourceRefOf(flowName, command.name)
+                        )
+                    }
+                }
+            }
+        }
+
+        return diagnostics
+    }
+
+    private fun validateWhenTriggers(
+        flowName: String,
+        startNames: Set<String>,
+        whens: List<Map<String, Any?>>,
+        declaredEvents: Set<String>
+    ): List<ZflSemanticDiagnostic> {
+        val validTriggers = startNames + declaredEvents
+        val diagnostics = mutableListOf<ZflSemanticDiagnostic>()
+
+        whens.forEach { whenModel ->
+            whenModel.getList("triggers")
+                .filterNot(validTriggers::contains)
+                .forEach { trigger ->
+                    diagnostics += ZflSemanticDiagnostic(
+                        message = "Flow '$flowName' references unknown trigger '$trigger' in when clause.",
+                        severity = Severity.ERROR,
+                        sourceRef = sourceRefOf(flowName, trigger)
+                    )
+                }
+        }
+
+        return diagnostics
     }
 
     private fun validateEndOutcomes(
@@ -168,10 +326,6 @@ class ZflSemanticAnalyzer {
         return diagnostics
     }
 
-    /**
-     * Best-effort source ref resolution.
-     * Can be refined later using model.locations.
-     */
     private fun sourceRefOf(flowName: String, name: String): SourceRef =
         SourceRef(
             file = "<zfl>",
@@ -179,7 +333,11 @@ class ZflSemanticAnalyzer {
             column = 1
         )
 
-    // Extension functions for safe map access
+    private data class MutableCallStep(
+        val action: String,
+        val handlers: MutableList<ZflOutcomeHandler> = mutableListOf()
+    )
+
     private inline fun Any?.asMapOrReturn(block: () -> Nothing): Map<String, Any?> =
         this as? Map<String, Any?> ?: block()
 
@@ -202,4 +360,13 @@ class ZflSemanticAnalyzer {
 
     private fun Map<String, Any?>.getString(key: String): String =
         this[key] as? String ?: ""
+
+    private fun Map<String, Any?>.getStringOrNull(key: String): String? =
+        this[key] as? String
+
+    private fun Map<String, Any?>.getBoolean(key: String): Boolean =
+        this[key] as? Boolean ?: false
+
+    private fun ZflCommand.outcomes(): Set<String> =
+        (emits + responses).toSet()
 }

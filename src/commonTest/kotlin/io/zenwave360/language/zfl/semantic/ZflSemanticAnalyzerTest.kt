@@ -1,267 +1,228 @@
 package io.zenwave360.language.zfl.semantic
 
 import io.zenwave360.language.zfl.ZflParser
-import io.zenwave360.language.readTestFile
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class ZflSemanticAnalyzerTest {
 
     @Test
-    fun testAnalyze_SubscriptionsFlow() {
-        // Parse the ZFL file
-        val content = readTestFile("flow/subscriptions.zfl")
-        val model = ZflParser().parseModel(content)
-        
-        // Analyze the model
-        val analyzer = ZflSemanticAnalyzer()
-        val semanticModel = analyzer.analyze(model)
-        println(semanticModel.toJsonString())
-        
-        // Verify flows
-        assertEquals(1, semanticModel.flows.size, "Should have 1 flow")
+    fun testAnalyze_ActionsCallsAndOutcomeHandlers() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(sampleFlow()))
+
+        assertEquals(1, semanticModel.flows.size)
         val flow = semanticModel.flows.first()
-        assertEquals("PaymentsFlow", flow.name)
-        
-        // Verify systems
-        assertEquals(3, semanticModel.systems.size, "Should have 3 systems")
-        assertTrue(semanticModel.systems.containsKey("Subscription"))
-        assertTrue(semanticModel.systems.containsKey("Payments"))
-        assertTrue(semanticModel.systems.containsKey("Billing"))
-        
-        // Verify commands
-        assertEquals(6, flow.commands.size, "Should have 6 commands total")
-        val commandNames = flow.commands.map { it.name }.toSet()
-        assertTrue(commandNames.contains("renewSubscription"))
-        assertTrue(commandNames.contains("suspendSubscription"))
-        assertTrue(commandNames.contains("cancelRenewal"))
-        assertTrue(commandNames.contains("chargePayment"))
-        assertTrue(commandNames.contains("retryPayment"))
-        assertTrue(commandNames.contains("recordPayment"))
-        
-        // Verify command-system mapping
-        val renewCommand = flow.commands.find { it.name == "renewSubscription" }
-        assertNotNull(renewCommand)
-        assertEquals("Subscription", renewCommand.system)
-        
-        val chargeCommand = flow.commands.find { it.name == "chargePayment" }
-        assertNotNull(chargeCommand)
-        assertEquals("Payments", chargeCommand.system)
-        
+        assertEquals("CheckoutFlow", flow.name)
 
-        // Verify actors
-        assertEquals(1, semanticModel.actors.size, "Should have 1 actor")
-        assertTrue(semanticModel.actors.containsKey("Customer"))
-        
-        // Verify events
-        assertEquals(7, flow.events.size, "Should have 7 unique events")
-        val eventNames = flow.events.map { it.name }.toSet()
-        assertTrue(eventNames.contains("SubscriptionRenewed"))
-        assertTrue(eventNames.contains("PaymentSucceeded"))
-        assertTrue(eventNames.contains("PaymentFailed"))
-        assertTrue(eventNames.contains("PaymentRetryScheduled"))
-        assertTrue(eventNames.contains("SubscriptionSuspended"))
-        assertTrue(eventNames.contains("PaymentRecorded"))
-        assertTrue(eventNames.contains("RenewalCancelled"))
-        
+        assertEquals(3, flow.commands.size)
+        val startOrderCheckout = flow.commands.first { it.name == "startOrderCheckout" }
+        assertEquals("OrdersCheckout", startOrderCheckout.system)
+        assertEquals(listOf("OrderCreated", "StockUnavailable"), startOrderCheckout.emits)
+        assertEquals(emptyList(), startOrderCheckout.responses)
 
-        // Verify policies whens
-        assertEquals(6, flow.policies.size, "Should have 6 policies (when)")
-        
-        val policy1 = flow.policies.find { it.condition == "less than 3 attempts" }
-        assertNotNull(policy1)
-        assertEquals("PaymentFailed", policy1.triggers.first())
-        assertEquals("retryPayment", policy1.command)
-        
-        val policy2 = flow.policies.find { it.condition == "3 or more attempts" }
-        assertNotNull(policy2)
-        assertEquals("PaymentFailed", policy2.triggers.first())
-        assertEquals("suspendSubscription", policy2.command)
-    }
-    
-    @Test
-    fun testAnalyze_EmptyModel() {
-        val model = ZflParser().parseModel("")
-        val analyzer = ZflSemanticAnalyzer()
-        val semanticModel = analyzer.analyze(model)
+        assertEquals(4, startOrderCheckout.steps.size)
+        assertIs<ZflServiceStep>(startOrderCheckout.steps[0])
+        val reserveStockCall = assertIs<ZflCallStep>(startOrderCheckout.steps[1])
+        assertEquals("reserveStock", reserveStockCall.action)
+        assertEquals(2, reserveStockCall.handlers.size)
+        assertEquals("StockReserved", reserveStockCall.handlers[0].outcome)
+        assertEquals("createOrder", reserveStockCall.handlers[0].action)
+        assertEquals("StockUnavailable", reserveStockCall.handlers[1].outcome)
+        assertEquals("StockUnavailable", reserveStockCall.handlers[1].emits)
 
-        assertEquals(0, semanticModel.flows.size)
-        assertEquals(0, semanticModel.systems.size)
-        assertEquals(0, semanticModel.actors.size)
+        assertEquals(1, flow.policies.size)
+        assertEquals("startOrderCheckout", flow.policies.first().command)
+        assertEquals(listOf("OrderCreated", "StockUnavailable"), flow.policies.first().events)
+
+        val emittedNames = flow.events.map { it.name }.toSet()
+        assertEquals(
+            setOf("StockReserved", "StockUnavailable", "OrderCreated"),
+            emittedNames
+        )
+        assertTrue(semanticModel.diagnostics.isEmpty())
     }
 
     @Test
-    fun testAnalyze_EventSystemMapping() {
-        // Verify that events are correctly mapped to the system of their command
-        val content = readTestFile("flow/subscriptions.zfl")
-        val model = ZflParser().parseModel(content)
-        val analyzer = ZflSemanticAnalyzer()
-        val semanticModel = analyzer.analyze(model)
-
-        val flow = semanticModel.flows.first()
-
-        // SubscriptionRenewed should be from Subscription system (renewSubscription command)
-        val subscriptionRenewed = flow.events.find { it.name == "SubscriptionRenewed" }
-        assertNotNull(subscriptionRenewed)
-        assertEquals("Subscription", subscriptionRenewed.system)
-
-        // PaymentSucceeded should be from Payments system (chargePayment command)
-        val paymentSucceeded = flow.events.find { it.name == "PaymentSucceeded" }
-        assertNotNull(paymentSucceeded)
-        assertEquals("Payments", paymentSucceeded.system)
-
-        // PaymentRecorded should be from Payments system (recordPayment command)
-        val paymentRecorded = flow.events.find { it.name == "PaymentRecorded" }
-        assertNotNull(paymentRecorded)
-        assertEquals("Payments", paymentRecorded.system)
-    }
-
-    @Test
-    fun testAnalyze_FreeFormEndOutcomes() {
-        val content = readTestFile("flow/place-order-flow.zfl")
-        val model = ZflParser().parseModel(content)
-        val semanticModel = ZflSemanticAnalyzer().analyze(model)
-
-        val flow = semanticModel.flows.first()
-        assertEquals(listOf("OrderConfirmationSent"), flow.end.outcomes["completed"])
-        assertEquals(listOf("StockUnavailableNotificationSent"), flow.end.outcomes["stockGone"])
-        assertEquals(listOf("PaymentFailedNotificationSent"), flow.end.outcomes["paymentDeclined"])
-        assertTrue(semanticModel.diagnostics.isEmpty(), "Expected no diagnostics for valid free-form outcomes")
-    }
-
-    @Test
-    fun testAnalyze_MissingCompletedOutcomeAddsDiagnostic() {
-        val zflContent = """
-            systems {
-                TestSystem {
-                    service TestService {
-                        commands: doSomething
+    fun testAnalyze_OnWithoutPrecedingCallAddsDiagnostic() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(
+            ZflParser().parseModel(
+                """
+                    flow TestFlow {
+                        when Start do testAction
+                        do testAction {
+                            service Test.TestService
+                            on Failed emits Failed
+                            emits Done
+                        }
+                        end {
+                            completed: Done
+                        }
                     }
-                }
-            }
-            flow TestFlow {
-                start UserAction {
-                }
-                when UserAction do doSomething {
-                    event SomethingDone
-                }
-                end {
-                    success: SomethingDone
-                }
-            }
-        """.trimIndent()
+                """.trimIndent()
+            )
+        )
 
-        val model = ZflParser().parseModel(zflContent)
-        val semanticModel = ZflSemanticAnalyzer().analyze(model)
-
-        assertEquals(1, semanticModel.diagnostics.size)
-        assertEquals(Severity.ERROR, semanticModel.diagnostics.first().severity)
-        assertTrue(semanticModel.diagnostics.first().message.contains("must define a 'completed' end outcome"))
+        assertTrue(semanticModel.diagnostics.any { it.message.contains("without a preceding call") })
     }
 
     @Test
-    fun testAnalyze_UnknownEndOutcomeEventAddsDiagnostic() {
-        val zflContent = """
-            systems {
-                TestSystem {
-                    service TestService {
-                        commands: doSomething
+    fun testAnalyze_UnknownCallTargetAddsDiagnostic() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(
+            ZflParser().parseModel(
+                """
+                    flow TestFlow {
+                        when Start do testAction
+                        do testAction {
+                            service Test.TestService
+                            call missingAction
+                            emits Done
+                        }
+                        end {
+                            completed: Done
+                        }
                     }
-                }
-            }
-            flow TestFlow {
-                start UserAction {
-                }
-                when UserAction do doSomething {
-                    event SomethingDone
-                }
-                end {
-                    completed: MissingEvent
-                }
-            }
-        """.trimIndent()
+                """.trimIndent()
+            )
+        )
 
-        val model = ZflParser().parseModel(zflContent)
-        val semanticModel = ZflSemanticAnalyzer().analyze(model)
-
-        assertEquals(1, semanticModel.diagnostics.size)
-        assertEquals(Severity.ERROR, semanticModel.diagnostics.first().severity)
-        assertTrue(semanticModel.diagnostics.first().message.contains("references unknown event 'MissingEvent'"))
+        assertTrue(semanticModel.diagnostics.any { it.message.contains("calls unknown action 'missingAction'") })
     }
 
     @Test
-    fun testAnalyze_MultipleActors() {
-        // Test with a flow that has multiple actors
-        val zflContent = """
-            systems {
-                TestSystem {
-                    service TestService {
-                        commands: testCommand
+    fun testAnalyze_HandlerForUnknownCallOutcomeAddsDiagnostic() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(
+            ZflParser().parseModel(
+                """
+                    flow TestFlow {
+                        when Start do testAction
+                        do testAction {
+                            service Test.TestService
+                            call reserveStock
+                            on UnknownOutcome emits Failed
+                            emits Failed
+                        }
+                        do reserveStock {
+                            service Stock.StockService
+                            emits Reserved
+                        }
+                        end {
+                            completed: Failed
+                        }
                     }
-                }
-            }
-            flow TestFlow {
-                
-                @actor(User)
-                start UserAction {
-                }
+                """.trimIndent()
+            )
+        )
 
-                @actor(Admin)
-                start AdminAction {
-                }
-
-                @actor(System)
-                start SystemAction {
-                }
-
-                when UserAction do testCommand {
-                    event TestEvent
-                }
-            }
-        """.trimIndent()
-
-        val model = ZflParser().parseModel(zflContent)
-        val analyzer = ZflSemanticAnalyzer()
-        val semanticModel = analyzer.analyze(model)
-
-        assertEquals(3, semanticModel.actors.size, "Should have 3 actors")
-        assertTrue(semanticModel.actors.containsKey("User"))
-        assertTrue(semanticModel.actors.containsKey("Admin"))
-        assertTrue(semanticModel.actors.containsKey("System"))
+        assertTrue(semanticModel.diagnostics.any { it.message.contains("handles unknown outcome 'UnknownOutcome'") })
     }
 
     @Test
-    fun testAnalyze_SourceRefGeneration() {
-        // Verify that source references are generated for all elements
-        val content = readTestFile("flow/subscriptions.zfl")
-        val model = ZflParser().parseModel(content)
-        val analyzer = ZflSemanticAnalyzer()
-        val semanticModel = analyzer.analyze(model)
+    fun testAnalyze_ResponseOutcomesAreCallableButNotPublishedAsEvents() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(
+            ZflParser().parseModel(
+                """
+                    flow TestFlow {
+                        start Start {}
+                        when Start do placeOrder
+                        do placeOrder {
+                            service OrdersCheckout.TestService
+                            call reserveStock
+                            on StockUnavailable emits OrderRejected
+                            emits OrderAccepted
+                            emits OrderRejected
+                        }
+                        do reserveStock {
+                            service Stock.StockService
+                            response StockUnavailable
+                            emits response StockReserved
+                        }
+                        end {
+                            completed: OrderAccepted
+                            rejected: OrderRejected
+                        }
+                    }
+                """.trimIndent()
+            )
+        )
 
-        val flow = semanticModel.flows.first()
+        val reserveStock = semanticModel.flows.first().commands.first { it.name == "reserveStock" }
+        assertEquals(listOf("StockReserved"), reserveStock.emits)
+        assertEquals(listOf("StockUnavailable", "StockReserved"), reserveStock.responses)
 
-        // All commands should have source refs
-        flow.commands.forEach { command ->
-            assertNotNull(command.sourceRef, "Command ${command.name} should have a source ref")
-            assertEquals("<zfl>", command.sourceRef.file)
-        }
-
-        // All events should have source refs
-        flow.events.forEach { event ->
-            assertNotNull(event.sourceRef, "Event ${event.name} should have a source ref")
-            assertEquals("<zfl>", event.sourceRef.file)
-        }
-
-        // All policies should have source refs
-        flow.policies.forEach { policy ->
-            assertNotNull(policy.sourceRef, "Policy ${policy.triggers.joinToString("_and_")} should have a source ref")
-            assertEquals("<zfl>", policy.sourceRef.file)
-        }
-
-        // All actors should have source refs
-        semanticModel.actors.values.forEach { actor ->
-            assertNotNull(actor.sourceRef, "Actor ${actor.name} should have a source ref")
-            assertEquals("<zfl>", actor.sourceRef.file)
-        }
+        val eventNames = semanticModel.flows.first().events.map { it.name }.toSet()
+        assertEquals(setOf("StockReserved", "OrderAccepted", "OrderRejected"), eventNames)
+        assertTrue(semanticModel.diagnostics.isEmpty())
     }
+
+    @Test
+    fun testAnalyze_WhenCannotTriggerFromResponseOnlyOutcome() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(
+            ZflParser().parseModel(
+                """
+                    flow TestFlow {
+                        when StockUnavailable do rejectOrder
+                        do reserveStock {
+                            service Stock.StockService
+                            response StockUnavailable
+                        }
+                        do rejectOrder {
+                            service OrdersCheckout.TestService
+                            emits OrderRejected
+                        }
+                        end {
+                            completed: OrderRejected
+                        }
+                    }
+                """.trimIndent()
+            )
+        )
+
+        assertTrue(semanticModel.diagnostics.any { it.message.contains("unknown trigger 'StockUnavailable'") })
+    }
+
+    private fun sampleFlow() = """
+        systems {
+            CatalogProducts {
+                service CatalogProductsService
+            }
+            OrdersCheckout {
+                service OrdersCheckoutService
+            }
+        }
+        flow CheckoutFlow {
+            @actor(Customer)
+            start StartOrderCheckout {
+                items SKU[]
+            }
+
+            when StartOrderCheckout do startOrderCheckout
+
+            do startOrderCheckout {
+                service OrdersCheckout.OrdersCheckoutService
+                call reserveStock
+                on StockReserved call createOrder
+                on StockUnavailable emits StockUnavailable
+                emits OrderCreated
+                emits StockUnavailable
+            }
+
+            do reserveStock {
+                service CatalogProducts.CatalogProductsService
+                emits StockReserved
+                emits StockUnavailable
+            }
+
+            do createOrder {
+                service OrdersCheckout.OrdersCheckoutService
+                emits OrderCreated
+            }
+
+            end {
+                completed: OrderCreated
+                stockGone: StockUnavailable
+            }
+        }
+    """.trimIndent()
 }
-

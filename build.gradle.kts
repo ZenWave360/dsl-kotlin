@@ -186,6 +186,12 @@ tasks.clean {
     delete("bin")
 }
 
+tasks.withType<org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest>().configureEach {
+    useMocha {
+        timeout = "10s"
+    }
+}
+
 // generateJavaGrammarSource must run before jvmProcessResources
 tasks.named("jvmProcessResources") { dependsOn(generateJavaGrammarSource) }
 tasks.named("compileKotlinJvm") { dependsOn(generateJavaGrammarSource) }

@@ -135,7 +135,7 @@ class ZflToFlowViewModelTransformerTest {
                 start UserAction {
                 }
                 when UserAction do doSomething {
-                    event SomethingDone
+                    emits SomethingDone
                 }
                 end {
                     completed: SomethingDone
@@ -165,6 +165,71 @@ class ZflToFlowViewModelTransformerTest {
     }
 
     @Test
+    fun testTransform_ActorStartCollapsesPolicyNode() {
+        val zflContent = """
+            flow ActorStartFlow {
+                @actor(Customer)
+                start MyStart {
+                    id String
+                }
+
+                when MyStart do oneCommand {
+                    service OrdersCheckout.OrdersCheckoutService
+                    emits Done
+                }
+
+                end {
+                    completed: Done
+                }
+            }
+        """.trimIndent()
+
+        val viewModel = ZflToFlowViewModelTransformer()
+            .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)))
+
+        assertNull(viewModel.nodes.find { it.id == "policy:MyStart:oneCommand" })
+        assertNotNull(
+            viewModel.edges.find {
+                it.source == "event:MyStart" &&
+                    it.target == "command:oneCommand" &&
+                    it.type == FlowEdgeType.TRIGGER
+            }
+        )
+    }
+
+    @Test
+    fun testTransform_TimedStartKeepsPolicyNode() {
+        val zflContent = """
+            flow TimedStartFlow {
+                @time("every day at 09:00")
+                start Scheduled {
+                }
+
+                when Scheduled do oneCommand {
+                    service OrdersCheckout.OrdersCheckoutService
+                    emits Done
+                }
+
+                end {
+                    completed: Done
+                }
+            }
+        """.trimIndent()
+
+        val viewModel = ZflToFlowViewModelTransformer()
+            .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)))
+
+        assertNotNull(viewModel.nodes.find { it.id == "policy:Scheduled:oneCommand" })
+        assertNotNull(
+            viewModel.edges.find {
+                it.source == "event:Scheduled" &&
+                    it.target == "policy:Scheduled:oneCommand" &&
+                    it.type == FlowEdgeType.TRIGGER
+            }
+        )
+    }
+
+    @Test
     fun testTransform_PlaceOrderFlow_DeduplicatesSharedCausationAndConnectsEndOutcomes() {
         val content = readTestFile("flow/place-order-flow.zfl")
         val model = ZflParser().parseModel(content)
@@ -181,9 +246,153 @@ class ZflToFlowViewModelTransformerTest {
 
         val orderConfirmationSent = viewModel.nodes.find { it.id == "event:OrderConfirmationSent" }
         val stockUnavailableNotificationSent = viewModel.nodes.find { it.id == "event:StockUnavailableNotificationSent" }
-        val paymentFailedNotificationSent = viewModel.nodes.find { it.id == "event:PaymentFailedNotificationSent" }
+        val orderCancelledNotificationSent = viewModel.nodes.find { it.id == "event:OrderCancelledNotificationSent" }
         assertEquals(listOf("completed"), orderConfirmationSent?.endOutcomeLabels)
         assertEquals(listOf("stockGone"), stockUnavailableNotificationSent?.endOutcomeLabels)
-        assertEquals(listOf("paymentDeclined"), paymentFailedNotificationSent?.endOutcomeLabels)
+        assertEquals(listOf("orderCancelled"), orderCancelledNotificationSent?.endOutcomeLabels)
+    }
+
+    @Test
+    fun testTransform_PlaceOrderFlow_EmitsResponseKeepsPublishedOutcomeConnectedToCommand() {
+        val content = readTestFile("flow/place-order-flow.zfl")
+        val model = ZflParser().parseModel(content)
+        val semanticModel = ZflSemanticAnalyzer().analyze(model)
+
+        val viewModel = ZflToFlowViewModelTransformer().transform(semanticModel)
+
+        assertNotNull(
+            viewModel.edges.find {
+                it.source == "command:reserveStock" &&
+                    it.target == "event:StockReserved" &&
+                    it.type == FlowEdgeType.CAUSATION
+            }
+        )
+        assertNotNull(
+            viewModel.edges.find {
+                it.source == "command:startOrderCheckout" &&
+                    it.target == "event:OrderCreated" &&
+                    it.type == FlowEdgeType.OUTCOME_HANDLER &&
+                    it.label == "on StockReserved"
+            }
+        )
+    }
+
+    @Test
+    fun testTransform_DirectCallProducesCallEdge() {
+        val zflContent = """
+            flow CallFlow {
+                when StartOrderCheckout do startOrderCheckout
+
+                do startOrderCheckout {
+                    service OrdersCheckout.OrdersCheckoutService
+                    call reserveStock
+                    on StockReserved emits OrderCreated
+                    on StockUnavailable emits StockUnavailable
+                    emits OrderCreated
+                    emits StockUnavailable
+                }
+
+                do reserveStock {
+                    service CatalogProducts.CatalogProductsService
+                    emits StockReserved
+                    emits StockUnavailable
+                }
+
+                end {
+                    completed: OrderCreated
+                    stockGone: StockUnavailable
+                }
+            }
+        """.trimIndent()
+
+        val viewModel = ZflToFlowViewModelTransformer()
+            .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)))
+
+        val callEdge = viewModel.edges.find {
+            it.source == "command:startOrderCheckout" &&
+                it.target == "command:reserveStock" &&
+                it.type == FlowEdgeType.CALL
+        }
+        assertNotNull(callEdge)
+    }
+
+    @Test
+    fun testTransform_OutcomeHandlersProduceOutcomeHandlerEdges() {
+        val zflContent = """
+            flow CallFlow {
+                when StartOrderCheckout do startOrderCheckout
+
+                do startOrderCheckout {
+                    service OrdersCheckout.OrdersCheckoutService
+                    call reserveStock
+                    on StockReserved call createOrder
+                    emits OrderCreated
+                }
+
+                do reserveStock {
+                    service CatalogProducts.CatalogProductsService
+                    emits StockReserved
+                }
+
+                do createOrder {
+                    service OrdersCheckout.OrdersCheckoutService
+                    emits OrderCreated
+                }
+
+                end {
+                    completed: OrderCreated
+                }
+            }
+        """.trimIndent()
+
+        val viewModel = ZflToFlowViewModelTransformer()
+            .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)))
+
+        assertNotNull(
+            viewModel.edges.find {
+                it.source == "command:startOrderCheckout" &&
+                    it.target == "command:createOrder" &&
+                    it.type == FlowEdgeType.OUTCOME_HANDLER &&
+                    it.label == "on StockReserved"
+            }
+        )
+    }
+
+    @Test
+    fun testTransform_ResponseOnlyOutcomesDoNotCreateEventNodes() {
+        val zflContent = """
+            flow CallFlow {
+                when StartOrderCheckout do startOrderCheckout
+
+                do startOrderCheckout {
+                    service OrdersCheckout.OrdersCheckoutService
+                    call reserveStock
+                    on StockUnavailable emits OrderRejected
+                    emits OrderRejected
+                }
+
+                do reserveStock {
+                    service CatalogProducts.CatalogProductsService
+                    response StockUnavailable
+                }
+
+                end {
+                    completed: OrderRejected
+                }
+            }
+        """.trimIndent()
+
+        val viewModel = ZflToFlowViewModelTransformer()
+            .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)))
+
+        assertNull(viewModel.nodes.find { it.id == "event:StockUnavailable" })
+        assertNotNull(
+            viewModel.edges.find {
+                it.source == "command:startOrderCheckout" &&
+                    it.target == "event:OrderRejected" &&
+                    it.type == FlowEdgeType.OUTCOME_HANDLER &&
+                    it.label == "on StockUnavailable"
+            }
+        )
     }
 }

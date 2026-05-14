@@ -57,6 +57,7 @@ class ZflListenerImpl : ZflBaseListener() {
             .with("options", buildMap())
             .with("systems", buildMap())
             .with("starts", buildMap())
+            .with("actions", buildMap())
             .with("whens", mutableListOf<Any?>())
             .with("end", buildMap())
         )
@@ -182,16 +183,48 @@ class ZflListenerImpl : ZflBaseListener() {
 
     // When blocks
     override fun enterFlow_when(ctx: ZflParser.Flow_whenContext) {
-        val triggers = mutableListOf<String>()
-        for (trigger in ctx.flow_when_trigger().flow_when_event_trigger()) {
-            triggers.add(trigger.text)
+        val triggerGroups = mutableListOf<MutableMap<String, Any?>>()
+        val collectedTriggers = mutableListOf<String>()
+        var triggerSeparator: String? = null
+
+        for (group in ctx.flow_when_trigger().flow_when_trigger_group()) {
+            val events = group.flow_when_event_trigger().map { it.text }
+            val commaCount = group.COMMA().size
+            val orCount = group.OR().size
+            val separatorCount = commaCount + orCount
+            val hasMixedSeparators = commaCount > 0 && orCount > 0
+            val hasTrailingSeparator = separatorCount >= events.size && separatorCount > 0
+            val groupSeparator = when {
+                commaCount > 0 && orCount == 0 -> ","
+                orCount > 0 && commaCount == 0 -> "|"
+                else -> null
+            }
+
+            if (triggerSeparator == null && groupSeparator != null) {
+                triggerSeparator = groupSeparator
+            }
+
+            triggerGroups.add(buildMap()
+                .with("events", events)
+                .with("separator", groupSeparator)
+                .with("hasMixedSeparators", hasMixedSeparators)
+                .with("hasTrailingSeparator", hasTrailingSeparator))
+            collectedTriggers.addAll(events)
         }
+
+        val duplicateTriggers = collectedTriggers
+            .groupingBy { it }
+            .eachCount()
+            .filterValues { it > 1 }
+            .keys
+        val triggers = collectedTriggers.distinct()
+        val actionName = getText(ctx.flow_command_name())
 
         val whenBlock = buildMap()
             .with("triggers", triggers)
-            .with("events", mutableListOf<Any?>())
-            .with("ifs", mutableListOf<Any?>())
-            .with("policies", mutableListOf<Any?>())
+            .with("triggerGroups", triggerGroups)
+            .with("triggerSeparator", triggerSeparator)
+            .with("action", actionName)
 
         currentStack.addLast(whenBlock)
         val flow = currentStack[currentStack.size - 2]
@@ -203,36 +236,112 @@ class ZflListenerImpl : ZflBaseListener() {
         model.setLocation("whens[${whens.size - 1}]", getLocations(ctx))
         model.setLocation("whens[${whens.size - 1}].triggers", getLocations(ctx.flow_when_trigger()))
 
-        //
-        val serviceNameContext = ctx.flow_when_body().flow_when_service()?.flow_when_service_name()
-        val systemName = getText(serviceNameContext?.flow_when_service_system_name())?: "DefaultSystem"
-        val serviceName = getText(serviceNameContext?.flow_when_service_service_name())?: "DefaultService"
-        whenBlock["system"] = systemName
-        whenBlock["service"] = serviceName
+        val triggerPath = "whens[${whens.size - 1}].triggers"
+        triggerGroups.forEach { group ->
+            if (group["hasMixedSeparators"] == true) {
+                model.addProblem(triggerPath, null, "Mixed separators are not allowed in when triggers")
+            }
+            if (group["hasTrailingSeparator"] == true) {
+                model.addProblem(triggerPath, null, "Trailing separators are not allowed in when triggers")
+            }
+        }
+        duplicateTriggers.forEach { duplicate ->
+            model.addProblem(triggerPath, duplicate, "Duplicate trigger event '%s' in when clause")
+        }
 
-        val systems = model.getOrPut("systems") { mutableMapOf<String, Any>() } as MutableMap<String, Any>
-        val system = systems.getOrPut(systemName) { mutableMapOf<String, Any>() } as MutableMap<String, Any>
-        val services = system.getOrPut("services") { mutableMapOf<String, Any>() } as MutableMap<String, Any>
-        val service = services.getOrPut(serviceName) {
-            buildMap()
-                .with("name", serviceName)
-                .with("commands", mutableSetOf<Any?>()) } as MutableMap<String, Any>
-
-        //
-        val commandName = getText(ctx.flow_command_name())
-        whenBlock["command"] = commandName
-        @Suppress("UNCHECKED_CAST")
-        (service["commands"] as MutableCollection<Any?>).add(commandName)
     }
 
     override fun exitFlow_when(ctx: ZflParser.Flow_whenContext) {
         currentStack.removeLast()
     }
 
-    override fun enterFlow_when_event(ctx: ZflParser.Flow_when_eventContext) {
-        val eventName = getText(ctx.flow_event_name())
+    override fun enterFlow_do(ctx: ZflParser.Flow_doContext) {
+        val flow = currentStack.last()
+        val actionName = getText(ctx.flow_command_name())
+        currentStack.addLast(getOrCreateAction(flow, actionName, javadoc(ctx.javadoc())))
+    }
+
+    override fun exitFlow_do(ctx: ZflParser.Flow_doContext) {
+        currentStack.removeLast()
+    }
+
+    override fun enterFlow_do_body(ctx: ZflParser.Flow_do_bodyContext) {
+        val current = currentStack.lastOrNull()
+        if (current != null && current.containsKey("triggers") && current.containsKey("action")) {
+            val flow = currentStack[currentStack.size - 2]
+            val actionName = current["action"] as? String
+            currentStack.addLast(getOrCreateAction(flow, actionName, null))
+        }
+    }
+
+    override fun exitFlow_do_body(ctx: ZflParser.Flow_do_bodyContext) {
+        val current = currentStack.lastOrNull()
+        if (current != null && current.containsKey("steps") && currentStack.size >= 2) {
+            val maybeWhen = currentStack[currentStack.size - 2]
+            if (maybeWhen.containsKey("triggers") && maybeWhen.containsKey("action")) {
+                currentStack.removeLast()
+            }
+        }
+    }
+
+    override fun enterFlow_do_service(ctx: ZflParser.Flow_do_serviceContext) {
+        val action = currentStack.last()
+        val serviceNameContext = ctx.flow_service_name()
+        val systemName = getText(serviceNameContext.flow_service_system_name()) ?: "DefaultSystem"
+        val serviceName = getText(serviceNameContext.flow_service_service_name()) ?: "DefaultService"
+
+        action["system"] = systemName
+        action["service"] = serviceName
+        appendStep(action, buildMap()
+            .with("type", "service")
+            .with("system", systemName)
+            .with("service", serviceName))
+
+        registerCommand(systemName, serviceName, action["name"] as? String)
+    }
+
+    override fun enterFlow_do_call(ctx: ZflParser.Flow_do_callContext) {
+        appendStep(currentStack.last(), buildMap()
+            .with("type", "call")
+            .with("action", getText(ctx.flow_command_name())))
+    }
+
+    override fun enterFlow_do_on(ctx: ZflParser.Flow_do_onContext) {
+        val outcome = getText(ctx.flow_event_name(0))
+        val step = buildMap()
+            .with("type", "on")
+            .with("outcome", outcome)
+
+        when {
+            ctx.CALL() != null -> {
+                step["kind"] = "call"
+                step["action"] = getText(ctx.flow_command_name())
+            }
+            ctx.EMITS() != null -> {
+                step["kind"] = "emits"
+                step["emits"] = getText(ctx.flow_event_name(1))
+            }
+        }
+
+        appendStep(currentStack.last(), step)
+    }
+
+    override fun enterFlow_do_signal(ctx: ZflParser.Flow_do_signalContext) {
+        val outcome = getText(ctx.flow_event_name())
+        val action = currentStack.last()
+        appendStep(action, buildMap()
+            .with("type", "signal")
+            .with("outcome", outcome)
+            .with("emits", ctx.EMITS() != null)
+            .with("response", ctx.RESPONSE() != null))
         @Suppress("UNCHECKED_CAST")
-        (currentStack.last()["events"] as MutableList<Any?>).add(eventName)
+        if (ctx.EMITS() != null) {
+            (action["emits"] as MutableList<Any?>).add(outcome)
+        }
+        @Suppress("UNCHECKED_CAST")
+        if (ctx.RESPONSE() != null) {
+            (action["responses"] as MutableList<Any?>).add(outcome)
+        }
     }
 
     // End block
@@ -265,6 +374,56 @@ class ZflListenerImpl : ZflBaseListener() {
     private fun getOutcomeEvents(ctx: ZflParser.Flow_end_outcome_listContext?): List<String>? {
         if (ctx == null) return null
         return getArray(ctx, ",")
+    }
+
+    private fun getOrCreateAction(
+        flow: MutableMap<String, Any?>,
+        actionName: String?,
+        jd: String?
+    ): MutableMap<String, Any?> {
+        @Suppress("UNCHECKED_CAST")
+        val actions = flow.getOrPut("actions") { buildMap() } as MutableMap<String, Any?>
+        val existing = actions[actionName] as? MutableMap<String, Any?>
+        if (existing != null) {
+            if (jd != null && existing["javadoc"] == null) {
+                existing["javadoc"] = jd
+            }
+            return existing
+        }
+
+        val action = buildMap()
+            .with("name", actionName)
+            .with("className", camelCase(actionName ?: ""))
+            .with("javadoc", jd)
+            .with("options", buildMap())
+            .with("steps", mutableListOf<Any?>())
+            .with("emits", mutableListOf<Any?>())
+            .with("responses", mutableListOf<Any?>())
+
+        actions[actionName ?: ""] = action
+        return action
+    }
+
+    private fun appendStep(action: MutableMap<String, Any?>, step: MutableMap<String, Any?>) {
+        @Suppress("UNCHECKED_CAST")
+        (action["steps"] as MutableList<Any?>).add(step)
+    }
+
+    private fun registerCommand(systemName: String, serviceName: String, commandName: String?) {
+        val systems = model.getOrPut("systems") { mutableMapOf<String, Any>() } as MutableMap<String, Any>
+        val system = systems.getOrPut(systemName) {
+            buildMap()
+                .with("name", systemName)
+                .with("services", buildMap())
+        } as MutableMap<String, Any>
+        val services = system.getOrPut("services") { mutableMapOf<String, Any>() } as MutableMap<String, Any>
+        val service = services.getOrPut(serviceName) {
+            buildMap()
+                .with("name", serviceName)
+                .with("commands", mutableSetOf<Any?>())
+        } as MutableMap<String, Any>
+        @Suppress("UNCHECKED_CAST")
+        (service.getOrPut("commands") { mutableSetOf<Any?>() } as MutableCollection<Any?>).add(commandName)
     }
 
     override fun exitEveryRule(ctx: ParserRuleContext) {
