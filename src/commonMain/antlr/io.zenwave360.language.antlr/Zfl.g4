@@ -48,11 +48,12 @@ COMMANDS: 'commands';
 EVENTS: 'events';
 START: 'start';
 WHEN: 'when';
-COMMAND: 'command';
-EVENT: 'event';
-IF: 'if';
-ELSE: 'else';
-POLICY: 'policy';
+DO: 'do';
+CALL: 'call';
+ON: 'on';
+EMITS: 'emits';
+RESPONSE: 'response';
+FOR: 'for';
 END: 'end';
 COMPLETED: 'completed';
 SUSPENDED: 'suspended';
@@ -111,7 +112,7 @@ javadoc: JAVADOC;
 suffix_javadoc: JAVADOC;
 
 // values
-keyword: ID | IMPORT | CONFIG | FLOW | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | COMMAND | EVENT | IF | ELSE | POLICY | END | COMPLETED | SUSPENDED | CANCELLED | AND | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
+keyword: ID | IMPORT | CONFIG | FLOW | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | DO | FOR | END | COMPLETED | SUSPENDED | CANCELLED | AND | RESPONSE | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
 
 //complex_value: value | array | object;
 //value: simple | object;
@@ -154,39 +155,45 @@ system: javadoc? annotations system_name LBRACE system_body RBRACE;
 system_name: ID;
 system_body: system_services;
 system_services: system_service*;
-system_service: SERVICE system_service_name (LBRACE system_service_body RBRACE)?;
+system_service: SERVICE system_service_name (FOR LPAREN system_service_aggregates RPAREN)? (LBRACE system_service_body RBRACE)?;
 system_service_name: ID;
+system_service_aggregates: ID (COMMA ID)*;
 system_service_body: COMMANDS COLON system_service_command_list;
 system_service_command_list: ID (COMMA ID)*;
 
 // flows
 flow: javadoc? annotations FLOW flow_name LBRACE flow_body RBRACE;
 flow_name: ID;
-flow_body: (flow_start | flow_when | flow_end)*;
+flow_body: (flow_start | flow_when | flow_do | flow_end)*;
 
 // start events
 flow_start: javadoc? annotations START flow_start_name LBRACE fields RBRACE;
 flow_start_name: ID;
 
 // when blocks
-flow_when: javadoc? annotations WHEN flow_when_trigger LBRACE flow_when_body RBRACE;
-flow_when_trigger: flow_when_event_trigger (AND flow_when_event_trigger)*;
+flow_when: javadoc? annotations WHEN flow_when_trigger DO flow_command_name (LBRACE flow_do_body RBRACE)?;
+flow_when_trigger: flow_when_trigger_group (AND flow_when_trigger_group)*;
+flow_when_trigger_group: flow_when_event_trigger ((COMMA | OR) flow_when_event_trigger)* (COMMA | OR)?;
 flow_when_event_trigger: ID;
-flow_when_body: flow_when_service? flow_when_command? (flow_when_event)*;
-flow_when_service: SERVICE flow_when_service_name;
-flow_when_service_name: flow_when_service_system_name DOT flow_when_service_service_name;
-flow_when_service_system_name: ID;
-flow_when_service_service_name: ID;
-flow_when_command: COMMAND flow_command_name;
 flow_command_name: ID;
-flow_when_event: EVENT flow_event_name;
+
+// action blocks
+flow_do: javadoc? annotations DO flow_command_name LBRACE flow_do_body RBRACE;
+flow_do_body: flow_do_statement*;
+flow_do_statement: flow_do_service | flow_do_call | flow_do_on | flow_do_signal;
+flow_do_service: SERVICE flow_service_name;
+flow_do_call: CALL flow_command_name;
+flow_do_on: ON flow_event_name (CALL flow_command_name | EMITS flow_event_name);
+flow_do_signal: ((EMITS RESPONSE?) | RESPONSE) flow_event_name;
+flow_service_name: flow_service_system_name DOT flow_service_service_name;
+flow_service_system_name: ID;
+flow_service_service_name: ID;
 flow_event_name: ID;
 
 // end block
 flow_end: javadoc? annotations END LBRACE flow_end_outcomes RBRACE;
-flow_end_outcomes: flow_end_completed? flow_end_suspended? flow_end_cancelled?;
-flow_end_completed: COMPLETED COLON flow_end_outcome_list;
-flow_end_suspended: SUSPENDED COLON flow_end_outcome_list;
-flow_end_cancelled: CANCELLED COLON flow_end_outcome_list;
+flow_end_outcomes: flow_end_outcome+;
+flow_end_outcome: flow_end_outcome_name COLON flow_end_outcome_list;
+flow_end_outcome_name: keyword;
 flow_end_outcome_list: flow_end_outcome_event (COMMA flow_end_outcome_event)*;
 flow_end_outcome_event: ID;

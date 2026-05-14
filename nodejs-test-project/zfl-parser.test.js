@@ -152,14 +152,14 @@ describe('ZFL Parser - Subscriptions', () => {
                 assert.equal(triggers[0], "CustomerRequestsSubscriptionRenewal");
             });
 
-            it('should have correct command', () => {
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[0].command"), "renewSubscription");
+            it('should have correct action', () => {
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[0].action"), "renewSubscription");
             });
 
-            it('should have correct events', () => {
-                const events = jsonPath(model, "$.flows.PaymentsFlow.whens[0].events");
-                assert.equal(arraySize(events), 1);
-                assert.equal(events[0], "SubscriptionRenewed");
+            it('should reference an action with the expected emits', () => {
+                const emits = jsonPath(model, "$.flows.PaymentsFlow.actions.renewSubscription.emits");
+                assert.equal(arraySize(emits), 1);
+                assert.equal(emits[0], "SubscriptionRenewed");
             });
         });
 
@@ -170,15 +170,15 @@ describe('ZFL Parser - Subscriptions', () => {
                 assert.equal(triggers[0], "SubscriptionRenewed");
             });
 
-            it('should have correct command', () => {
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[1].command"), "chargePayment");
+            it('should have correct action', () => {
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[1].action"), "chargePayment");
             });
 
-            it('should have correct events', () => {
-                const events = jsonPath(model, "$.flows.PaymentsFlow.whens[1].events");
-                assert.equal(arraySize(events), 2);
-                assert.equal(events[0], "PaymentSucceeded");
-                assert.equal(events[1], "PaymentFailed");
+            it('should reference an action with the expected emits', () => {
+                const emits = jsonPath(model, "$.flows.PaymentsFlow.actions.chargePayment.emits");
+                assert.equal(arraySize(emits), 2);
+                assert.equal(emits[0], "PaymentSucceeded");
+                assert.equal(emits[1], "PaymentFailed");
             });
         });
 
@@ -193,14 +193,14 @@ describe('ZFL Parser - Subscriptions', () => {
                 assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[2].options.if"), "less than 3 attempts");
             });
 
-            it('should have correct command', () => {
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[2].command"), "retryPayment");
+            it('should have correct action', () => {
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[2].action"), "retryPayment");
             });
 
-            it('should have correct events', () => {
-                const events = jsonPath(model, "$.flows.PaymentsFlow.whens[2].events");
-                assert.equal(arraySize(events), 1);
-                assert.equal(events[0], "PaymentRetryScheduled");
+            it('should reference an action with the expected emits', () => {
+                const emits = jsonPath(model, "$.flows.PaymentsFlow.actions.retryPayment.emits");
+                assert.equal(arraySize(emits), 1);
+                assert.equal(emits[0], "PaymentRetryScheduled");
             });
         });
 
@@ -215,14 +215,14 @@ describe('ZFL Parser - Subscriptions', () => {
                 assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[3].options.if"), "3 or more attempts");
             });
 
-            it('should have correct command', () => {
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[3].command"), "suspendSubscription");
+            it('should have correct action', () => {
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[3].action"), "suspendSubscription");
             });
 
-            it('should have correct events', () => {
-                const events = jsonPath(model, "$.flows.PaymentsFlow.whens[3].events");
-                assert.equal(arraySize(events), 1);
-                assert.equal(events[0], "SubscriptionSuspended");
+            it('should reference an action with the expected emits', () => {
+                const emits = jsonPath(model, "$.flows.PaymentsFlow.actions.suspendSubscription.emits");
+                assert.equal(arraySize(emits), 1);
+                assert.equal(emits[0], "SubscriptionSuspended");
             });
         });
 
@@ -234,14 +234,14 @@ describe('ZFL Parser - Subscriptions', () => {
                 assert.equal(triggers[1], "BillingCycleEnded");
             });
 
-            it('should have correct command', () => {
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[4].command"), "recordPayment");
+            it('should have correct action', () => {
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[4].action"), "recordPayment");
             });
 
-            it('should have correct events', () => {
-                const events = jsonPath(model, "$.flows.PaymentsFlow.whens[4].events");
-                assert.equal(arraySize(events), 1);
-                assert.equal(events[0], "PaymentRecorded");
+            it('should reference an action with the expected emits', () => {
+                const emits = jsonPath(model, "$.flows.PaymentsFlow.actions.recordPayment.emits");
+                assert.equal(arraySize(emits), 1);
+                assert.equal(emits[0], "PaymentRecorded");
             });
         });
 
@@ -252,14 +252,14 @@ describe('ZFL Parser - Subscriptions', () => {
                 assert.equal(triggers[0], "PaymentTimeout");
             });
 
-            it('should have correct command', () => {
-                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[5].command"), "cancelRenewal");
+            it('should have correct action', () => {
+                assert.equal(jsonPath(model, "$.flows.PaymentsFlow.whens[5].action"), "cancelRenewal");
             });
 
-            it('should have correct events', () => {
-                const events = jsonPath(model, "$.flows.PaymentsFlow.whens[5].events");
-                assert.equal(arraySize(events), 1);
-                assert.equal(events[0], "RenewalCancelled");
+            it('should reference an action with the expected emits', () => {
+                const emits = jsonPath(model, "$.flows.PaymentsFlow.actions.cancelRenewal.emits");
+                assert.equal(arraySize(emits), 1);
+                assert.equal(emits[0], "RenewalCancelled");
             });
         });
     });
@@ -292,6 +292,29 @@ describe('ZFL Parser - Subscriptions', () => {
             assert.equal(arraySize(cancelled), 1);
             assert.equal(cancelled[0], "RenewalCancelled");
         });
+    });
+});
+
+describe('ZFL Parser - Response Signals', () => {
+    it('should expose emits and responses separately', () => {
+        const model = parseZfl(`
+            flow TestFlow {
+                do reserveStock {
+                    service Stock.StockService
+                    response StockUnavailable
+                    emits response StockReserved
+                }
+            }
+        `);
+
+        const emits = jsonPath(model, "$.flows.TestFlow.actions.reserveStock.emits");
+        const responses = jsonPath(model, "$.flows.TestFlow.actions.reserveStock.responses");
+
+        assert.equal(arraySize(emits), 1);
+        assert.equal(emits[0], "StockReserved");
+        assert.equal(arraySize(responses), 2);
+        assert.equal(responses[0], "StockUnavailable");
+        assert.equal(responses[1], "StockReserved");
     });
 });
 

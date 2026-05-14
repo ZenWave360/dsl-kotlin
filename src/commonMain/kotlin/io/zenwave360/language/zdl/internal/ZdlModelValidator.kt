@@ -40,8 +40,12 @@ class ZdlModelValidator {
         @Suppress("UNCHECKED_CAST")
         val apis = JSONPath.get(model, "$.apis[*]", listOf<Map<String, Any?>>()) as List<Map<String, Any?>>
         for (api in apis) {
+            val type = api["type"] as? String
             val role = api["role"] as? String
             val name = api["name"] as? String
+            if (type == "zdl") {
+                continue
+            }
             if (role == null || !API_ROLES.contains(role)) {
                 model.addProblem(path("apis", name ?: "", "role"), role, "%s is not a valid API role [provider|client]")
             }

@@ -8,8 +8,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 enum class FlowEdgeType {
     CAUSATION,
+    CALL,
+    OUTCOME_HANDLER,
     TRIGGER,
     CONDITIONAL,
     ERROR
 }
-

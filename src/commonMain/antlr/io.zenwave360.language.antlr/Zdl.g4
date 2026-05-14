@@ -41,6 +41,7 @@ OPTIONAL: '?';
 IMPORT: 'import';
 CONFIG: 'config';
 APIS: 'apis';
+ZDL: 'zdl';
 PLUGINS: 'plugins';
 POLICIES: 'policies';
 DISABLED: 'disabled';
@@ -124,7 +125,7 @@ suffix_javadoc: JAVADOC;
 legacy_constants: LEGACY_CONSTANT*;
 
 // values
-keyword: ID | IMPORT | CONFIG | APIS | PLUGINS | DISABLED | ASYNCAPI | OPENAPI | ENTITY | AGGREGATE | INPUT | OUTPUT | EVENT | RELATIONSHIP | SERVICE | PARAM_ID | FOR | FROM | TO | WITH_EVENTS | WITH | LIFECYCLE | INITIAL | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
+keyword: ID | IMPORT | CONFIG | APIS | ZDL | PLUGINS | DISABLED | ASYNCAPI | OPENAPI | ENTITY | AGGREGATE | INPUT | OUTPUT | EVENT | RELATIONSHIP | SERVICE | PARAM_ID | FOR | FROM | TO | WITH_EVENTS | WITH | LIFECYCLE | INITIAL | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
 
 //complex_value: value | array | object;
 //value: simple | object;
@@ -152,10 +153,11 @@ config_option: field_name complex_value;
 
 apis: APIS apis_body;
 apis_body: LBRACE api* RBRACE;
-api: javadoc? annotations api_type (LPAREN api_role RPAREN)? api_name api_body;
-api_type: ASYNCAPI | OPENAPI;
+api: javadoc? annotations api_type LPAREN? api_role? RPAREN? api_name api_uri? api_body?;
+api_type: ASYNCAPI | OPENAPI | ZDL;
 api_role: ID;
 api_name: ID;
+api_uri: string;
 api_body: LBRACE api_configs RBRACE;
 api_configs: (api_config)*;
 api_config: field_name complex_value;

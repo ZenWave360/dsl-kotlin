@@ -44,43 +44,37 @@ flow PaymentsFlow {
     start PaymentTimeout {
     }
 
-    when CustomerRequestsSubscriptionRenewal {
+    when CustomerRequestsSubscriptionRenewal do renewSubscription {
         service Subscription.SubscriptionService
-        command renewSubscription
-        event SubscriptionRenewed
+        emits SubscriptionRenewed
     }
 
-    when SubscriptionRenewed {
+    when SubscriptionRenewed do chargePayment {
         service Payments.PaymentService
-        command chargePayment
-        event PaymentSucceeded
-        event PaymentFailed
+        emits PaymentSucceeded
+        emits PaymentFailed
     }
 
     @if("less than 3 attempts")
-    when PaymentFailed {
+    when PaymentFailed do retryPayment {
         service Payments.PaymentService
-        command retryPayment
-        event PaymentRetryScheduled
+        emits PaymentRetryScheduled
     }
 
     @if("3 or more attempts")
-    when PaymentFailed {
+    when PaymentFailed do suspendSubscription {
         service Subscription.SubscriptionService
-        command suspendSubscription
-        event SubscriptionSuspended
+        emits SubscriptionSuspended
     }
 
-    when PaymentSucceeded and BillingCycleEnded {
+    when PaymentSucceeded and BillingCycleEnded do recordPayment {
         service Payments.PaymentService
-        command recordPayment
-        event PaymentRecorded
+        emits PaymentRecorded
     }
 
-    when PaymentTimeout {
+    when PaymentTimeout do cancelRenewal {
         service Subscription.SubscriptionService
-        command cancelRenewal
-        event RenewalCancelled
+        emits RenewalCancelled
     }
 
     end {

@@ -9,5 +9,8 @@ data class ZflCommand(
     val system: String?,
     val service: String?,
     val actor: String?,
+    val emits: List<String> = emptyList(),
+    val responses: List<String> = emptyList(),
+    val steps: List<ZflActionStep> = emptyList(),
     val sourceRef: SourceRef
 )

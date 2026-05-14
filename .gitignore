@@ -20,6 +20,8 @@ target/
 *.iml
 *.ipr
 
+/.gradle*
+
 ### Eclipse ###
 .apt_generated
 .classpath
@@ -45,4 +47,4 @@ build/
 
 ### Mac OS ###
 .DS_Store
-/.mcp_data/identifier-embeddings-cache.json
+/.mcp_data

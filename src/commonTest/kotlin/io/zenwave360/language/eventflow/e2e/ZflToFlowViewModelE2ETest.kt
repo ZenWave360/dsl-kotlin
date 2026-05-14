@@ -1,0 +1,303 @@
+package io.zenwave360.language.eventflow.e2e
+
+import io.zenwave360.language.eventflow.view.*
+import io.zenwave360.language.zfl.ZflParser
+import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
+import io.zenwave360.language.zfl.semantic.toJsonString
+import io.zenwave360.language.readTestFile
+import kotlin.test.*
+
+/**
+ * End-to-end test that validates the complete ZFL processing pipeline:
+ * ZFL file → Parser → Semantic Analyzer → IR Transformer → Layout Engine → FlowViewModel → JSON
+ */
+class ZflToFlowViewModelE2ETest {
+
+    @Test
+    fun testE2E_SimpleFlow() {
+        // Step 1: Define a simple ZFL file content
+        val zflContent = """
+            systems {
+                TestSystem {
+                    service TestService {
+                        commands: doSomething
+                    }
+                }
+            }
+            flow SimpleFlow {
+                start UserAction {
+                }
+                
+                when UserAction do doSomething {
+                    emits SomethingDone
+                }
+            }
+        """.trimIndent()
+
+        // Step 2: Parse the ZFL file
+        val parser = ZflParser()
+        val zflModel = parser.parseModel(zflContent)
+        assertNotNull(zflModel, "ZFL model should be parsed successfully")
+
+        // Step 3: Perform semantic analysis
+        val analyzer = ZflSemanticAnalyzer()
+        val semanticModel = analyzer.analyze(zflModel)
+        assertNotNull(semanticModel, "Semantic model should be created")
+        assertEquals(1, semanticModel.flows.size, "Should have 1 flow")
+
+        // Step 4: Transform to FlowViewModel (without layout)
+        val unpositioned = ZflToFlowViewModelTransformer().transform(semanticModel)
+        assertNotNull(unpositioned, "FlowViewModel should be created")
+        assertEquals(4, unpositioned.nodes.size, "Should have 4 nodes (1 command + 1 emits + 1 start + 1 policy)")
+
+        // Step 5: Apply layout to create positioned FlowViewModel
+        val viewModel = FlowLayoutEngine().layout(unpositioned)
+        assertNotNull(viewModel, "FlowViewModel should be created")
+
+        // Step 6: Convert to JSON string
+        val jsonOutput = viewModel.toJsonString()
+        assertNotNull(jsonOutput, "JSON output should be generated")
+        assertTrue(jsonOutput.isNotEmpty(), "JSON output should not be empty")
+
+        // Step 7: Print JSON output for inspection
+        println("=== Simple Flow JSON Output ===")
+        println(jsonOutput)
+        println("================================")
+
+        // Step 8: Validate JSON structure
+        assertTrue(jsonOutput.contains("\"schema\""), "JSON should contain schema field")
+        assertTrue(jsonOutput.contains("zfl.eventflow.view@1"), "JSON should contain schema version")
+        assertTrue(jsonOutput.contains("\"nodes\""), "JSON should contain nodes array")
+        assertTrue(jsonOutput.contains("\"edges\""), "JSON should contain edges array")
+        assertTrue(jsonOutput.contains("\"systemGroups\""), "JSON should contain systemGroups array")
+        assertTrue(jsonOutput.contains("\"layout\""), "JSON should contain layout metadata")
+        assertTrue(jsonOutput.contains("\"bounds\""), "JSON should contain bounds")
+
+        // Step 9: Validate FlowViewModel content
+        assertEquals("zfl.eventflow.view@1", viewModel.schema)
+        assertEquals(4, viewModel.nodes.size)
+        assertEquals(4, viewModel.edges.size)
+        assertTrue(viewModel.bounds!!.width > 0)
+        assertTrue(viewModel.bounds!!.height > 0)
+    }
+
+    @Test
+    fun testE2E_SubscriptionsFlow() {
+        // Step 1: Read the subscriptions.zfl test file
+        val zflContent = readTestFile("flow/subscriptions.zfl")
+        assertNotNull(zflContent, "ZFL file should be read successfully")
+
+        // Step 2: Parse the ZFL file
+        val parser = ZflParser()
+        val zflModel = parser.parseModel(zflContent)
+        assertNotNull(zflModel, "ZFL model should be parsed successfully")
+
+        // Step 3: Perform semantic analysis
+        val analyzer = ZflSemanticAnalyzer()
+        val semanticModel = analyzer.analyze(zflModel)
+        println(semanticModel.toJsonString())
+        assertNotNull(semanticModel, "Semantic model should be created")
+        assertEquals(1, semanticModel.flows.size, "Should have 1 flow")
+        assertEquals("PaymentsFlow", semanticModel.flows.first().name)
+
+        // Step 4: Transform to FlowViewModel (without layout)
+        val unpositioned = ZflToFlowViewModelTransformer().transform(semanticModel)
+        println(unpositioned.toJsonString())
+        assertNotNull(unpositioned, "FlowViewModel should be created")
+        assertEquals(21, unpositioned.nodes.size, "Should have 21 nodes (6 commands + 7 events + 3 starts + 5 policies)")
+
+        // Step 5: Apply layout to create positioned FlowViewModel
+        val viewModel = FlowLayoutEngine().layout(unpositioned)
+        assertNotNull(viewModel, "FlowViewModel should be created")
+
+        // Step 6: Convert to JSON string
+        val jsonOutput = viewModel.toJsonString()
+        assertNotNull(jsonOutput, "JSON output should be generated")
+        assertTrue(jsonOutput.isNotEmpty(), "JSON output should not be empty")
+
+        // Step 7: Print JSON output for inspection
+        println("=== Subscriptions Flow JSON Output ===")
+        println(jsonOutput)
+        println("=======================================")
+
+        // Step 8: Validate JSON structure and content
+        assertTrue(jsonOutput.contains("\"schema\""), "JSON should contain schema field")
+        assertTrue(jsonOutput.contains("zfl.eventflow.view@1"), "JSON should contain schema version")
+        assertTrue(jsonOutput.contains("\"nodes\""), "JSON should contain nodes array")
+        assertTrue(jsonOutput.contains("\"edges\""), "JSON should contain edges array")
+        assertTrue(jsonOutput.contains("\"systemGroups\""), "JSON should contain systemGroups array")
+        assertTrue(jsonOutput.contains("\"layout\""), "JSON should contain layout metadata")
+        assertTrue(jsonOutput.contains("\"bounds\""), "JSON should contain bounds")
+
+        // Step 9: Validate FlowViewModel content
+        assertEquals("zfl.eventflow.view@1", viewModel.schema)
+        assertEquals(21, viewModel.nodes.size)
+        assertTrue(viewModel.edges.isNotEmpty())
+        assertTrue(viewModel.systemGroups?.isNotEmpty() ?: false)
+//        assertEquals(3, viewModel.systemGroups?.size, "Should have 3 system groups")
+
+        // Verify system groups
+        val systemNames = viewModel.systemGroups!!.map { it.systemName }.toSet()
+        assertTrue(systemNames.contains("Subscription"), "Should have Subscription system")
+        assertTrue(systemNames.contains("Payments"), "Should have Payments system")
+//        assertTrue(systemNames.contains("Billing"), "Should have Billing system")
+
+        // Verify layout metadata
+        assertEquals("zfl-timeline", viewModel.layout!!.engine)
+        assertTrue(viewModel.layout!!.rankSpacing > 0)
+        assertTrue(viewModel.layout!!.nodeSpacing > 0)
+
+        // Verify bounds
+        assertTrue(viewModel.bounds!!.width > 0)
+        assertTrue(viewModel.bounds!!.height > 0)
+
+        // Verify all nodes have valid positions and dimensions
+        viewModel.nodes.forEach { node ->
+            assertTrue(node.position!!.x >= 0, "Node ${node.id} x should be >= 0")
+            assertTrue(node.position!!.y >= 0, "Node ${node.id} y should be >= 0")
+            assertTrue(node.dimensions!!.width > 0, "Node ${node.id} width should be > 0")
+            assertTrue(node.dimensions!!.height > 0, "Node ${node.id} height should be > 0")
+        }
+    }
+
+    @Test
+    fun testE2E_FlowWithPolicy() {
+        // Step 1: Define a ZFL file with conditional policy
+        val zflContent = """
+            systems {
+                PaymentSystem {
+                    service PaymentService {
+                        commands: processPayment, retryPayment, cancelPayment
+                    }
+                }
+            }
+            flow PolicyFlow {
+
+                start PaymentRequested {
+                }
+
+                when PaymentRequested do processPayment {
+                    emits PaymentSucceeded
+                    emits PaymentFailed
+                }
+
+                @if("retry count < 3")
+                when PaymentFailed do retryPayment {
+                    emits PaymentRetried
+                }
+
+                @if("retry count >= 3")
+                when PaymentFailed do cancelPayment {
+                    emits PaymentCancelled
+                }
+            }
+        """.trimIndent()
+
+        // Step 2-5: Complete pipeline
+        val parser = ZflParser()
+        val zflModel = parser.parseModel(zflContent)
+        val semanticModel = ZflSemanticAnalyzer().analyze(zflModel)
+        val viewModel = FlowLayoutEngine().layout(ZflToFlowViewModelTransformer().transform(semanticModel))
+
+        // Step 6: Convert to JSON
+        val jsonOutput = viewModel.toJsonString()
+
+        // Step 7: Print JSON output
+        println("=== Policy Flow JSON Output ===")
+        println(jsonOutput)
+        println("================================")
+
+        // Step 8: Validate
+        assertNotNull(jsonOutput)
+        assertTrue(jsonOutput.contains("POLICY"), "JSON should contain POLICY node type")
+
+        // Verify we have policy nodes
+        val policyNodes = viewModel.nodes.filter { it.type.name == "POLICY" }
+        assertEquals(3, policyNodes.size, "Should have 3 policy nodes")
+    }
+
+    @Test
+    fun testE2E_PlaceOrderFlow_EndOutcomesMarkTerminalEvents() {
+        val zflContent = readTestFile("flow/place-order-flow.zfl")
+
+        val viewModel = ZflParser().parseModel(zflContent)
+            .let { ZflSemanticAnalyzer().analyze(it) }
+            .let { ZflToFlowViewModelTransformer().transform(it) }
+            .let { FlowLayoutEngine().layout(it) }
+
+        assertEquals(
+            listOf("completed"),
+            viewModel.nodes.find { it.id == "event:OrderConfirmationSent" }?.endOutcomeLabels
+        )
+        assertEquals(
+            listOf("stockGone"),
+            viewModel.nodes.find { it.id == "event:StockUnavailableNotificationSent" }?.endOutcomeLabels
+        )
+        assertEquals(
+            listOf("orderCancelled"),
+            viewModel.nodes.find { it.id == "event:OrderCancelledNotificationSent" }?.endOutcomeLabels
+        )
+
+        val releaseStockCausationEdges = viewModel.edges.filter {
+            it.source == "command:releaseStock" &&
+            it.target == "event:StockReleased" &&
+            it.type == FlowEdgeType.CAUSATION
+        }
+        assertEquals(1, releaseStockCausationEdges.size, "Shared command causation edge should not be duplicated")
+
+        assertNotNull(
+            viewModel.edges.find {
+                it.source == "command:reserveStock" &&
+                it.target == "event:StockReserved" &&
+                it.type == FlowEdgeType.CAUSATION
+            }
+        )
+    }
+
+    @Test
+    fun testE2E_JsonOutput() {
+        // Test JSON output format
+        val zflContent = """
+            flow JsonTestFlow {
+                systems {
+                    TestSystem {
+                        service TestService {
+                            commands: testCommand
+                        }
+                    }
+                }
+
+                start TestEvent {
+                }
+
+                when TestEvent do testCommand {
+                    emits ResultEvent
+                }
+            }
+        """.trimIndent()
+
+        // Create FlowViewModel through the pipeline
+        val viewModel = ZflParser().parseModel(zflContent)
+            .let { ZflSemanticAnalyzer().analyze(it) }
+            .let { ZflToFlowViewModelTransformer().transform(it) }
+            .let { FlowLayoutEngine().layout(it) }
+
+        // Convert to JSON
+        val jsonString = viewModel.toJsonString()
+
+        // Print for inspection
+        println("=== JSON Output Test ===")
+        println(jsonString)
+        println("========================")
+
+        // Verify JSON structure
+        assertTrue(jsonString.contains("\"schema\""))
+        assertTrue(jsonString.contains("\"nodes\""))
+        assertTrue(jsonString.contains("\"edges\""))
+        assertTrue(jsonString.contains("\"systemGroups\""))
+        assertTrue(jsonString.contains("\"layout\""))
+        assertTrue(jsonString.contains("\"bounds\""))
+    }
+}
+
+
