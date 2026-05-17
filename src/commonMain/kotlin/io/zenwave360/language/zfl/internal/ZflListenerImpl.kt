@@ -286,18 +286,21 @@ class ZflListenerImpl : ZflBaseListener() {
 
     override fun enterFlow_do_service(ctx: ZflParser.Flow_do_serviceContext) {
         val action = currentStack.last()
-        val serviceNameContext = ctx.flow_service_name()
-        val systemName = getText(serviceNameContext.flow_service_system_name()) ?: "DefaultSystem"
-        val serviceName = getText(serviceNameContext.flow_service_service_name()) ?: "DefaultService"
+        val segments = ctx.flow_service_path().flow_service_segment().mapNotNull { getText(it) }
+        val systemName = segments.firstOrNull() ?: "DefaultSystem"
+        val serviceName = segments.getOrNull(1)
+        val servicePath = segments.joinToString("/")
 
         action["system"] = systemName
         action["service"] = serviceName
+        action["servicePath"] = servicePath
         appendStep(action, buildMap()
             .with("type", "service")
             .with("system", systemName)
-            .with("service", serviceName))
+            .with("service", serviceName)
+            .with("servicePath", servicePath))
 
-        registerCommand(systemName, serviceName, action["name"] as? String)
+        registerCommand(systemName, serviceName ?: systemName, action["name"] as? String)
     }
 
     override fun enterFlow_do_call(ctx: ZflParser.Flow_do_callContext) {

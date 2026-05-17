@@ -67,6 +67,7 @@ class ZflSemanticAnalyzer {
                             description = null,
                             system = command.system,
                             service = command.service,
+                            servicePath = command.servicePath,
                             isError = false,
                             sourceRef = sourceRefOf(flowName, outcome)
                         )
@@ -139,6 +140,7 @@ class ZflSemanticAnalyzer {
         val actionName = actionModel.getString("name")
         val systemName = actionModel.getStringOrNull("system")
         val serviceName = actionModel.getStringOrNull("service")
+        val servicePath = actionModel.getStringOrNull("servicePath")
         val steps = mutableListOf<ZflActionStep>()
         val directEmits = mutableListOf<String>()
         val directResponses = mutableListOf<String>()
@@ -151,8 +153,9 @@ class ZflSemanticAnalyzer {
                     flushPendingCall(pendingCall, steps)
                     pendingCall = null
                     val stepSystem = stepModel.getString("system")
-                    val stepService = stepModel.getString("service")
-                    steps += ZflServiceStep(stepSystem, stepService)
+                    val stepService = stepModel.getStringOrNull("service")
+                    val stepServicePath = stepModel.getString("servicePath")
+                    steps += ZflServiceStep(stepSystem, stepService, stepServicePath)
                 }
 
                 "call" -> {
@@ -199,7 +202,7 @@ class ZflSemanticAnalyzer {
 
         flushPendingCall(pendingCall, steps)
 
-        if (systemName == null || serviceName == null) {
+        if (systemName == null || servicePath == null) {
             diagnostics += ZflSemanticDiagnostic(
                 message = "Action '$actionName' must declare a service.",
                 severity = Severity.ERROR,
@@ -218,6 +221,7 @@ class ZflSemanticAnalyzer {
             name = actionName,
             system = systemName,
             service = serviceName,
+            servicePath = servicePath,
             actor = JSONPath.get<String>(actionModel, "options.actor"),
             emits = emittedOutcomes,
             responses = responseOutcomes,

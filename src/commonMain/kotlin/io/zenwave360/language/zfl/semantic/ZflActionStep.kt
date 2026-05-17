@@ -10,7 +10,8 @@ sealed interface ZflActionStep
 @SerialName("service")
 data class ZflServiceStep(
     val system: String,
-    val service: String
+    val service: String?,
+    val servicePath: String
 ) : ZflActionStep
 
 @Serializable

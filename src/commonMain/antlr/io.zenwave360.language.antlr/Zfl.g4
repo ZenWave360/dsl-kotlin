@@ -35,6 +35,7 @@ EQUALS: '=';
 ARRAY: '[]';
 OPTIONAL: '?';
 DOT: '.';
+SLASH: '/';
 
 // Keywords
 IMPORT: 'import';
@@ -90,8 +91,6 @@ fragment ESC :   '\\' ['"\\/bfnrt] ;
 
 // Whitespace
 WS: [ \t\r\n]+ -> channel(HIDDEN);
-
-PATTERN_REGEX: '/' .*? '/' ; // TODO: improve regex
 
 /** "catch all" rule for any char not matche in a token rule of your
  *  grammar. Lexers in Intellij must return all tokens good and bad.
@@ -181,13 +180,12 @@ flow_command_name: ID;
 flow_do: javadoc? annotations DO flow_command_name LBRACE flow_do_body RBRACE;
 flow_do_body: flow_do_statement*;
 flow_do_statement: flow_do_service | flow_do_call | flow_do_on | flow_do_signal;
-flow_do_service: SERVICE flow_service_name;
+flow_do_service: SERVICE flow_service_path;
 flow_do_call: CALL flow_command_name;
 flow_do_on: ON flow_event_name (CALL flow_command_name | EMITS flow_event_name);
 flow_do_signal: ((EMITS RESPONSE?) | RESPONSE) flow_event_name;
-flow_service_name: flow_service_system_name DOT flow_service_service_name;
-flow_service_system_name: ID;
-flow_service_service_name: ID;
+flow_service_path: flow_service_segment ((DOT | SLASH) flow_service_segment)*;
+flow_service_segment: ID;
 flow_event_name: ID;
 
 // end block

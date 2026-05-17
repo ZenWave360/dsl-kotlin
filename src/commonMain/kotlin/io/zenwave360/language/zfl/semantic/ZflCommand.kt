@@ -8,6 +8,7 @@ data class ZflCommand(
     val name: String,
     val system: String?,
     val service: String?,
+    val servicePath: String?,
     val actor: String?,
     val emits: List<String> = emptyList(),
     val responses: List<String> = emptyList(),
