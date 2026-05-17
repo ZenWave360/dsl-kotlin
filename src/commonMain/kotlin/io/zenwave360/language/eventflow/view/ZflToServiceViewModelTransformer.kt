@@ -16,20 +16,19 @@ class ZflToServiceViewModelTransformer {
                 val groupLabel = path?.groupLabel ?: "Unbounded"
                 val groupPath = path?.groupSegments?.joinToString("/") ?: "Unbounded"
 
-                groups.putIfAbsent(
-                    groupId,
-                    ServiceGroupView(
+                if (groupId !in groups) {
+                    groups[groupId] = ServiceGroupView(
                         id = groupId,
                         label = groupLabel,
                         path = groupPath
                     )
-                )
+                }
 
                 val eventGroupKey = path?.groupSegments?.joinToString(">") ?: "Unbounded"
 
-                nodes.putIfAbsent(
-                    "command:${command.name}",
-                    ServiceNodeView(
+                val commandId = "command:${command.name}"
+                if (commandId !in nodes) {
+                    nodes[commandId] = ServiceNodeView(
                         id = "command:${command.name}",
                         type = ServiceNodeType.COMMAND,
                         label = command.name,
@@ -39,13 +38,12 @@ class ZflToServiceViewModelTransformer {
                         servicePath = path?.raw,
                         sourceRef = command.sourceRef
                     )
-                )
+                }
 
                 command.outcomesForServicesView().forEach { outcome ->
                     val eventId = "event:${outcome}@${eventGroupKey}"
-                    nodes.putIfAbsent(
-                        eventId,
-                        ServiceNodeView(
+                    if (eventId !in nodes) {
+                        nodes[eventId] = ServiceNodeView(
                             id = eventId,
                             type = ServiceNodeType.EVENT,
                             label = outcome,
@@ -55,7 +53,7 @@ class ZflToServiceViewModelTransformer {
                             servicePath = path?.raw,
                             sourceRef = command.sourceRef
                         )
-                    )
+                    }
                 }
             }
         }
