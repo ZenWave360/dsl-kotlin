@@ -154,7 +154,7 @@ system: javadoc? annotations system_name LBRACE system_body RBRACE;
 system_name: ID;
 system_body: system_services;
 system_services: system_service*;
-system_service: SERVICE system_service_name (FOR LPAREN system_service_aggregates RPAREN)? (LBRACE system_service_body RBRACE)?;
+system_service: javadoc? annotations SERVICE system_service_name (FOR LPAREN system_service_aggregates RPAREN)? (LBRACE system_service_body RBRACE)?;
 system_service_name: ID;
 system_service_aggregates: ID (COMMA ID)*;
 system_service_body: COMMANDS COLON system_service_command_list;
