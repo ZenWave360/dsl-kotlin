@@ -9,6 +9,7 @@ data class MermaidDiagramsView(
     val schema: String = "zfl.mermaid.view@1",
     val flowName: String,
     val flowchart: String,
+    val sequenceRenderMode: MermaidSequenceRenderMode = MermaidSequenceRenderMode.SEPARATE_VARIANTS,
     val sequences: List<MermaidSequenceDiagram>
 ) {
     fun toJson(pretty: Boolean = false): String {
@@ -31,6 +32,15 @@ data class MermaidDiagramsView(
 @Serializable
 data class MermaidSequenceDiagram(
     val outcome: String,
-    val variant: Int,
+    val title: String,
+    val startLabel: String,
+    val branchLabels: List<String> = emptyList(),
     val mermaid: String
 )
+
+@Serializable
+enum class MermaidSequenceRenderMode {
+    SEPARATE_VARIANTS,
+    ALT_BLOCKS,
+    AUTO
+}

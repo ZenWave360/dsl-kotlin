@@ -51,7 +51,18 @@ class ZflParser {
     fun parseModel(model: String): ZflModel {
         val parseResult = parse(model)
         val listener = ZflListenerImpl()
-        ParseTreeWalker.DEFAULT.walk(listener, parseResult.tree)
+        try {
+            ParseTreeWalker.DEFAULT.walk(listener, parseResult.tree)
+        } catch (e: Exception) {
+            listener.model.getProblems().add(
+                mutableMapOf(
+                    "path" to "parser",
+                    "location" to intArrayOf(0, 0, 1, 0, 1, 0),
+                    "value" to null,
+                    "message" to ("Parser failed while building ZFL model: ${e.message ?: e::class.simpleName}")
+                )
+            )
+        }
         parseResult.syntaxProblems.forEach { listener.model.getProblems().add(it.toMutableMap()) }
         return listener.model
     }

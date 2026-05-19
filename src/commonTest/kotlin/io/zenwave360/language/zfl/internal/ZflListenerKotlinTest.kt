@@ -4,6 +4,7 @@ import io.zenwave360.language.utils.JSONPath
 import io.zenwave360.language.zfl.ZflParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class ZflListenerKotlinTest {
@@ -104,6 +105,7 @@ class ZflListenerKotlinTest {
                     do reserveStock {
                         service CatalogProducts.CatalogProductsService
                         emits StockReserved
+                        @failure emits StockFailed
                         response StockUnavailable
                         emits response ReservationAccepted
                     }
@@ -112,7 +114,7 @@ class ZflListenerKotlinTest {
         )
 
         assertEquals(
-            listOf("StockReserved", "ReservationAccepted"),
+            listOf("StockReserved", "StockFailed", "ReservationAccepted"),
             JSONPath.get(model, "$.flows.TestFlow.actions.reserveStock.emits")
         )
         assertEquals(
@@ -121,15 +123,61 @@ class ZflListenerKotlinTest {
         )
         assertEquals(
             true,
-            JSONPath.get(model, "$.flows.TestFlow.actions.reserveStock.steps[2].response")
-        )
-        assertEquals(
-            true,
-            JSONPath.get(model, "$.flows.TestFlow.actions.reserveStock.steps[3].emits")
-        )
-        assertEquals(
-            true,
             JSONPath.get(model, "$.flows.TestFlow.actions.reserveStock.steps[3].response")
+        )
+        assertEquals(
+            true,
+            JSONPath.get(model, "$.flows.TestFlow.actions.reserveStock.steps[4].emits")
+        )
+        assertEquals(
+            true,
+            JSONPath.get(model, "$.flows.TestFlow.actions.reserveStock.steps[4].response")
+        )
+        @Suppress("UNCHECKED_CAST")
+        val steps = JSONPath.get<List<Map<String, Any?>>>(model, "$.flows.TestFlow.actions.reserveStock.steps").orEmpty()
+        @Suppress("UNCHECKED_CAST")
+        val failureOptions = steps[2]["options"] as Map<String, Any?>
+        assertTrue(failureOptions.containsKey("failure"))
+    }
+
+    @Test
+    fun parseZfl_SignalAnnotations_AreStoredOnSignalSteps() {
+        val model = ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    do authorizePayment {
+                        service PaymentsProcessing.PaymentsProcessingService
+                        emits PaymentAuthorized
+                        @failure emits PaymentDeclined
+                        @failure emits PaymentFailed
+                    }
+                }
+            """.trimIndent()
+        )
+
+        @Suppress("UNCHECKED_CAST")
+        val steps = JSONPath.get<List<Map<String, Any?>>>(model, "$.flows.TestFlow.actions.authorizePayment.steps").orEmpty()
+        @Suppress("UNCHECKED_CAST")
+        val firstFailureOptions = steps[2]["options"] as Map<String, Any?>
+        @Suppress("UNCHECKED_CAST")
+        val secondFailureOptions = steps[3]["options"] as Map<String, Any?>
+
+        assertTrue(firstFailureOptions.containsKey("failure"))
+        assertTrue(secondFailureOptions.containsKey("failure"))
+    }
+
+    @Test
+    fun parseZfl_IncompleteFlow_DoesNotThrowAndRecordsProblem() {
+        val model = ZflParser().parseModel(
+            """
+                flow
+            """.trimIndent()
+        )
+
+        assertNotNull(model)
+        assertTrue(
+            model.getProblems().isNotEmpty(),
+            "Expected parser problems for incomplete flow input"
         )
     }
 

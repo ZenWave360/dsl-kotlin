@@ -26,7 +26,8 @@ data class ZflCallStep(
 data class ZflSignalStep(
     val outcome: String,
     val emits: Boolean = false,
-    val response: Boolean = false
+    val response: Boolean = false,
+    val options: Map<String, String?> = emptyMap()
 ) : ZflActionStep
 
 @Serializable

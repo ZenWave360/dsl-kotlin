@@ -182,6 +182,39 @@ class ZflSemanticAnalyzerTest {
         assertTrue(semanticModel.diagnostics.any { it.message.contains("unknown trigger 'StockUnavailable'") })
     }
 
+    @Test
+    fun testAnalyze_SignalAnnotations_ArePreservedOnSemanticSteps() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(
+            ZflParser().parseModel(
+                """
+                    flow PaymentsFlow {
+                        do authorizePayment {
+                            service PaymentsProcessing.PaymentsProcessingService
+                            emits PaymentAuthorized
+                            @failure emits PaymentDeclined
+                            @failure emits PaymentFailed
+                        }
+                        end {
+                            completed: PaymentAuthorized
+                        }
+                    }
+                """.trimIndent()
+            )
+        )
+
+        val authorizePayment = semanticModel.flows.first().commands.first { it.name == "authorizePayment" }
+        val signalSteps = authorizePayment.steps.filterIsInstance<ZflSignalStep>()
+
+        assertEquals(3, signalSteps.size)
+        assertTrue(signalSteps[0].options.isEmpty())
+        assertTrue(signalSteps[1].options.containsKey("failure"))
+        assertTrue(signalSteps[2].options.containsKey("failure"))
+        assertEquals(
+            listOf("PaymentAuthorized", "PaymentDeclined", "PaymentFailed"),
+            authorizePayment.emits
+        )
+    }
+
     private fun sampleFlow() = """
         systems {
             CatalogProducts {

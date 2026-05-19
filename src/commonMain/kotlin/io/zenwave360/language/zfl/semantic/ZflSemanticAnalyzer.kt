@@ -185,10 +185,12 @@ class ZflSemanticAnalyzer {
                     val outcome = stepModel.getString("outcome")
                     val emits = stepModel.getBoolean("emits")
                     val response = stepModel.getBoolean("response")
+                    val options = stepModel.getStringMap("options")
                     steps += ZflSignalStep(
                         outcome = outcome,
                         emits = emits,
-                        response = response
+                        response = response,
+                        options = options
                     )
                     if (emits) {
                         directEmits += outcome
@@ -355,6 +357,10 @@ class ZflSemanticAnalyzer {
     @Suppress("UNCHECKED_CAST")
     private fun Map<String, Any?>.getMapList(key: String): List<Map<String, Any?>> =
         this[key] as? List<Map<String, Any?>> ?: emptyList()
+
+    @Suppress("UNCHECKED_CAST")
+    private fun Map<String, Any?>.getStringMap(key: String): Map<String, String?> =
+        (this[key] as? Map<String, Any?>)?.mapValues { (_, value) -> value?.toString() } ?: emptyMap()
 
     @Suppress("UNCHECKED_CAST")
     private fun Map<String, Any?>.getStringListMap(path: String): Map<String, List<String>> =

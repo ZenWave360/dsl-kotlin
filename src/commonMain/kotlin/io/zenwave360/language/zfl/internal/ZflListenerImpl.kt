@@ -332,11 +332,18 @@ class ZflListenerImpl : ZflBaseListener() {
     override fun enterFlow_do_signal(ctx: ZflParser.Flow_do_signalContext) {
         val outcome = getText(ctx.flow_event_name())
         val action = currentStack.last()
+        val options = buildMap()
+        ctx.annotations()?.option()?.forEach { option ->
+            val name = option.option_name().text.replace("@", "")
+            val value = getOptionValue(option.option_value())
+            options[name] = value
+        }
         appendStep(action, buildMap()
             .with("type", "signal")
             .with("outcome", outcome)
             .with("emits", ctx.EMITS() != null)
-            .with("response", ctx.RESPONSE() != null))
+            .with("response", ctx.RESPONSE() != null)
+            .with("options", options))
         @Suppress("UNCHECKED_CAST")
         if (ctx.EMITS() != null) {
             (action["emits"] as MutableList<Any?>).add(outcome)

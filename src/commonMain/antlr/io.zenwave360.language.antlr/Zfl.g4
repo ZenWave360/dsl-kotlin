@@ -183,7 +183,7 @@ flow_do_statement: flow_do_service | flow_do_call | flow_do_on | flow_do_signal;
 flow_do_service: SERVICE flow_service_path;
 flow_do_call: CALL flow_command_name;
 flow_do_on: ON flow_event_name (CALL flow_command_name | EMITS flow_event_name);
-flow_do_signal: ((EMITS RESPONSE?) | RESPONSE) flow_event_name;
+flow_do_signal: annotations ((EMITS RESPONSE?) | RESPONSE) flow_event_name;
 flow_service_path: flow_service_segment ((DOT | SLASH) flow_service_segment)*;
 flow_service_segment: ID;
 flow_event_name: ID;

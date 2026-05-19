@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 class ZflToMermaidDiagramsTransformerTest {
 
     @Test
-    fun testTransform_RendersFlowchartAndSequenceVariants() {
+    fun testTransform_DefaultModeUsesAltBlocksCompatibility() {
         val zflContent = """
             flow CheckoutFlow {
                 @actor(Customer)
@@ -53,6 +53,10 @@ class ZflToMermaidDiagramsTransformerTest {
         assertTrue(diagrams.flowchart.contains("flowchart TD"))
         assertTrue(diagrams.flowchart.contains("createOrder"))
         assertTrue(diagrams.flowchart.contains("ConfirmationSent"))
+        assertEquals(
+            MermaidSequenceRenderMode.ALT_BLOCKS,
+            diagrams.sequenceRenderMode
+        )
 
         val completed = diagrams.sequences.single { it.outcome == "completed" }
         assertTrue(completed.mermaid.contains("sequenceDiagram"))
@@ -67,20 +71,122 @@ class ZflToMermaidDiagramsTransformerTest {
     }
 
     @Test
-    fun testTransform_PlaceOrderFlow_ProducesMultipleOrderCancelledVariants() {
+    fun testTransform_AltBlocksModeMergesVariantsAtForkPoint() {
+        val zflContent = """
+            flow CheckoutFlow {
+                @actor(Customer)
+                start CheckoutStarted {
+                }
+
+                when CheckoutStarted do createOrder {
+                    service Orders.OrderService
+                    emits OrderCreated
+                }
+
+                when OrderCreated do authorizePayment {
+                    service Payments.PaymentService
+                    emits PaymentAuthorized
+                    emits PaymentDeclined
+                }
+
+                when PaymentAuthorized do notifySuccess {
+                    service Notifications.NotificationService
+                    emits ConfirmationSent
+                }
+
+                when PaymentDeclined do notifyFailure {
+                    service Notifications.NotificationService
+                    emits CancellationSent
+                }
+
+                end {
+                    done: ConfirmationSent, CancellationSent
+                }
+            }
+        """.trimIndent()
+
+        val diagrams = ZflToMermaidDiagramsTransformer()
+            .transform(
+                ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)),
+                MermaidSequenceRenderMode.ALT_BLOCKS
+            )
+
+        assertEquals(MermaidSequenceRenderMode.ALT_BLOCKS, diagrams.sequenceRenderMode)
+
+        val done = diagrams.sequences.single { it.outcome == "done" }
+        assertEquals("done: from CheckoutStarted", done.title)
+        assertEquals("CheckoutStarted", done.startLabel)
+        assertEquals(listOf("via PaymentAuthorized", "via PaymentDeclined"), done.branchLabels)
+        assertTrue(done.mermaid.contains("alt via PaymentAuthorized"))
+        assertTrue(done.mermaid.contains("else via PaymentDeclined"))
+        assertTrue(done.mermaid.contains("Customer->>OrderService: createOrder"))
+        assertTrue(done.mermaid.contains("PaymentService-->>NotificationService: PaymentAuthorized"))
+        assertTrue(done.mermaid.contains("PaymentService-->>NotificationService: PaymentDeclined"))
+    }
+
+    @Test
+    fun testTransform_PlaceOrderFlow_DefaultModeSplitsScenarioFamiliesBeforeMerging() {
         val zflContent = readTestFile("flow/place-order-flow.zfl")
 
         val diagrams = ZflToMermaidDiagramsTransformer()
             .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)))
 
         val orderCancelled = diagrams.sequences.filter { it.outcome == "orderCancelled" }
-        assertTrue(orderCancelled.size >= 2, "Expected multiple orderCancelled variants")
-        assertTrue(orderCancelled.any { it.mermaid.contains("PaymentDeclined") })
-        assertTrue(orderCancelled.any { it.mermaid.contains("PaymentRetryExhausted") })
+        assertTrue(orderCancelled.size >= 2, "Expected distinct scenario families for orderCancelled")
+        assertTrue(orderCancelled.any { it.mermaid.contains("via PaymentDeclined") })
+        assertTrue(orderCancelled.any { it.title == "orderCancelled: from ReservationExpired" })
+    }
 
-        val completed = diagrams.sequences.filter { it.outcome == "completed" }
-        assertTrue(completed.isNotEmpty(), "Expected at least one completed variant")
-        assertTrue(completed.any { it.mermaid.contains("StockReserved") })
-        assertTrue(completed.any { it.mermaid.contains("OrderConfirmationSent") })
+    @Test
+    fun testTransform_AutoModeUsesAltBlocksForMultipleVariants() {
+        val zflContent = readTestFile("flow/place-order-flow.zfl")
+
+        val diagrams = ZflToMermaidDiagramsTransformer()
+            .transform(
+                ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)),
+                MermaidSequenceRenderMode.AUTO
+            )
+
+        val orderCancelled = diagrams.sequences.filter { it.outcome == "orderCancelled" }
+        assertTrue(orderCancelled.any { it.mermaid.contains("via PaymentDeclined") })
+    }
+
+    @Test
+    fun testTransform_SeparateVariantsModeUsesForkLabelsInMetadata() {
+        val zflContent = """
+            flow CheckoutFlow {
+                @actor(Customer)
+                start CheckoutStarted {
+                }
+
+                when CheckoutStarted do createOrder {
+                    service Orders.OrderService
+                    emits OrderCreated
+                }
+
+                when OrderCreated do authorizePayment {
+                    service Payments.PaymentService
+                    emits PaymentAuthorized
+                    emits PaymentDeclined
+                }
+
+                end {
+                    done: PaymentAuthorized, PaymentDeclined
+                }
+            }
+        """.trimIndent()
+
+        val diagrams = ZflToMermaidDiagramsTransformer()
+            .transform(
+                ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)),
+                MermaidSequenceRenderMode.SEPARATE_VARIANTS
+            )
+
+        val done = diagrams.sequences.filter { it.outcome == "done" }
+        assertEquals(2, done.size)
+        assertTrue(done.any { it.title == "done: from CheckoutStarted via PaymentAuthorized" })
+        assertTrue(done.any { it.title == "done: from CheckoutStarted via PaymentDeclined" })
+        assertTrue(done.any { it.branchLabels == listOf("via PaymentAuthorized") })
+        assertTrue(done.any { it.branchLabels == listOf("via PaymentDeclined") })
     }
 }
