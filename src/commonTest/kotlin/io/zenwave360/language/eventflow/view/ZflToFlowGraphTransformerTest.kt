@@ -53,6 +53,21 @@ class ZflToFlowGraphTransformerTest {
     }
 
     @Test
+    fun testTransform_AsyncCallProducesLabelledCallEdge() {
+        val graph = ZflToFlowGraphTransformer()
+            .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(asyncCallFlow())))
+
+        val callEdge = graph.edges.find {
+            it.source == "command:authorizePayment" &&
+                it.target == "command:authorizePayment" &&
+                it.type == FlowGraphEdgeType.CALL
+        }
+        assertNotNull(callEdge)
+        assertEquals("async", callEdge.label)
+        assertNotNull(graph.nodes.find { it.id == "event:PaymentAuthorized" })
+    }
+
+    @Test
     fun testTransform_OutcomeHandlersProduceRoutingEdges() {
         val graph = ZflToFlowGraphTransformer()
             .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(callFlow())))
@@ -124,6 +139,75 @@ class ZflToFlowGraphTransformerTest {
                     it.label == "on StockReserved"
             }
         )
+    }
+
+    @Test
+    fun testTransform_CalledCommandDirectEmitsRemainConnected() {
+        val graph = ZflToFlowGraphTransformer()
+            .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(calledCommandEmitsFlow())))
+
+        assertNotNull(graph.nodes.find { it.id == "command:confirmStockReservation" })
+        assertNotNull(graph.nodes.find { it.id == "event:StockReservationConfirmed" })
+        assertNotNull(
+            graph.edges.find {
+                it.source == "command:confirmOrder" &&
+                    it.target == "command:confirmStockReservation" &&
+                    it.type == FlowGraphEdgeType.CALL
+            }
+        )
+        assertNotNull(
+            graph.edges.find {
+                it.source == "command:confirmStockReservation" &&
+                    it.target == "event:StockReservationConfirmed" &&
+                    it.type == FlowGraphEdgeType.CAUSATION
+            }
+        )
+    }
+
+    @Test
+    fun testTransform_OutcomeAnnotatedEmitsSetCausationEdgeOutcome() {
+        val graph = ZflToFlowGraphTransformer()
+            .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(outcomeAnnotatedEmitsFlow())))
+
+        val authorizedEdge = graph.edges.single {
+            it.source == "command:authorizePayment" &&
+                it.target == "event:PaymentAuthorized" &&
+                it.type == FlowGraphEdgeType.CAUSATION
+        }
+        val updatedEdge = graph.edges.single {
+            it.source == "command:authorizePayment" &&
+                it.target == "event:OrderUpdated" &&
+                it.type == FlowGraphEdgeType.CAUSATION
+        }
+        assertEquals("authorized", authorizedEdge.outcome)
+        assertEquals("authorized", updatedEdge.outcome)
+        assertNull(graph.nodes.find { it.id == "outcome:authorized" })
+    }
+
+    @Test
+    fun testTransform_OnEmitsMultipleEventsSetsOutcomeHandlerEdgeOutcome() {
+        val graph = ZflToFlowGraphTransformer()
+            .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(onEmitsOutcomeFlow())))
+
+        val createdEdge = graph.edges.single {
+            it.source == "command:startOrderCheckout" &&
+                it.target == "event:OrderCreated" &&
+                it.type == FlowGraphEdgeType.OUTCOME_HANDLER
+        }
+        val eventBEdge = graph.edges.single {
+            it.source == "command:startOrderCheckout" &&
+                it.target == "event:EventB" &&
+                it.type == FlowGraphEdgeType.OUTCOME_HANDLER
+        }
+        val confirmedEdge = graph.edges.single {
+            it.source == "command:startOrderCheckout" &&
+                it.target == "event:OrderConfirmed" &&
+                it.type == FlowGraphEdgeType.OUTCOME_HANDLER
+        }
+
+        assertEquals("created", createdEdge.outcome)
+        assertEquals("created", eventBEdge.outcome)
+        assertEquals("StockConfirmed", confirmedEdge.outcome)
     }
 
     private fun actorStartFlow() = """
@@ -233,6 +317,81 @@ class ZflToFlowGraphTransformerTest {
             end {
                 completed: OrderCreated
                 stockGone: StockUnavailable
+            }
+        }
+    """.trimIndent()
+
+    private fun calledCommandEmitsFlow() = """
+        flow CalledCommandEmitsFlow {
+            when PaymentAuthorized do confirmOrder
+
+            do confirmOrder {
+                service OrdersCheckout.OrdersCheckoutService
+                call confirmStockReservation
+                emits OrderConfirmed
+            }
+
+            do confirmStockReservation {
+                service CatalogInventory.InventoryService
+                emits StockReservationConfirmed
+            }
+
+            end {
+                completed: OrderConfirmed
+            }
+        }
+    """.trimIndent()
+
+    private fun asyncCallFlow() = """
+        flow AsyncCallFlow {
+            when OrderCreated do authorizePayment {
+                service PaymentsProcessing.PaymentsProcessingService
+                async call authorizePayment
+                emits PaymentAuthorized
+            }
+
+            when PaymentAuthorized do confirmOrder {
+                service OrdersCheckout.OrdersCheckoutService
+                emits OrderConfirmed
+            }
+
+            end {
+                completed: OrderConfirmed
+            }
+        }
+    """.trimIndent()
+
+    private fun outcomeAnnotatedEmitsFlow() = """
+        flow PaymentsFlow {
+            do authorizePayment {
+                service PaymentsProcessing.PaymentsProcessingService
+                @outcome("authorized") emits PaymentAuthorized, OrderUpdated
+                @outcome("declined") emits PaymentDeclined
+            }
+
+            end {
+                completed: PaymentAuthorized
+            }
+        }
+    """.trimIndent()
+
+    private fun onEmitsOutcomeFlow() = """
+        flow CheckoutFlow {
+            do startOrderCheckout {
+                service OrdersCheckout.OrdersCheckoutService
+                call reserveStock
+                @outcome("created") on StockReserved emits OrderCreated, EventB
+                on StockConfirmed emits OrderConfirmed
+            }
+
+            do reserveStock {
+                service CatalogProducts.CatalogProductsService
+                emits StockReserved
+                emits StockConfirmed
+            }
+
+            end {
+                completed: OrderCreated, EventB, OrderConfirmed
             }
         }
     """.trimIndent()

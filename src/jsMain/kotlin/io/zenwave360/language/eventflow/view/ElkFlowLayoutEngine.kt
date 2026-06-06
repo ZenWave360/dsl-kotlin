@@ -24,11 +24,13 @@ import kotlinx.coroutines.await
 actual class ElkFlowLayoutEngine actual constructor() {
 
     private val rankSpacing = 80.0
+    private val outcomeRankSpacing = 120.0
     private val nodeSpacing = 120.0
     private val canvasPadding = 20.0
     private val systemGroupPadding = 40.0
 
     actual suspend fun layout(viewModel: FlowViewModel): FlowViewModel {
+        val effectiveRankSpacing = rankSpacingFor(viewModel)
         if (viewModel.nodes.isEmpty()) {
             return viewModel.copy(
                 nodes = emptyList(),
@@ -36,26 +38,26 @@ actual class ElkFlowLayoutEngine actual constructor() {
                 layout = LayoutMetadata(
                     engine = "elk-layered",
                     direction = Direction.LR,
-                    rankSpacing = rankSpacing,
+                    rankSpacing = effectiveRankSpacing,
                     nodeSpacing = nodeSpacing
                 ),
                 bounds = FlowBounds(0.0, 0.0, 0.0, 0.0)
             )
         }
 
-        val elkGraph = buildElkGraph(viewModel)
+        val elkGraph = buildElkGraph(viewModel, effectiveRankSpacing)
         val result = ELK().layout(elkGraph).await()
-        return buildPositionedViewModel(viewModel, result)
+        return buildPositionedViewModel(viewModel, result, effectiveRankSpacing)
     }
 
-    private fun buildElkGraph(viewModel: FlowViewModel): dynamic {
+    private fun buildElkGraph(viewModel: FlowViewModel, effectiveRankSpacing: Double): dynamic {
         val partitions = ElkLayoutConstraints.partitions(viewModel)
         val modelOrder = ElkLayoutConstraints.nodeModelOrder(viewModel)
         val layoutOptions = js("{}")
         layoutOptions["elk.algorithm"] = "layered"
         layoutOptions["elk.direction"] = "RIGHT"
         layoutOptions["elk.spacing.nodeNode"] = nodeSpacing
-        layoutOptions["elk.layered.spacing.nodeNodeBetweenLayers"] = rankSpacing
+        layoutOptions["elk.layered.spacing.nodeNodeBetweenLayers"] = effectiveRankSpacing
         layoutOptions["elk.partitioning.activate"] = true
         layoutOptions["elk.layered.considerModelOrder.strategy"] = "NODES_AND_EDGES"
         layoutOptions["elk.layered.crossingMinimization.forceNodeModelOrder"] = true
@@ -101,7 +103,11 @@ actual class ElkFlowLayoutEngine actual constructor() {
         return graph
     }
 
-    private fun buildPositionedViewModel(viewModel: FlowViewModel, elkResult: dynamic): FlowViewModel {
+    private fun buildPositionedViewModel(
+        viewModel: FlowViewModel,
+        elkResult: dynamic,
+        effectiveRankSpacing: Double
+    ): FlowViewModel {
         val nodePositions = mutableMapOf<String, Pair<Double, Double>>()
         val children = elkResult.children.unsafeCast<Array<dynamic>>()
         children.forEach { elkNode ->
@@ -131,7 +137,7 @@ actual class ElkFlowLayoutEngine actual constructor() {
             layout = LayoutMetadata(
                 engine = "elk-layered",
                 direction = Direction.LR,
-                rankSpacing = rankSpacing,
+                rankSpacing = effectiveRankSpacing,
                 nodeSpacing = nodeSpacing
             ),
             systemGroups = calculateSystemGroups(adjustedNodes),
@@ -154,6 +160,9 @@ actual class ElkFlowLayoutEngine actual constructor() {
         FlowNodeType.EVENT   -> Dimensions(width = 160.0, height = 48.0)
         FlowNodeType.POLICY  -> Dimensions(width = 220.0, height = 64.0)
     }
+
+    private fun rankSpacingFor(viewModel: FlowViewModel): Double =
+        if (viewModel.edges.any { it.outcome != null }) outcomeRankSpacing else rankSpacing
 
     private fun calculateSystemGroups(nodes: List<FlowNode>): List<FlowSystemGroupView> =
         nodes.groupBy { it.system }.mapNotNull { (systemName, systemNodeList) ->

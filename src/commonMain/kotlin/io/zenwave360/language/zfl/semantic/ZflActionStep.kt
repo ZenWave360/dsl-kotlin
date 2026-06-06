@@ -18,6 +18,7 @@ data class ZflServiceStep(
 @SerialName("call")
 data class ZflCallStep(
     val action: String,
+    val async: Boolean = false,
     val handlers: List<ZflEndOutcomeHandler> = emptyList()
 ) : ZflActionStep
 
@@ -34,5 +35,14 @@ data class ZflSignalStep(
 data class ZflEndOutcomeHandler(
     val endOutcome: String,
     val action: String? = null,
-    val emits: String? = null
+    val signal: ZflHandlerSignal? = null
+)
+
+@Serializable
+data class ZflHandlerSignal(
+    val events: List<String> = emptyList(),
+    val emits: Boolean = false,
+    val response: Boolean = false,
+    val options: Map<String, String?> = emptyMap(),
+    val outcome: String? = null
 )

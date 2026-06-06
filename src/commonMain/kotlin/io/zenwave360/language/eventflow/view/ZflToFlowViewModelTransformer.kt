@@ -40,6 +40,7 @@ class ZflToFlowViewModelTransformer(
                     FlowGraphEdgeType.CONDITIONAL -> FlowEdgeType.CONDITIONAL
                 },
                 label = edge.label,
+                outcome = edge.outcome,
                 sourceRef = edge.sourceRef
             )
         }

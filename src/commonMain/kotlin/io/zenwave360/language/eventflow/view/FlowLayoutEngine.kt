@@ -3,12 +3,14 @@ package io.zenwave360.language.eventflow.view
 class FlowLayoutEngine {
 
     private val rankSpacing = 200.0
+    private val outcomeRankSpacing = 240.0
     private val nodeSpacing = 80.0
     private val systemGroupPadding = 40.0
     private val canvasPadding = 20.0
     private val laneHeight = 200.0
 
     fun layout(viewModel: FlowViewModel): FlowViewModel {
+        val effectiveRankSpacing = rankSpacingFor(viewModel)
         if (viewModel.nodes.isEmpty()) {
             return viewModel.copy(
                 nodes = emptyList(),
@@ -17,7 +19,7 @@ class FlowLayoutEngine {
                 layout = LayoutMetadata(
                     engine = "zfl-timeline",
                     direction = Direction.LR,
-                    rankSpacing = rankSpacing,
+                    rankSpacing = effectiveRankSpacing,
                     nodeSpacing = nodeSpacing
                 ),
                 bounds = FlowBounds(0.0, 0.0, 0.0, 0.0)
@@ -31,7 +33,7 @@ class FlowLayoutEngine {
         val systemLanes = calculateSystemLanes(viewModel.nodes)
 
         // Step 3: Calculate positions for each node
-        val positionedNodes = calculateNodePositions(timeline, systemLanes, viewModel.nodes)
+        val positionedNodes = calculateNodePositions(timeline, systemLanes, viewModel.nodes, effectiveRankSpacing)
 
         // Step 4: Pass through edges unchanged (FlowEdge is already the unified type)
         val edges = viewModel.edges
@@ -49,7 +51,7 @@ class FlowLayoutEngine {
             layout = LayoutMetadata(
                 engine = "zfl-timeline",
                 direction = Direction.LR,
-                rankSpacing = rankSpacing,
+                rankSpacing = effectiveRankSpacing,
                 nodeSpacing = nodeSpacing
             ),
             bounds = bounds
@@ -183,7 +185,8 @@ class FlowLayoutEngine {
     private fun calculateNodePositions(
         timeline: Map<Int, List<String>>,
         systemLanes: Map<String?, Int>,
-        nodes: List<FlowNode>
+        nodes: List<FlowNode>,
+        rankSpacing: Double
     ): List<FlowNode> {
         val nodeMap = nodes.associateBy { it.id }
         val positionedNodes = mutableListOf<FlowNode>()
@@ -239,6 +242,9 @@ class FlowLayoutEngine {
             FlowNodeType.POLICY -> Dimensions(width = 220.0, height = 64.0)
         }
     }
+
+    private fun rankSpacingFor(viewModel: FlowViewModel): Double =
+        if (viewModel.edges.any { it.outcome != null }) outcomeRankSpacing else rankSpacing
 
     /**
      * Calculates bounding boxes for system groups.

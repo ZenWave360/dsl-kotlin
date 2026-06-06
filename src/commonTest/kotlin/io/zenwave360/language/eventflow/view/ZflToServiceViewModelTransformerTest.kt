@@ -97,8 +97,8 @@ class ZflToServiceViewModelTransformerTest {
 
         assertEquals(
             setOf(
-                "CatalogProducts\nCatalogProductsService",
                 "OrdersCheckout\nOrdersCheckoutService",
+                "CatalogInventory\nInventoryService",
                 "PaymentsProcessing\nPaymentsProcessingService",
                 "FulfillmentShipping\nFulfillmentShippingService",
                 "NotificationsConsumer\nNotificationsConsumerService"
@@ -107,8 +107,8 @@ class ZflToServiceViewModelTransformerTest {
         )
 
         assertNotNull(viewModel.nodes.find { it.id == "command:startOrderCheckout" })
-        assertNotNull(viewModel.nodes.find { it.id == "event:StockReserved@CatalogProducts>CatalogProductsService" })
-        assertNotNull(viewModel.nodes.find { it.id == "event:StockUnavailable@CatalogProducts>CatalogProductsService" })
+        assertNotNull(viewModel.nodes.find { it.id == "event:StockReserved@CatalogInventory>InventoryService" })
+        assertNotNull(viewModel.nodes.find { it.id == "event:StockUnavailable@CatalogInventory>InventoryService" })
         assertNotNull(viewModel.nodes.find { it.id == "event:PaymentAuthorized@PaymentsProcessing>PaymentsProcessingService" })
     }
 }

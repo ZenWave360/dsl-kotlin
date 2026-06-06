@@ -66,7 +66,7 @@ class ZflListenerKotlinTest {
         )
         assertEquals(
             "StockUnavailable",
-            JSONPath.get(model, "$.flows.CheckoutFlow.actions.startOrderCheckout.steps[3].emits")
+            JSONPath.get(model, "$.flows.CheckoutFlow.actions.startOrderCheckout.steps[3].events[0]")
         )
 
         assertEquals(
@@ -141,6 +141,33 @@ class ZflListenerKotlinTest {
     }
 
     @Test
+    fun parseZfl_AsyncCall_IsStoredOnCallStep() {
+        val model = ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    when OrderCreated do authorizePayment {
+                        service PaymentsProcessing.PaymentsProcessingService
+                        async call authorizePayment
+                    }
+                }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            "call",
+            JSONPath.get(model, "$.flows.TestFlow.actions.authorizePayment.steps[1].type")
+        )
+        assertEquals(
+            true,
+            JSONPath.get(model, "$.flows.TestFlow.actions.authorizePayment.steps[1].async")
+        )
+        assertEquals(
+            "authorizePayment",
+            JSONPath.get(model, "$.flows.TestFlow.actions.authorizePayment.steps[1].action")
+        )
+    }
+
+    @Test
     fun parseZfl_SignalAnnotations_AreStoredOnSignalSteps() {
         val model = ZflParser().parseModel(
             """
@@ -164,6 +191,52 @@ class ZflListenerKotlinTest {
 
         assertTrue(firstFailureOptions.containsKey("failure"))
         assertTrue(secondFailureOptions.containsKey("failure"))
+    }
+
+    @Test
+    fun parseZfl_OnEmitsSupportsAnnotationsAndMultipleSignalEvents() {
+        val model = ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    do startOrderCheckout {
+                        service OrdersCheckout.OrdersCheckoutService
+                        call reserveStock
+                        @outcome("created") on StockReserved emits response OrderCreated
+                        on StockConfirmed emits OrderConfirmed, EventB
+                    }
+                }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            "signal",
+            JSONPath.get(model, "$.flows.TestFlow.actions.startOrderCheckout.steps[2].kind")
+        )
+        assertEquals(
+            listOf("OrderCreated"),
+            JSONPath.get(model, "$.flows.TestFlow.actions.startOrderCheckout.steps[2].events")
+        )
+        assertEquals(
+            true,
+            JSONPath.get(model, "$.flows.TestFlow.actions.startOrderCheckout.steps[2].emits")
+        )
+        assertEquals(
+            true,
+            JSONPath.get(model, "$.flows.TestFlow.actions.startOrderCheckout.steps[2].response")
+        )
+        assertEquals(
+            "created",
+            JSONPath.get(model, "$.flows.TestFlow.actions.startOrderCheckout.steps[2].outcome")
+        )
+        assertEquals(
+            listOf("OrderConfirmed", "EventB"),
+            JSONPath.get(model, "$.flows.TestFlow.actions.startOrderCheckout.steps[3].events")
+        )
+        assertEquals(
+            "StockConfirmed",
+            JSONPath.get(model, "$.flows.TestFlow.actions.startOrderCheckout.steps[3].outcome")
+        )
+        assertTrue(model.getProblems().isEmpty())
     }
 
     @Test

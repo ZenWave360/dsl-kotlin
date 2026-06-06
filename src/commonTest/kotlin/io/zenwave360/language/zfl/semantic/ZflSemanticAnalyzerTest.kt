@@ -19,7 +19,7 @@ class ZflSemanticAnalyzerTest {
         assertEquals(3, flow.commands.size)
         val startOrderCheckout = flow.commands.first { it.name == "startOrderCheckout" }
         assertEquals("OrdersCheckout", startOrderCheckout.system)
-        assertEquals(listOf("OrderCreated", "StockUnavailable"), startOrderCheckout.emits)
+        assertEquals(listOf("OrderCreated", "StockUnavailable"), startOrderCheckout.emits.map { it.eventName })
         assertEquals(emptyList(), startOrderCheckout.responses)
 
         assertEquals(4, startOrderCheckout.steps.size)
@@ -30,7 +30,9 @@ class ZflSemanticAnalyzerTest {
         assertEquals("StockReserved", reserveStockCall.handlers[0].endOutcome)
         assertEquals("createOrder", reserveStockCall.handlers[0].action)
         assertEquals("StockUnavailable", reserveStockCall.handlers[1].endOutcome)
-        assertEquals("StockUnavailable", reserveStockCall.handlers[1].emits)
+        assertEquals(listOf("StockUnavailable"), reserveStockCall.handlers[1].signal?.events)
+        assertEquals(true, reserveStockCall.handlers[1].signal?.emits)
+        assertEquals("StockUnavailable", reserveStockCall.handlers[1].signal?.outcome)
 
         assertEquals(1, flow.policies.size)
         assertEquals("startOrderCheckout", flow.policies.first().command)
@@ -148,12 +150,76 @@ class ZflSemanticAnalyzerTest {
         )
 
         val reserveStock = semanticModel.flows.first().commands.first { it.name == "reserveStock" }
-        assertEquals(listOf("StockReserved"), reserveStock.emits)
+        assertEquals(listOf("StockReserved"), reserveStock.emits.map { it.eventName })
         assertEquals(listOf("StockUnavailable", "StockReserved"), reserveStock.responses)
 
         val eventNames = semanticModel.flows.first().events.map { it.name }.toSet()
         assertEquals(setOf("StockReserved", "OrderAccepted", "OrderRejected"), eventNames)
         assertTrue(semanticModel.diagnostics.isEmpty())
+    }
+
+    @Test
+    fun testAnalyze_AsyncCall_UsesEmitsForPublishedContinuations() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(
+            ZflParser().parseModel(
+                """
+                    flow TestFlow {
+                        when OrderCreated do authorizePayment {
+                            service PaymentsProcessing.PaymentsProcessingService
+                            async call authorizePayment
+                            emits PaymentAuthorized
+                        }
+                        when PaymentAuthorized do confirmOrder {
+                            service OrdersCheckout.OrdersCheckoutService
+                            emits OrderConfirmed
+                        }
+                        end {
+                            completed: OrderConfirmed
+                        }
+                    }
+                """.trimIndent()
+            )
+        )
+
+        val authorizePayment = semanticModel.flows.first().commands.first { it.name == "authorizePayment" }
+        val asyncCall = assertIs<ZflCallStep>(authorizePayment.steps[1])
+        assertEquals(true, asyncCall.async)
+        assertEquals("authorizePayment", asyncCall.action)
+        assertEquals(listOf("PaymentAuthorized"), authorizePayment.emits.map { it.eventName })
+        assertTrue(semanticModel.flows.first().events.any { it.name == "PaymentAuthorized" })
+        assertTrue(semanticModel.diagnostics.none { it.message.contains("unknown trigger 'PaymentAuthorized'") })
+    }
+
+    @Test
+    fun testAnalyze_AsyncCallToLocalResponseOnlyCommandAddsWarning() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(
+            ZflParser().parseModel(
+                """
+                    flow TestFlow {
+                        when Start do placeOrder
+                        do placeOrder {
+                            service OrdersCheckout.TestService
+                            async call reserveStock
+                            emits OrderAccepted
+                        }
+                        do reserveStock {
+                            service Stock.StockService
+                            response StockReserved
+                        }
+                        end {
+                            completed: OrderAccepted
+                        }
+                    }
+                """.trimIndent()
+            )
+        )
+
+        assertTrue(
+            semanticModel.diagnostics.any {
+                it.severity == Severity.WARNING &&
+                    it.message.contains("only declares response outcomes")
+            }
+        )
     }
 
     @Test
@@ -211,7 +277,135 @@ class ZflSemanticAnalyzerTest {
         assertTrue(signalSteps[2].options.containsKey("failure"))
         assertEquals(
             listOf("PaymentAuthorized", "PaymentDeclined", "PaymentFailed"),
+            authorizePayment.emits.map { it.eventName }
+        )
+    }
+
+    @Test
+    fun testAnalyze_OutcomeAnnotatedEmitsAreStoredAsEmissionMetadata() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(
+            ZflParser().parseModel(
+                """
+                    flow PaymentsFlow {
+                        do authorizePayment {
+                            service PaymentsProcessing.PaymentsProcessingService
+                            @outcome("authorized") emits PaymentAuthorized, OrderUpdated
+                            @outcome("declined") emits PaymentDeclined
+                        }
+                        end {
+                            completed: PaymentAuthorized
+                        }
+                    }
+                """.trimIndent()
+            )
+        )
+
+        val authorizePayment = semanticModel.flows.first().commands.first { it.name == "authorizePayment" }
+        assertEquals(
+            listOf(
+                ZflEmission("PaymentAuthorized", "authorized"),
+                ZflEmission("OrderUpdated", "authorized"),
+                ZflEmission("PaymentDeclined", "declined")
+            ),
             authorizePayment.emits
+        )
+    }
+
+    @Test
+    fun testAnalyze_OnEmitsSupportsMultipleEventsAndOutcomeMetadata() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(
+            ZflParser().parseModel(
+                """
+                    flow CheckoutFlow {
+                        do startOrderCheckout {
+                            service OrdersCheckout.OrdersCheckoutService
+                            call reserveStock
+                            @outcome("created") on StockReserved emits response OrderCreated
+                            on StockConfirmed emits OrderConfirmed, EventB
+                        }
+                        do reserveStock {
+                            service CatalogProducts.CatalogProductsService
+                            emits StockReserved
+                            emits StockConfirmed
+                        }
+                        end {
+                            completed: OrderCreated, OrderConfirmed, EventB
+                        }
+                    }
+                """.trimIndent()
+            )
+        )
+
+        val startOrderCheckout = semanticModel.flows.first().commands.first { it.name == "startOrderCheckout" }
+        val reserveStockCall = startOrderCheckout.steps.filterIsInstance<ZflCallStep>().single()
+        val created = reserveStockCall.handlers[0].signal
+        val confirmed = reserveStockCall.handlers[1].signal
+
+        assertEquals(listOf("OrderCreated"), created?.events)
+        assertEquals(true, created?.emits)
+        assertEquals(true, created?.response)
+        assertEquals("created", created?.outcome)
+        assertEquals(listOf("OrderConfirmed", "EventB"), confirmed?.events)
+        assertEquals(true, confirmed?.emits)
+        assertEquals(false, confirmed?.response)
+        assertEquals("StockConfirmed", confirmed?.outcome)
+        assertTrue(semanticModel.diagnostics.isEmpty())
+    }
+
+    @Test
+    fun testAnalyze_ResponseSignalsRejectMultipleEvents() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(
+            ZflParser().parseModel(
+                """
+                    flow CheckoutFlow {
+                        do startOrderCheckout {
+                            service OrdersCheckout.OrdersCheckoutService
+                            call reserveStock
+                            on StockReserved emits response OrderCreated, EventB
+                            response Done, Failed
+                        }
+                        do reserveStock {
+                            service CatalogProducts.CatalogProductsService
+                            emits StockReserved
+                        }
+                        end {
+                            completed: OrderCreated
+                        }
+                    }
+                """.trimIndent()
+            )
+        )
+
+        assertEquals(
+            2,
+            semanticModel.diagnostics.count { it.message.contains("Response signals must declare exactly one event") }
+        )
+    }
+
+    @Test
+    fun testAnalyze_MixedOutcomeAnnotatedAndPlainEmitsAddsWarning() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(
+            ZflParser().parseModel(
+                """
+                    flow PaymentsFlow {
+                        do authorizePayment {
+                            service PaymentsProcessing.PaymentsProcessingService
+                            @outcome("authorized") emits PaymentAuthorized
+                            emits PaymentDeclined
+                        }
+                        end {
+                            completed: PaymentAuthorized
+                        }
+                    }
+                """.trimIndent()
+            )
+        )
+
+        assertTrue(
+            semanticModel.diagnostics.any {
+                it.severity == Severity.WARNING &&
+                    it.message.contains("mixes @outcome annotated and unannotated emits")
+            }
         )
     }
 

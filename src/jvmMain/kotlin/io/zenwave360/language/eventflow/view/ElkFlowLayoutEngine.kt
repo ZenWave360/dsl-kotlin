@@ -15,6 +15,7 @@ import org.eclipse.elk.core.options.Direction as ElkDirection
 actual class ElkFlowLayoutEngine actual constructor() {
 
     private val rankSpacing = 80.0
+    private val outcomeRankSpacing = 120.0
     private val nodeSpacing = 120.0
     private val canvasPadding = 20.0
     private val systemGroupPadding = 40.0
@@ -37,6 +38,7 @@ actual class ElkFlowLayoutEngine actual constructor() {
 
     actual suspend fun layout(viewModel: FlowViewModel): FlowViewModel = withContext(Dispatchers.IO) {
         ensureInitialized()
+        val effectiveRankSpacing = rankSpacingFor(viewModel)
         if (viewModel.nodes.isEmpty()) {
             return@withContext viewModel.copy(
                 nodes = emptyList(),
@@ -44,7 +46,7 @@ actual class ElkFlowLayoutEngine actual constructor() {
                 layout = LayoutMetadata(
                     engine = "elk-layered",
                     direction = Direction.LR,
-                    rankSpacing = rankSpacing,
+                    rankSpacing = effectiveRankSpacing,
                     nodeSpacing = nodeSpacing
                 ),
                 bounds = FlowBounds(0.0, 0.0, 0.0, 0.0)
@@ -54,7 +56,7 @@ actual class ElkFlowLayoutEngine actual constructor() {
         val root = ElkGraphUtil.createGraph()
         root.setProperty(CoreOptions.DIRECTION, ElkDirection.RIGHT)
         root.setProperty(CoreOptions.SPACING_NODE_NODE, nodeSpacing)
-        root.setProperty(LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS, rankSpacing)
+        root.setProperty(LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS, effectiveRankSpacing)
         root.setProperty(LayeredOptions.PARTITIONING_ACTIVATE, true)
         root.setProperty(LayeredOptions.CONSIDER_MODEL_ORDER_STRATEGY, OrderingStrategy.NODES_AND_EDGES)
         root.setProperty(LayeredOptions.CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER, true)
@@ -117,7 +119,7 @@ actual class ElkFlowLayoutEngine actual constructor() {
             layout = LayoutMetadata(
                 engine = "elk-layered",
                 direction = Direction.LR,
-                rankSpacing = rankSpacing,
+                rankSpacing = effectiveRankSpacing,
                 nodeSpacing = nodeSpacing
             ),
             bounds = calculateBounds(adjustedNodes)
@@ -139,6 +141,9 @@ actual class ElkFlowLayoutEngine actual constructor() {
         FlowNodeType.EVENT   -> Dimensions(width = 180.0, height = 124.0)
         FlowNodeType.POLICY  -> Dimensions(width = 180.0, height = 124.0)
     }
+
+    private fun rankSpacingFor(viewModel: FlowViewModel): Double =
+        if (viewModel.edges.any { it.outcome != null }) outcomeRankSpacing else rankSpacing
 
     private fun calculateBounds(nodes: List<FlowNode>): FlowBounds {
         if (nodes.isEmpty()) return FlowBounds(0.0, 0.0, 0.0, 0.0)

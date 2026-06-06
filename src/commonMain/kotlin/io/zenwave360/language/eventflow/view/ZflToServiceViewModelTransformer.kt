@@ -66,4 +66,4 @@ class ZflToServiceViewModelTransformer {
 }
 
 private fun ZflCommand.outcomesForServicesView(): List<String> =
-    (emits + responses).distinct()
+    (emits.map { it.eventName } + responses).distinct()

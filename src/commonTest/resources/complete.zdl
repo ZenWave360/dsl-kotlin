@@ -60,16 +60,16 @@ config {
 }
 
 apis {
-    asyncapi(provider) default {
-        uri "orders/src/main/resources/apis/asyncapi.yml"
-    }
-    asyncapi(client) RestaurantsAsyncAPI {
-        uri "restaurants/src/main/resources/apis/asyncapi.yml"
-    }
-    asyncapi(client) DeliveryAsyncAPI {
-        uri "delivery/src/main/resources/apis/asyncapi.yml"
-    }
+    asyncapi provider default "orders/src/main/resources/apis/asyncapi.yml"
+    asyncapi client RestaurantsAsyncAPI "restaurants/src/main/resources/apis/asyncapi.yml"
+    asyncapi client DeliveryAsyncAPI "delivery/src/main/resources/apis/asyncapi.yml"
 }
+
+
+
+
+
+
 
 // == Entities =============================
 

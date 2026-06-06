@@ -51,6 +51,7 @@ START: 'start';
 WHEN: 'when';
 DO: 'do';
 CALL: 'call';
+ASYNC: 'async';
 ON: 'on';
 EMITS: 'emits';
 RESPONSE: 'response';
@@ -111,7 +112,7 @@ javadoc: JAVADOC;
 suffix_javadoc: JAVADOC;
 
 // values
-keyword: ID | IMPORT | CONFIG | FLOW | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | DO | FOR | END | COMPLETED | SUSPENDED | CANCELLED | AND | RESPONSE | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
+keyword: ID | IMPORT | CONFIG | FLOW | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | DO | FOR | END | COMPLETED | SUSPENDED | CANCELLED | AND | ASYNC | RESPONSE | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
 
 //complex_value: value | array | object;
 //value: simple | object;
@@ -181,9 +182,11 @@ flow_do: javadoc? annotations DO flow_command_name LBRACE flow_do_body RBRACE;
 flow_do_body: flow_do_statement*;
 flow_do_statement: flow_do_service | flow_do_call | flow_do_on | flow_do_signal;
 flow_do_service: SERVICE flow_service_path;
-flow_do_call: CALL flow_command_name;
-flow_do_on: ON flow_event_name (CALL flow_command_name | EMITS flow_event_name);
-flow_do_signal: annotations ((EMITS RESPONSE?) | RESPONSE) flow_event_name;
+flow_do_call: ASYNC? CALL flow_command_name;
+flow_do_on: annotations ON flow_event_name (CALL flow_command_name | flow_signal_body);
+flow_do_signal: annotations flow_signal_body;
+flow_signal_body: ((EMITS RESPONSE?) | RESPONSE) flow_event_list;
+flow_event_list: flow_event_name (COMMA flow_event_name)*;
 flow_service_path: flow_service_segment ((DOT | SLASH) flow_service_segment)*;
 flow_service_segment: ID;
 flow_event_name: ID;

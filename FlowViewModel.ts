@@ -26,13 +26,14 @@ export enum FlowNodeType {
   START = "START",
   COMMAND = "COMMAND",
   EVENT = "EVENT",
-  POLICY = "POLICY",
-  END = "END"
+  POLICY = "POLICY"
 }
 
 /** Semantic meaning of a relationship between two flow nodes. */
 export enum FlowEdgeType {
   CAUSATION = "CAUSATION",
+  CALL = "CALL",
+  OUTCOME_HANDLER = "OUTCOME_HANDLER",
   TRIGGER = "TRIGGER",
   CONDITIONAL = "CONDITIONAL",
   ERROR = "ERROR"
@@ -85,6 +86,8 @@ export interface FlowNode {
   system: string | null;
   service: string | null;
   sourceRef: SourceRef;
+  /** Marks this event as a terminal outcome when present. */
+  endOutcomeLabels: string[] | null;
   /** Null until layout is applied. */
   position: Point | null;
   /** Null until layout is applied. */
@@ -98,6 +101,8 @@ export interface FlowEdge {
   target: string;
   type: FlowEdgeType;
   label: string | null;
+  /** Outcome-node synthesis belongs to renderers; this model stores edge metadata only. */
+  outcome: string | null;
   sourceRef: SourceRef | null;
 }
 

@@ -1,47 +1,69 @@
 systems {
-    @zdl("catalog-products-api/domain-model.zdl")
-    CatalogProducts {
-        service CatalogProductsService for (Product)
-    }
 
     @zdl("orders-checkout-api/domain-model.zdl")
     OrdersCheckout {
-        service OrdersCheckoutService
+        service OrdersCheckoutService {
+            commands: startOrderCheckout, confirmOrder, cancelOrder
+        }
+    }
+    @zdl("catalog-products-api/domain-model.zdl")
+    CatalogInventory {
+        service InventoryService for(StockReservation) {
+            commands: reserveStock, confirStockReservation, releaseStock
+        }
     }
 
     @zdl("payments-processing-api/domain-model.zdl")
     PaymentsProcessing {
-        service PaymentsProcessingService
+        service PaymentsProcessingService {
+            commands: authorizePayment, retryPayment, capturePayment, voidPayment
+        }
     }
 
     @zdl("fulfillment-shipping-api/domain-model.zdl")
     FulfillmentShipping {
-        service FulfillmentShippingService
+        service FulfillmentShippingService {
+            commands: scheduleFulfillment
+        }
     }
 
     @zdl("notifications-consumer-api/domain-model.zdl")
     NotificationsConsumer {
-        service NotificationsConsumerService
-    }
-
-    @zdl("scheduler-api/domain-model.zdl")
-    Scheduler {
-        service SchedulerService
+        service NotificationsConsumerService {
+            commands: sendOrderConfirmation, sendStockUnavailableNotification, sendOrderCancelledNotification
+        }
     }
 }
 
 /**
  * Place Order Flow
  *
- * Checkout for a limited edition drop: reserve scarce stock first, authorize
- * payment, fulfill, then capture payment when the order can ship.
+ * Covers the full lifecycle of a customer order during a limited edition drop,
+ * from the moment the customer submits their intent through payment capture and
+ * shipping confirmation — or cancellation if any step fails.
  *
- * Context: https://ivangsa.com/articles/arcadia/004-from-event-storming-to-zfl/
+ * Stock reservation happens before payment. In a scarcity-driven drop, inventory
+ * is the binding constraint. We hold the item first and charge second.
+ *
+ * Payment runs in two phases. Authorization at checkout places a hold on the
+ * customer's funds without moving money. Capture happens later, at fulfillment
+ * time, when the order is physically ready to ship. If fulfillment fails after
+ * authorization but before capture, the hold is voided — no charge ever appears
+ * on the customer's statement.
+ *
+ * Transient payment errors are retried within the reservation window. A hard
+ * decline from the processor is not retried — it goes straight to cancellation.
+ *
+ * Reservation expiry is owned by the Scheduler, not the payment service. If
+ * payment is not resolved within ten minutes of the order being created, the
+ * Scheduler fires ReservationExpired and the stock is returned to the pool.
  */
 flow PlaceOrderFlow {
 
     /**
-     * Customer intent that opens the flow.
+     * The customer submits their intent to purchase. This is the command that
+     * opens the flow. No stock is touched and no order record exists yet.
+     * The system acknowledges the request by emitsting OrderRequested.
      */
     @actor(Customer)
     start StartOrderCheckout {
@@ -56,48 +78,82 @@ flow PlaceOrderFlow {
     }
 
     /**
-     * Direct call because checkout needs an immediate stock answer before
-     * creating the order.
+     * Stock is reserved immediately on receipt of the customer's request.
+     * In a limited edition drop, inventory sells out in seconds. Holding the
+     * item now, before payment, is what guarantees the customer gets what they
+     * came for. If stock is gone, we tell the customer immediately and stop here.
      */
     do reserveStock {
-        service CatalogProducts.CatalogProductsService
-        emits response StockReserved
+        service CatalogInventory.InventoryService
+        response StockReserved
         response StockUnavailable
     }
 
     /**
-     * Authorization holds funds. Capture happens later, after fulfillment is
-     * scheduled.
+     * We place an authorization hold on the customer's payment method. Funds
+     * are reserved at the processor but not yet transferred to us. A decline
+     * means the processor rejected the card outright and we will not retry —
+     * the customer needs to act. A failure means a technical error on our side
+     * or the processor's, which we will retry within the reservation window.
      */
     when OrderCreated do authorizePayment {
         service PaymentsProcessing.PaymentsProcessingService
+        @outcome(authorized)
         emits PaymentAuthorized
+        @outcome(declined)
         emits PaymentDeclined
+        @failure @outcome(failed)
         emits PaymentFailed
     }
 
     /**
-     * Only technical payment failures are retried. Processor declines go
-     * straight to cancellation.
+     * A technical failure during authorization is eligible for retry. We attempt
+     * again within the same reservation window. If all retry attempts are spent,
+     * PaymentRetryExhausted is emitsted and the order moves to cancellation.
+     * PaymentRetried feeds back into authorizePayment for the next attempt.
      */
     when PaymentFailed do retryPayment {
         service PaymentsProcessing.PaymentsProcessingService
+        @outcome(retried)
         emits PaymentRetried
+        @outcome("retry-exhausted")
         emits PaymentRetryExhausted
     }
 
     when PaymentRetried do authorizePayment {
         service PaymentsProcessing.PaymentsProcessingService
+        @outcome(authorized)
         emits PaymentAuthorized
+        @outcome(declined)
         emits PaymentDeclined
+        @outcome(failed)
         emits PaymentFailed
     }
 
+    /**
+     * Authorization succeeded. We update the order status so the rest of the
+     * system knows this order is payment-backed and ready for fulfillment.
+     */
     when PaymentAuthorized do confirmOrder {
         service OrdersCheckout.OrdersCheckoutService
+        call confirmStockReservation
         emits OrderConfirmed
     }
 
+    /**
+     * Stock Reservation is confirmed
+     */
+    do confirmStockReservation {
+        service CatalogInventory.InventoryService
+        emits StockReservationConfirmed
+    }
+
+    /**
+     * The confirmed order is handed to the fulfillment team for picking,
+     * packing, and dispatch scheduling. If fulfillment cannot be arranged —
+     * warehouse issue, carrier problem, item damage — we void the payment
+     * authorization rather than capturing it.
+     */
     when OrderConfirmed do scheduleFulfillment {
         service FulfillmentShipping.FulfillmentShippingService
         emits FulfillmentScheduled
@@ -105,7 +161,10 @@ flow PlaceOrderFlow {
     }
 
     /**
-     * Money moves only when the order is ready to ship.
+     * Money moves here, not at checkout. We capture the authorization hold
+     * only when the order is physically ready to leave our warehouse. If capture
+     * fails at this point, we treat it the same as a fulfillment failure and
+     * void the authorization.
      */
     when FulfillmentScheduled do capturePayment {
         service PaymentsProcessing.PaymentsProcessingService
@@ -113,18 +172,31 @@ flow PlaceOrderFlow {
         emits PaymentCaptureFailed
     }
 
+    /**
+     * Payment has been captured and the order is on its way. Only now do we
+     * send the customer their order confirmation. Sending it earlier — at
+     * authorization — would risk confirming an order we later have to cancel.
+     */
     when PaymentCaptured do sendOrderConfirmation {
         service NotificationsConsumer.NotificationsConsumerService
         emits OrderConfirmationSent
     }
 
+    /**
+     * The item the customer wanted is no longer available. We notify them
+     * immediately so they can look for alternatives. No payment was attempted
+     * and no order record was created.
+     */
     when StockUnavailable do sendStockUnavailableNotification {
         service NotificationsConsumer.NotificationsConsumerService
         emits StockUnavailableNotificationSent
     }
 
     /**
-     * If fulfillment or capture fails after authorization, void the hold.
+     * Fulfillment could not be completed after we had already authorized
+     * payment. We void the authorization rather than capturing and then
+     * refunding — a void is cleaner, faster, and never appears as a charge
+     * on the customer's statement.
      */
     @compensates(scheduleFulfillment)
     when FulfillmentFailed, PaymentCaptureFailed do voidPayment {
@@ -133,17 +205,23 @@ flow PlaceOrderFlow {
     }
 
     /**
-     * Terminal failure paths release the reserved copy back to the pool.
+     * All terminal failure paths converge here. Whether payment was declined,
+     * retries were exhausted, the authorization was voided, or the reservation
+     * window expired — the outcome is the same: stock goes back to the pool.
+     * The emits that triggered this step carries the reason; this operation
+     * does not need to know it.
      */
     @compensates(reserveStock)
     when PaymentDeclined, PaymentRetryExhausted, PaymentVoided, ReservationExpired do releaseStock {
-        service CatalogProducts.CatalogProductsService
+        service CatalogInventory.InventoryService
         emits StockReleased
     }
 
     /**
-     * The scheduler owns reservation expiry so stock cannot stay locked by an
-     * abandoned checkout.
+     * If payment is not resolved within ten minutes of the order being created,
+     * the Scheduler releases the reservation automatically. This protects
+     * inventory from being locked indefinitely by abandoned or stalled checkouts.
+     * The timer stops as soon as payment reaches any terminal state.
      */
     @actor(Scheduler)
     @time("10 minutes after OrderCreated and not PaymentAuthorized or PaymentDeclined or PaymentRetryExhausted")
@@ -151,12 +229,22 @@ flow PlaceOrderFlow {
         orderId String
     }
 
+    /**
+     * Once stock is released, the order has no inventory backing it and must
+     * be cancelled. OrdersCheckout is the single owner of this transition —
+     * no other part of the system should emits OrderCancelled directly.
+     */
     @compensates(createOrder)
     when StockReleased do cancelOrder {
         service OrdersCheckout.OrdersCheckoutService
         emits OrderCancelled
     }
 
+    /**
+     * The customer is informed that their order has been cancelled and why.
+     * At this point the reservation is gone, the order is closed, and no
+     * payment was taken.
+     */
     when OrderCancelled do sendOrderCancelledNotification {
         service NotificationsConsumer.NotificationsConsumerService
         emits OrderCancelledNotificationSent

@@ -30,6 +30,7 @@ data class FlowGraphEdge(
     val target: String,
     val type: FlowGraphEdgeType,
     val label: String? = null,
+    val outcome: String? = null,
     val sourceRef: SourceRef? = null
 )
 

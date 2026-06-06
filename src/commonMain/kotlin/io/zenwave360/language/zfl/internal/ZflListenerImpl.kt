@@ -306,11 +306,12 @@ class ZflListenerImpl : ZflBaseListener() {
     override fun enterFlow_do_call(ctx: ZflParser.Flow_do_callContext) {
         appendStep(currentStack.last(), buildMap()
             .with("type", "call")
+            .with("async", ctx.ASYNC() != null)
             .with("action", getText(ctx.flow_command_name())))
     }
 
     override fun enterFlow_do_on(ctx: ZflParser.Flow_do_onContext) {
-        val endOutcome = getText(ctx.flow_event_name(0))
+        val endOutcome = getText(ctx.flow_event_name())
         val step = buildMap()
             .with("type", "on")
             .with("endOutcome", endOutcome)
@@ -320,9 +321,17 @@ class ZflListenerImpl : ZflBaseListener() {
                 step["kind"] = "call"
                 step["action"] = getText(ctx.flow_command_name())
             }
-            ctx.EMITS() != null -> {
-                step["kind"] = "emits"
-                step["emits"] = getText(ctx.flow_event_name(1))
+            ctx.flow_signal_body() != null -> {
+                val options = getOptions(ctx.annotations())
+                val signalBody = ctx.flow_signal_body() ?: return
+                val eventNames = signalBody.flow_event_list().flow_event_name().mapNotNull { getText(it) }
+                val explicitOutcome = options["outcome"] as? String
+                step["kind"] = "signal"
+                step["events"] = eventNames
+                step["emits"] = signalBody.EMITS() != null
+                step["response"] = signalBody.RESPONSE() != null
+                step["options"] = options
+                step["outcome"] = if (signalBody.EMITS() != null) explicitOutcome ?: endOutcome else null
             }
         }
 
@@ -330,28 +339,44 @@ class ZflListenerImpl : ZflBaseListener() {
     }
 
     override fun enterFlow_do_signal(ctx: ZflParser.Flow_do_signalContext) {
-        val endOutcome = getText(ctx.flow_event_name())
         val action = currentStack.last()
+        val options = getOptions(ctx.annotations())
+        val outcome = options["outcome"] as? String
+        val signalBody = ctx.flow_signal_body()
+        val eventNames = signalBody.flow_event_list().flow_event_name().mapNotNull { getText(it) }
+        eventNames.forEachIndexed { index, endOutcome ->
+            appendStep(action, buildMap()
+                .with("type", "signal")
+                .with("endOutcome", endOutcome)
+                .with("emits", signalBody.EMITS() != null)
+                .with("response", signalBody.RESPONSE() != null)
+                .with("eventCount", eventNames.size)
+                .with("eventIndex", index)
+                .with("options", options)
+                .with("outcome", if (signalBody.EMITS() != null) outcome else null))
+            @Suppress("UNCHECKED_CAST")
+            if (signalBody.EMITS() != null) {
+                (action["emits"] as MutableList<Any?>).add(endOutcome)
+                (action["emissions"] as MutableList<Any?>).add(buildMap()
+                    .with("eventName", endOutcome)
+                    .with("outcome", outcome))
+            }
+            @Suppress("UNCHECKED_CAST")
+            if (signalBody.RESPONSE() != null) {
+                // TODO: Preserve response @outcome metadata when responses gain edge representation.
+                (action["responses"] as MutableList<Any?>).add(endOutcome)
+            }
+        }
+    }
+
+    private fun getOptions(ctx: ZflParser.AnnotationsContext?): MutableMap<String, Any?> {
         val options = buildMap()
-        ctx.annotations()?.option()?.forEach { option ->
+        ctx?.option()?.forEach { option ->
             val name = option.option_name().text.replace("@", "")
             val value = getOptionValue(option.option_value())
             options[name] = value
         }
-        appendStep(action, buildMap()
-            .with("type", "signal")
-            .with("endOutcome", endOutcome)
-            .with("emits", ctx.EMITS() != null)
-            .with("response", ctx.RESPONSE() != null)
-            .with("options", options))
-        @Suppress("UNCHECKED_CAST")
-        if (ctx.EMITS() != null) {
-            (action["emits"] as MutableList<Any?>).add(endOutcome)
-        }
-        @Suppress("UNCHECKED_CAST")
-        if (ctx.RESPONSE() != null) {
-            (action["responses"] as MutableList<Any?>).add(endOutcome)
-        }
+        return options
     }
 
     // End block
@@ -408,6 +433,7 @@ class ZflListenerImpl : ZflBaseListener() {
             .with("options", buildMap())
             .with("steps", mutableListOf<Any?>())
             .with("emits", mutableListOf<Any?>())
+            .with("emissions", mutableListOf<Any?>())
             .with("responses", mutableListOf<Any?>())
 
         actions[actionName ?: ""] = action

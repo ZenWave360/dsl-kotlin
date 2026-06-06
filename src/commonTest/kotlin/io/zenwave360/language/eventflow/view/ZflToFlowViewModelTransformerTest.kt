@@ -253,7 +253,7 @@ class ZflToFlowViewModelTransformerTest {
     }
 
     @Test
-    fun testTransform_PlaceOrderFlow_EmitsResponseKeepsPublishedOutcomeConnectedToCommand() {
+    fun testTransform_PlaceOrderFlow_CalledCommandDirectEmitsRemainConnected() {
         val content = readTestFile("flow/place-order-flow.zfl")
         val model = ZflParser().parseModel(content)
         val semanticModel = ZflSemanticAnalyzer().analyze(model)
@@ -262,17 +262,16 @@ class ZflToFlowViewModelTransformerTest {
 
         assertNotNull(
             viewModel.edges.find {
-                it.source == "command:reserveStock" &&
-                    it.target == "event:StockReserved" &&
-                    it.type == FlowEdgeType.CAUSATION
+                it.source == "command:confirmOrder" &&
+                    it.target == "command:confirmStockReservation" &&
+                    it.type == FlowEdgeType.CALL
             }
         )
         assertNotNull(
             viewModel.edges.find {
-                it.source == "command:startOrderCheckout" &&
-                    it.target == "event:OrderCreated" &&
-                    it.type == FlowEdgeType.OUTCOME_HANDLER &&
-                    it.label == "on StockReserved"
+                it.source == "command:confirmStockReservation" &&
+                    it.target == "event:StockReservationConfirmed" &&
+                    it.type == FlowEdgeType.CAUSATION
             }
         )
     }
@@ -392,6 +391,48 @@ class ZflToFlowViewModelTransformerTest {
                     it.target == "event:OrderRejected" &&
                     it.type == FlowEdgeType.OUTCOME_HANDLER &&
                     it.label == "on StockUnavailable"
+            }
+        )
+    }
+
+    @Test
+    fun testTransform_CalledCommandDirectEmitsRemainConnected() {
+        val zflContent = """
+            flow CalledCommandEmitsFlow {
+                when PaymentAuthorized do confirmOrder
+
+                do confirmOrder {
+                    service OrdersCheckout.OrdersCheckoutService
+                    call confirmStockReservation
+                    emits OrderConfirmed
+                }
+
+                do confirmStockReservation {
+                    service CatalogInventory.InventoryService
+                    emits StockReservationConfirmed
+                }
+
+                end {
+                    completed: OrderConfirmed
+                }
+            }
+        """.trimIndent()
+
+        val viewModel = ZflToFlowViewModelTransformer()
+            .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)))
+
+        assertNotNull(
+            viewModel.edges.find {
+                it.source == "command:confirmOrder" &&
+                    it.target == "command:confirmStockReservation" &&
+                    it.type == FlowEdgeType.CALL
+            }
+        )
+        assertNotNull(
+            viewModel.edges.find {
+                it.source == "command:confirmStockReservation" &&
+                    it.target == "event:StockReservationConfirmed" &&
+                    it.type == FlowEdgeType.CAUSATION
             }
         )
     }
