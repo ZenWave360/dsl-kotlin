@@ -266,29 +266,29 @@ describe('ZFL Parser - Subscriptions', () => {
 
     describe('end block', () => {
         it('should have outcomes', () => {
-            const outcomes = jsonPath(model, "$.flows.PaymentsFlow.end.outcomes");
+            const outcomes = jsonPath(model, "$.flows.PaymentsFlow.end.endOutcomes");
             assert.notEqual(outcomes, null);
         });
 
         it('should have 3 outcome types', () => {
-            const outcomes = jsonPath(model, "$.flows.PaymentsFlow.end.outcomes");
+            const outcomes = jsonPath(model, "$.flows.PaymentsFlow.end.endOutcomes");
             assert.equal(mapSize(outcomes), 3);
         });
 
-        it('should have completed outcome', () => {
-            const completed = jsonPath(model, "$.flows.PaymentsFlow.end.outcomes.completed");
+        it('should have completed endOutcome', () => {
+            const completed = jsonPath(model, "$.flows.PaymentsFlow.end.endOutcomes.completed");
             assert.equal(arraySize(completed), 1);
             assert.equal(completed[0], "PaymentRecorded");
         });
 
-        it('should have suspended outcome', () => {
-            const suspended = jsonPath(model, "$.flows.PaymentsFlow.end.outcomes.suspended");
+        it('should have suspended endOutcome', () => {
+            const suspended = jsonPath(model, "$.flows.PaymentsFlow.end.endOutcomes.suspended");
             assert.equal(arraySize(suspended), 1);
             assert.equal(suspended[0], "SubscriptionSuspended");
         });
 
-        it('should have cancelled outcome', () => {
-            const cancelled = jsonPath(model, "$.flows.PaymentsFlow.end.outcomes.cancelled");
+        it('should have cancelled endOutcome', () => {
+            const cancelled = jsonPath(model, "$.flows.PaymentsFlow.end.endOutcomes.cancelled");
             assert.equal(arraySize(cancelled), 1);
             assert.equal(cancelled[0], "RenewalCancelled");
         });

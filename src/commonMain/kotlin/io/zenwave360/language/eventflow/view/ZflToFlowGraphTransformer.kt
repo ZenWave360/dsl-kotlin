@@ -123,7 +123,7 @@ class ZflToFlowGraphTransformer {
                 connectActionToOutcomes(edgeMap, policy)
             }
 
-            flow.end.outcomes.forEach { (outcomeName, eventNames) ->
+            flow.end.endOutcomes.forEach { (outcomeName, eventNames) ->
                 eventNames.forEach { eventName ->
                     val nodeId = eventId(eventName)
                     val existingNode = nodeMap[nodeId]
@@ -181,15 +181,15 @@ class ZflToFlowGraphTransformer {
         calledCommand: ZflCommand?
     ) {
         call.handlers.forEach { handler ->
-            val outcomeIsEmitted = calledCommand?.emits?.contains(handler.outcome) == true
+            val outcomeIsEmitted = calledCommand?.emits?.contains(handler.endOutcome) == true
             if (outcomeIsEmitted) {
-                ensureOutcomeNode(nodeMap, handler.outcome, calledCommand ?: command)
+                ensureOutcomeNode(nodeMap, handler.endOutcome, calledCommand ?: command)
                 addEdge(
                     edgeMap,
                     FlowGraphEdge(
-                        id = edgeId(commandId(call.action), eventId(handler.outcome)),
+                        id = edgeId(commandId(call.action), eventId(handler.endOutcome)),
                         source = commandId(call.action),
-                        target = eventId(handler.outcome),
+                        target = eventId(handler.endOutcome),
                         type = FlowGraphEdgeType.CAUSATION,
                         sourceRef = calledCommand?.sourceRef ?: command.sourceRef
                     )
@@ -203,7 +203,7 @@ class ZflToFlowGraphTransformer {
                         source = commandId(command.name),
                         target = commandId(handler.action),
                         type = FlowGraphEdgeType.OUTCOME_HANDLER,
-                        label = "on ${handler.outcome}",
+                        label = "on ${handler.endOutcome}",
                         sourceRef = command.sourceRef
                     )
                 )
@@ -218,7 +218,7 @@ class ZflToFlowGraphTransformer {
                         source = commandId(command.name),
                         target = targetId,
                         type = FlowGraphEdgeType.OUTCOME_HANDLER,
-                        label = "on ${handler.outcome}",
+                        label = "on ${handler.endOutcome}",
                         sourceRef = command.sourceRef
                     )
                 )

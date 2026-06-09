@@ -263,7 +263,7 @@
         }
       ],
       "end": {
-        "outcomes": {
+        "endOutcomes": {
           "completed": [
             "PaymentRecorded"
           ],

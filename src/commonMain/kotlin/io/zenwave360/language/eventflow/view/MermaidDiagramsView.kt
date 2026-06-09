@@ -31,7 +31,7 @@ data class MermaidDiagramsView(
 
 @Serializable
 data class MermaidSequenceDiagram(
-    val outcome: String,
+    val endOutcome: String,
     val title: String,
     val startLabel: String,
     val branchLabels: List<String> = emptyList(),

@@ -36,10 +36,10 @@ class ZflToMermaidDiagramsTransformer(
             .flatMap { policy -> policy.triggers.map { trigger -> trigger to policy } }
             .groupBy({ it.first }, { it.second })
 
-        val sequences = flow.end.outcomes.keys.flatMap { outcome ->
+        val sequences = flow.end.endOutcomes.keys.flatMap { endOutcome ->
             renderSequences(
                 flow = flow,
-                outcome = outcome,
+                endOutcome = endOutcome,
                 commandByName = commandByName,
                 policiesByTrigger = policiesByTrigger,
                 sequenceRenderMode = sequenceRenderMode
@@ -94,9 +94,9 @@ class ZflToMermaidDiagramsTransformer(
             classAssignments += "    class $nodeId $klass"
         }
 
-        flow.end.outcomes.keys.forEach { outcome ->
-            val terminalId = flowchartNodeId("terminal", outcome)
-            nodeLines += "    $terminalId((\"${escape(outcome)}\"))"
+        flow.end.endOutcomes.keys.forEach { endOutcome ->
+            val terminalId = flowchartNodeId("terminal", endOutcome)
+            nodeLines += "    $terminalId((\"${escape(endOutcome)}\"))"
             classAssignments += "    class $terminalId terminal"
         }
 
@@ -129,8 +129,8 @@ class ZflToMermaidDiagramsTransformer(
             edgeLines += "    $sourceId $connector$label $targetId"
         }
 
-        flow.end.outcomes.forEach { (outcome, eventNames) ->
-            val terminalId = flowchartNodeId("terminal", outcome)
+        flow.end.endOutcomes.forEach { (endOutcome, eventNames) ->
+            val terminalId = flowchartNodeId("terminal", endOutcome)
             eventNames.forEach { eventName ->
                 val eventId = flowchartNodeId("outcome", eventName)
                 edgeLines += "    $eventId --> $terminalId"
@@ -150,12 +150,12 @@ class ZflToMermaidDiagramsTransformer(
 
     private fun renderSequences(
         flow: ZflFlow,
-        outcome: String,
+        endOutcome: String,
         commandByName: Map<String, ZflCommand>,
         policiesByTrigger: Map<String, List<ZflPolicy>>,
         sequenceRenderMode: MermaidSequenceRenderMode
     ): List<MermaidSequenceDiagram> {
-        val terminalEvents = flow.end.outcomes[outcome].orEmpty().toSet()
+        val terminalEvents = flow.end.endOutcomes[endOutcome].orEmpty().toSet()
         val variants = mutableListOf<SequenceVariant>()
 
         flow.starts.forEach { start ->
@@ -182,7 +182,7 @@ class ZflToMermaidDiagramsTransformer(
                         eventName = result.eventName,
                         emitterParticipant = result.emitterParticipant,
                         terminalEvents = terminalEvents,
-                        outcome = outcome,
+                        endOutcome = endOutcome,
                         entryTrigger = start.name,
                         commandByName = commandByName,
                         policiesByTrigger = policiesByTrigger,
@@ -208,11 +208,11 @@ class ZflToMermaidDiagramsTransformer(
                 val startLabel = entry.first.entryTrigger
                 val branchLabel = entry.second
                 MermaidSequenceDiagram(
-                    outcome = outcome,
-                    title = buildSequenceTitle(outcome, startLabel, branchLabel),
+                    endOutcome = endOutcome,
+                    title = buildSequenceTitle(endOutcome, startLabel, branchLabel),
                     startLabel = startLabel,
                     branchLabels = listOf(branchLabel),
-                    mermaid = renderSequenceDiagram(outcome, entry.first)
+                    mermaid = renderSequenceDiagram(endOutcome, entry.first)
                 )
             }
         } else {
@@ -222,20 +222,20 @@ class ZflToMermaidDiagramsTransformer(
                 val branchLabels = deriveFamilyBranchLabels(family)
                 if (useAltBlocks) {
                     MermaidSequenceDiagram(
-                        outcome = outcome,
-                        title = buildSequenceTitle(outcome, startLabel),
+                        endOutcome = endOutcome,
+                        title = buildSequenceTitle(endOutcome, startLabel),
                         startLabel = startLabel,
                         branchLabels = branchLabels,
-                        mermaid = renderAltSequenceDiagram(outcome, family)
+                        mermaid = renderAltSequenceDiagram(endOutcome, family)
                     )
                 } else {
                     val variant = family.firstOrNull() ?: return@mapIndexedNotNull null
                     MermaidSequenceDiagram(
-                        outcome = outcome,
-                        title = buildSequenceTitle(outcome, startLabel),
+                        endOutcome = endOutcome,
+                        title = buildSequenceTitle(endOutcome, startLabel),
                         startLabel = startLabel,
                         branchLabels = branchLabels,
-                        mermaid = renderSequenceDiagram(outcome, variant)
+                        mermaid = renderSequenceDiagram(endOutcome, variant)
                     )
                 }
             }
@@ -287,7 +287,7 @@ class ZflToMermaidDiagramsTransformer(
                 is ZflSignalStep -> {
                     if (step.emits || step.response) {
                         results += CommandExecutionResult(
-                            eventName = step.outcome,
+                            eventName = step.endOutcome,
                             emitterParticipant = owner,
                             messages = prefixMessages,
                             warnings = emptyList(),
@@ -325,7 +325,7 @@ class ZflToMermaidDiagramsTransformer(
 
     private fun applyOutcomeHandlers(
         callResults: List<CommandExecutionResult>,
-        handlers: List<io.zenwave360.language.zfl.semantic.ZflOutcomeHandler>,
+        handlers: List<io.zenwave360.language.zfl.semantic.ZflEndOutcomeHandler>,
         callerParticipant: SequenceParticipant,
         commandByName: Map<String, ZflCommand>
     ): List<CommandExecutionResult> {
@@ -341,7 +341,7 @@ class ZflToMermaidDiagramsTransformer(
                 label = result.eventName,
                 dashed = true
             )
-            val matchingHandlers = handlers.filter { it.outcome == result.eventName }
+            val matchingHandlers = handlers.filter { it.endOutcome == result.eventName }
             if (matchingHandlers.isEmpty()) {
                 results += result.copy(messages = returned, emitterParticipant = callerParticipant)
             }
@@ -381,7 +381,7 @@ class ZflToMermaidDiagramsTransformer(
         eventName: String,
         emitterParticipant: SequenceParticipant,
         terminalEvents: Set<String>,
-        outcome: String,
+        endOutcome: String,
         entryTrigger: String,
         commandByName: Map<String, ZflCommand>,
         policiesByTrigger: Map<String, List<ZflPolicy>>,
@@ -405,7 +405,7 @@ class ZflToMermaidDiagramsTransformer(
                     messages = terminalMessages,
                     warnings = warnings,
                     terminalParticipant = emitterParticipant,
-                    outcome = outcome,
+                    endOutcome = endOutcome,
                     entryTrigger = entryTrigger
                 )
             )
@@ -440,7 +440,7 @@ class ZflToMermaidDiagramsTransformer(
                     eventName = execution.eventName,
                     emitterParticipant = execution.emitterParticipant,
                     terminalEvents = terminalEvents,
-                    outcome = outcome,
+                    endOutcome = endOutcome,
                     entryTrigger = entryTrigger,
                     commandByName = commandByName,
                     policiesByTrigger = policiesByTrigger,
@@ -453,7 +453,7 @@ class ZflToMermaidDiagramsTransformer(
         return variants
     }
 
-    private fun renderSequenceDiagram(outcome: String, variant: SequenceVariant): String {
+    private fun renderSequenceDiagram(endOutcome: String, variant: SequenceVariant): String {
         val participants = collectParticipants(listOf(variant))
         val lines = mutableListOf<String>()
         appendSequenceHeader(lines, participants)
@@ -461,12 +461,12 @@ class ZflToMermaidDiagramsTransformer(
             lines += "    %% $warning"
         }
         appendMessages(lines, variant.messages)
-        lines += "    Note over ${variant.terminalParticipant.alias}: end $outcome"
+        lines += "    Note over ${variant.terminalParticipant.alias}: end $endOutcome"
         return lines.joinToString("\n")
     }
 
     private fun renderAltSequenceDiagram(
-        outcome: String,
+        endOutcome: String,
         variants: List<SequenceVariant>
     ): String {
         val participants = collectParticipants(variants)
@@ -499,7 +499,7 @@ class ZflToMermaidDiagramsTransformer(
         lines += "    end"
 
         appendMessages(lines, suffix)
-        lines += "    Note over ${variants.first().terminalParticipant.alias}: end $outcome"
+        lines += "    Note over ${variants.first().terminalParticipant.alias}: end $endOutcome"
         return lines.joinToString("\n")
     }
 
@@ -595,12 +595,12 @@ class ZflToMermaidDiagramsTransformer(
     }
 
     private fun buildSequenceTitle(
-        outcome: String,
+        endOutcome: String,
         startLabel: String,
         branchLabel: String? = null
     ): String =
         buildString {
-            append(outcome)
+            append(endOutcome)
             append(": from ")
             append(startLabel)
             if (branchLabel != null) {
@@ -647,7 +647,7 @@ class ZflToMermaidDiagramsTransformer(
         val messages: List<SequenceMessage>,
         val warnings: List<String>,
         val terminalParticipant: SequenceParticipant,
-        val outcome: String,
+        val endOutcome: String,
         val entryTrigger: String
     )
 

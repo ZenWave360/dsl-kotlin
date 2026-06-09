@@ -40,13 +40,13 @@ class ZflToServiceViewModelTransformer {
                     )
                 }
 
-                command.outcomesForServicesView().forEach { outcome ->
-                    val eventId = "event:${outcome}@${eventGroupKey}"
+                command.outcomesForServicesView().forEach { endOutcome ->
+                    val eventId = "event:${endOutcome}@${eventGroupKey}"
                     if (eventId !in nodes) {
                         nodes[eventId] = ServiceNodeView(
                             id = eventId,
                             type = ServiceNodeType.EVENT,
-                            label = outcome,
+                            label = endOutcome,
                             groupId = groupId,
                             system = command.system,
                             service = command.service,

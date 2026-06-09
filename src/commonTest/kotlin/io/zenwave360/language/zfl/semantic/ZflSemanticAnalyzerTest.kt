@@ -27,9 +27,9 @@ class ZflSemanticAnalyzerTest {
         val reserveStockCall = assertIs<ZflCallStep>(startOrderCheckout.steps[1])
         assertEquals("reserveStock", reserveStockCall.action)
         assertEquals(2, reserveStockCall.handlers.size)
-        assertEquals("StockReserved", reserveStockCall.handlers[0].outcome)
+        assertEquals("StockReserved", reserveStockCall.handlers[0].endOutcome)
         assertEquals("createOrder", reserveStockCall.handlers[0].action)
-        assertEquals("StockUnavailable", reserveStockCall.handlers[1].outcome)
+        assertEquals("StockUnavailable", reserveStockCall.handlers[1].endOutcome)
         assertEquals("StockUnavailable", reserveStockCall.handlers[1].emits)
 
         assertEquals(1, flow.policies.size)
@@ -115,7 +115,7 @@ class ZflSemanticAnalyzerTest {
             )
         )
 
-        assertTrue(semanticModel.diagnostics.any { it.message.contains("handles unknown outcome 'UnknownOutcome'") })
+        assertTrue(semanticModel.diagnostics.any { it.message.contains("handles unknown endOutcome 'UnknownOutcome'") })
     }
 
     @Test

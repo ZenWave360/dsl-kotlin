@@ -54,7 +54,7 @@ class ZflListenerKotlinTest {
         )
         assertEquals(
             "StockReserved",
-            JSONPath.get(model, "$.flows.CheckoutFlow.actions.startOrderCheckout.steps[2].outcome")
+            JSONPath.get(model, "$.flows.CheckoutFlow.actions.startOrderCheckout.steps[2].endOutcome")
         )
         assertEquals(
             "call",
