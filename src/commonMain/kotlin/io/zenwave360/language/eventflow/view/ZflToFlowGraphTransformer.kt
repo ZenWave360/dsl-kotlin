@@ -45,6 +45,16 @@ class ZflToFlowGraphTransformer {
 
                 command.steps.filterIsInstance<ZflCallStep>().forEach { call ->
                     val calledCommand = flow.commands.find { it.name == call.action }
+                    if (calledCommand == null && call.async) {
+                        nodeMap[commandId(call.action)] = FlowGraphNode(
+                            id = commandId(call.action),
+                            type = FlowGraphNodeType.ACTION,
+                            label = call.action,
+                            system = command.system,
+                            service = command.service,
+                            sourceRef = command.sourceRef
+                        )
+                    }
                     addEdge(
                         edgeMap,
                         FlowGraphEdge(
@@ -52,11 +62,16 @@ class ZflToFlowGraphTransformer {
                             source = commandId(command.name),
                             target = commandId(call.action),
                             type = FlowGraphEdgeType.CALL,
+                            label = if (call.async) "async" else null,
                             sourceRef = command.sourceRef
                         )
                     )
-                    connectOutcomeHandlers(nodeMap, edgeMap, command, call, calledCommand)
+                    if (!call.async) {
+                        connectOutcomeHandlers(nodeMap, edgeMap, command, call, calledCommand)
+                    }
                 }
+
+                connectCommandToDirectOutcomes(nodeMap, edgeMap, command)
             }
 
             flow.events.forEach { event ->
@@ -123,7 +138,7 @@ class ZflToFlowGraphTransformer {
                 connectActionToOutcomes(edgeMap, policy)
             }
 
-            flow.end.outcomes.forEach { (outcomeName, eventNames) ->
+            flow.end.endOutcomes.forEach { (outcomeName, eventNames) ->
                 eventNames.forEach { eventName ->
                     val nodeId = eventId(eventName)
                     val existingNode = nodeMap[nodeId]
@@ -173,6 +188,27 @@ class ZflToFlowGraphTransformer {
         }
     }
 
+    private fun connectCommandToDirectOutcomes(
+        nodeMap: MutableMap<String, FlowGraphNode>,
+        edgeMap: MutableMap<String, FlowGraphEdge>,
+        command: ZflCommand
+    ) {
+        command.emits.forEach { emission ->
+            ensureOutcomeNode(nodeMap, emission.eventName, command)
+            addEdge(
+                edgeMap,
+                FlowGraphEdge(
+                    id = edgeId(commandId(command.name), eventId(emission.eventName)),
+                    source = commandId(command.name),
+                    target = eventId(emission.eventName),
+                    type = FlowGraphEdgeType.CAUSATION,
+                    outcome = emission.outcome,
+                    sourceRef = command.sourceRef
+                )
+            )
+        }
+    }
+
     private fun connectOutcomeHandlers(
         nodeMap: MutableMap<String, FlowGraphNode>,
         edgeMap: MutableMap<String, FlowGraphEdge>,
@@ -181,15 +217,15 @@ class ZflToFlowGraphTransformer {
         calledCommand: ZflCommand?
     ) {
         call.handlers.forEach { handler ->
-            val outcomeIsEmitted = calledCommand?.emits?.contains(handler.outcome) == true
+            val outcomeIsEmitted = calledCommand?.emits?.any { it.eventName == handler.endOutcome } == true
             if (outcomeIsEmitted) {
-                ensureOutcomeNode(nodeMap, handler.outcome, calledCommand ?: command)
+                ensureOutcomeNode(nodeMap, handler.endOutcome, calledCommand ?: command)
                 addEdge(
                     edgeMap,
                     FlowGraphEdge(
-                        id = edgeId(commandId(call.action), eventId(handler.outcome)),
+                        id = edgeId(commandId(call.action), eventId(handler.endOutcome)),
                         source = commandId(call.action),
-                        target = eventId(handler.outcome),
+                        target = eventId(handler.endOutcome),
                         type = FlowGraphEdgeType.CAUSATION,
                         sourceRef = calledCommand?.sourceRef ?: command.sourceRef
                     )
@@ -203,14 +239,14 @@ class ZflToFlowGraphTransformer {
                         source = commandId(command.name),
                         target = commandId(handler.action),
                         type = FlowGraphEdgeType.OUTCOME_HANDLER,
-                        label = "on ${handler.outcome}",
+                        label = "on ${handler.endOutcome}",
                         sourceRef = command.sourceRef
                     )
                 )
             }
-            if (handler.emits != null) {
-                val targetId = eventId(handler.emits)
-                ensureOutcomeNode(nodeMap, handler.emits, command)
+            handler.signal?.takeIf { it.emits }?.events.orEmpty().forEach { eventName ->
+                val targetId = eventId(eventName)
+                ensureOutcomeNode(nodeMap, eventName, command)
                 addEdge(
                     edgeMap,
                     FlowGraphEdge(
@@ -218,7 +254,8 @@ class ZflToFlowGraphTransformer {
                         source = commandId(command.name),
                         target = targetId,
                         type = FlowGraphEdgeType.OUTCOME_HANDLER,
-                        label = "on ${handler.outcome}",
+                        label = "on ${handler.endOutcome}",
+                        outcome = handler.signal?.outcome,
                         sourceRef = command.sourceRef
                     )
                 )
@@ -252,7 +289,7 @@ class ZflToFlowGraphTransformer {
     }
 
     private fun edgeDedupKey(edge: FlowGraphEdge): String =
-        listOf(edge.source, edge.target, edge.type.name, edge.label ?: "").joinToString("|")
+        listOf(edge.source, edge.target, edge.type.name, edge.label ?: "", edge.outcome ?: "").joinToString("|")
 
     private fun eventId(event: String): String = "event:$event"
     private fun commandId(command: String): String = "command:$command"

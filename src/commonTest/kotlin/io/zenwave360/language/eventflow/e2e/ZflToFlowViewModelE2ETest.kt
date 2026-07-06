@@ -247,9 +247,9 @@ class ZflToFlowViewModelE2ETest {
 
         assertNotNull(
             viewModel.edges.find {
-                it.source == "command:reserveStock" &&
-                it.target == "event:StockReserved" &&
-                it.type == FlowEdgeType.CAUSATION
+                it.source == "command:confirmStockReservation" &&
+                    it.target == "event:StockReservationConfirmed" &&
+                    it.type == FlowEdgeType.CAUSATION
             }
         )
     }

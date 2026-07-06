@@ -9,6 +9,7 @@ data class ZflEvent(
     val description: String?,
     val system: String?,
     val service: String?,
+    val servicePath: String?,
     val isStart: Boolean = false,
     val isError: Boolean = false,
     val sourceRef: SourceRef

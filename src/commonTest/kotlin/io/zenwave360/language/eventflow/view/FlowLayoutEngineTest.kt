@@ -299,5 +299,32 @@ class FlowLayoutEngineTest {
         assertTrue(emittedEvent.position!!.x >= source.position!!.x, "Emitted event should be to the right of the source command")
         assertTrue(callee.position!!.y < emittedEvent.position!!.y, "Sibling command targets should be placed above sibling event targets")
     }
+
+    @Test
+    fun testLayout_OutcomeAnnotatedFlowsIncreaseHorizontalSpacing() {
+        val zflContent = """
+            flow PaymentsFlow {
+                start CheckoutStarted {
+                }
+
+                when CheckoutStarted do authorizePayment {
+                    service PaymentsProcessing.PaymentsProcessingService
+                    @outcome("authorized") emits PaymentAuthorized, OrderUpdated
+                    @outcome("declined") emits PaymentDeclined
+                }
+            }
+        """.trimIndent()
+
+        val model = ZflParser().parseModel(zflContent)
+        val semanticModel = ZflSemanticAnalyzer().analyze(model)
+        val flowViewModel = ZflToFlowViewModelTransformer().transform(semanticModel)
+
+        val laidOut = FlowLayoutEngine().layout(flowViewModel)
+
+        assertEquals(240.0, laidOut.layout!!.rankSpacing)
+        val command = laidOut.nodes.first { it.id == "command:authorizePayment" }
+        val event = laidOut.nodes.first { it.id == "event:PaymentAuthorized" }
+        assertEquals(240.0, event.position!!.x - command.position!!.x)
+    }
 }
 

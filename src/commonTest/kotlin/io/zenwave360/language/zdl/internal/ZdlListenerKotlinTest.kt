@@ -1,5 +1,6 @@
 package io.zenwave360.language.zdl.internal
 
+import io.zenwave360.language.antlr.ZdlLexer
 import io.zenwave360.language.readTestFile
 import io.zenwave360.language.utils.JSONPath
 import io.zenwave360.language.zdl.ZdlParser
@@ -7,6 +8,63 @@ import io.zenwave360.language.zdl.ZdlModel
 import kotlin.test.*
 
 class ZdlListenerKotlinTest {
+
+    @Test
+    fun parseZdl_MultilineStringTrimsCommonIndentation() {
+        val delimiter = "\"\"\""
+        val input = """
+            config {
+                plugins {
+                    ZDLToAsyncAPIPlugin {
+                        applicationExtensions $delimiter
+                            x-application-bindings:
+                              x-principal: orders_checkout
+                              x-clientId: "orders_checkout"
+                              x-path: C:\tmp\orders
+                        $delimiter
+                        inlineValue ${delimiter}inline$delimiter
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val model = ZdlParser().parseModel(input)
+
+        assertEquals(
+            """
+                x-application-bindings:
+                  x-principal: orders_checkout
+                  x-clientId: "orders_checkout"
+                  x-path: C:\tmp\orders
+            """.trimIndent(),
+            JSONPath.get(model, "$.plugins.ZDLToAsyncAPIPlugin.config.applicationExtensions")
+        )
+        assertEquals("inline", JSONPath.get(model, "$.plugins.ZDLToAsyncAPIPlugin.config.inlineValue"))
+    }
+
+    @Test
+    fun parseZdl_MultilineStringNormalizesCrLf() {
+        val delimiter = "\"\"\""
+        val input = "config {\r\n    value $delimiter\r\n        first\r\n          second\r\n    $delimiter\r\n}"
+
+        val model = ZdlParser().parseModel(input)
+
+        assertEquals("first\n  second", JSONPath.get(model, "$.config.value"))
+    }
+
+    @Test
+    fun parseZdl_OrdinaryQuotedStringsDoNotConsumeNewlines() {
+        val input = "config {\n    double \"first\nsecond\"\n    single 'first\nsecond'\n}"
+        val parseResult = ZdlParser().parse(input)
+        parseResult.tokens.fill()
+
+        val ordinaryStrings = parseResult.tokens.tokens.filter {
+            it.type == ZdlLexer.Tokens.DOUBLE_QUOTED_STRING ||
+                it.type == ZdlLexer.Tokens.SINGLE_QUOTED_STRING
+        }
+
+        assertTrue(ordinaryStrings.none { it.text?.contains('\n') == true })
+    }
 
     @Test
     fun parseZdl_SuffixJavadoc() {

@@ -1,0 +1,766 @@
+{
+    "schema": "zfl.services.view@1",
+    "groups": [
+        {
+            "id": "group:OrdersCheckout>OrdersCheckoutService",
+            "label": "OrdersCheckout\nOrdersCheckoutService",
+            "path": "OrdersCheckout/OrdersCheckoutService",
+            "position": {
+                "x": 40.0,
+                "y": 40.0
+            },
+            "dimensions": {
+                "width": 540.0,
+                "height": 404.0
+            }
+        },
+        {
+            "id": "group:CatalogProducts>CatalogProductsService",
+            "label": "CatalogProducts\nCatalogProductsService",
+            "path": "CatalogProducts/CatalogProductsService",
+            "position": {
+                "x": 652.0,
+                "y": 40.0
+            },
+            "dimensions": {
+                "width": 540.0,
+                "height": 404.0
+            }
+        },
+        {
+            "id": "group:PaymentsProcessing>PaymentsProcessingService",
+            "label": "PaymentsProcessing\nPaymentsProcessingService",
+            "path": "PaymentsProcessing/PaymentsProcessingService",
+            "position": {
+                "x": 1264.0,
+                "y": 40.0
+            },
+            "dimensions": {
+                "width": 540.0,
+                "height": 954.0
+            }
+        },
+        {
+            "id": "group:FulfillmentShipping>FulfillmentShippingService",
+            "label": "FulfillmentShipping\nFulfillmentShippingService",
+            "path": "FulfillmentShipping/FulfillmentShippingService",
+            "position": {
+                "x": 40.0,
+                "y": 516.0
+            },
+            "dimensions": {
+                "width": 540.0,
+                "height": 332.0
+            }
+        },
+        {
+            "id": "group:NotificationsConsumer>NotificationsConsumerService",
+            "label": "NotificationsConsumer\nNotificationsConsumerService",
+            "path": "NotificationsConsumer/NotificationsConsumerService",
+            "position": {
+                "x": 652.0,
+                "y": 516.0
+            },
+            "dimensions": {
+                "width": 540.0,
+                "height": 404.0
+            }
+        }
+    ],
+    "nodes": [
+        {
+            "id": "command:cancelOrder",
+            "type": "COMMAND",
+            "label": "cancelOrder",
+            "groupId": "group:OrdersCheckout>OrdersCheckoutService",
+            "system": "OrdersCheckout",
+            "service": "OrdersCheckoutService",
+            "servicePath": "OrdersCheckout/OrdersCheckoutService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 64.0,
+                "y": 98.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "command:confirmOrder",
+            "type": "COMMAND",
+            "label": "confirmOrder",
+            "groupId": "group:OrdersCheckout>OrdersCheckoutService",
+            "system": "OrdersCheckout",
+            "service": "OrdersCheckoutService",
+            "servicePath": "OrdersCheckout/OrdersCheckoutService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 64.0,
+                "y": 208.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "command:startOrderCheckout",
+            "type": "COMMAND",
+            "label": "startOrderCheckout",
+            "groupId": "group:OrdersCheckout>OrdersCheckoutService",
+            "system": "OrdersCheckout",
+            "service": "OrdersCheckoutService",
+            "servicePath": "OrdersCheckout/OrdersCheckoutService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 64.0,
+                "y": 318.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:OrderCancelled@OrdersCheckout>OrdersCheckoutService",
+            "type": "EVENT",
+            "label": "OrderCancelled",
+            "groupId": "group:OrdersCheckout>OrdersCheckoutService",
+            "system": "OrdersCheckout",
+            "service": "OrdersCheckoutService",
+            "servicePath": "OrdersCheckout/OrdersCheckoutService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 400.0,
+                "y": 98.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:OrderConfirmed@OrdersCheckout>OrdersCheckoutService",
+            "type": "EVENT",
+            "label": "OrderConfirmed",
+            "groupId": "group:OrdersCheckout>OrdersCheckoutService",
+            "system": "OrdersCheckout",
+            "service": "OrdersCheckoutService",
+            "servicePath": "OrdersCheckout/OrdersCheckoutService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 400.0,
+                "y": 208.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "command:releaseStock",
+            "type": "COMMAND",
+            "label": "releaseStock",
+            "groupId": "group:CatalogProducts>CatalogProductsService",
+            "system": "CatalogProducts",
+            "service": "CatalogProductsService",
+            "servicePath": "CatalogProducts/CatalogProductsService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 676.0,
+                "y": 98.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "command:reserveStock",
+            "type": "COMMAND",
+            "label": "reserveStock",
+            "groupId": "group:CatalogProducts>CatalogProductsService",
+            "system": "CatalogProducts",
+            "service": "CatalogProductsService",
+            "servicePath": "CatalogProducts/CatalogProductsService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 676.0,
+                "y": 208.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:StockReleased@CatalogProducts>CatalogProductsService",
+            "type": "EVENT",
+            "label": "StockReleased",
+            "groupId": "group:CatalogProducts>CatalogProductsService",
+            "system": "CatalogProducts",
+            "service": "CatalogProductsService",
+            "servicePath": "CatalogProducts/CatalogProductsService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1012.0,
+                "y": 98.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:StockReserved@CatalogProducts>CatalogProductsService",
+            "type": "EVENT",
+            "label": "StockReserved",
+            "groupId": "group:CatalogProducts>CatalogProductsService",
+            "system": "CatalogProducts",
+            "service": "CatalogProductsService",
+            "servicePath": "CatalogProducts/CatalogProductsService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1012.0,
+                "y": 208.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:StockUnavailable@CatalogProducts>CatalogProductsService",
+            "type": "EVENT",
+            "label": "StockUnavailable",
+            "groupId": "group:CatalogProducts>CatalogProductsService",
+            "system": "CatalogProducts",
+            "service": "CatalogProductsService",
+            "servicePath": "CatalogProducts/CatalogProductsService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1012.0,
+                "y": 318.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "command:authorizePayment",
+            "type": "COMMAND",
+            "label": "authorizePayment",
+            "groupId": "group:PaymentsProcessing>PaymentsProcessingService",
+            "system": "PaymentsProcessing",
+            "service": "PaymentsProcessingService",
+            "servicePath": "PaymentsProcessing/PaymentsProcessingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1288.0,
+                "y": 98.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "command:capturePayment",
+            "type": "COMMAND",
+            "label": "capturePayment",
+            "groupId": "group:PaymentsProcessing>PaymentsProcessingService",
+            "system": "PaymentsProcessing",
+            "service": "PaymentsProcessingService",
+            "servicePath": "PaymentsProcessing/PaymentsProcessingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1288.0,
+                "y": 208.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "command:retryPayment",
+            "type": "COMMAND",
+            "label": "retryPayment",
+            "groupId": "group:PaymentsProcessing>PaymentsProcessingService",
+            "system": "PaymentsProcessing",
+            "service": "PaymentsProcessingService",
+            "servicePath": "PaymentsProcessing/PaymentsProcessingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1288.0,
+                "y": 318.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "command:voidPayment",
+            "type": "COMMAND",
+            "label": "voidPayment",
+            "groupId": "group:PaymentsProcessing>PaymentsProcessingService",
+            "system": "PaymentsProcessing",
+            "service": "PaymentsProcessingService",
+            "servicePath": "PaymentsProcessing/PaymentsProcessingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1288.0,
+                "y": 428.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:PaymentAuthorized@PaymentsProcessing>PaymentsProcessingService",
+            "type": "EVENT",
+            "label": "PaymentAuthorized",
+            "groupId": "group:PaymentsProcessing>PaymentsProcessingService",
+            "system": "PaymentsProcessing",
+            "service": "PaymentsProcessingService",
+            "servicePath": "PaymentsProcessing/PaymentsProcessingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1624.0,
+                "y": 98.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:PaymentCaptureFailed@PaymentsProcessing>PaymentsProcessingService",
+            "type": "EVENT",
+            "label": "PaymentCaptureFailed",
+            "groupId": "group:PaymentsProcessing>PaymentsProcessingService",
+            "system": "PaymentsProcessing",
+            "service": "PaymentsProcessingService",
+            "servicePath": "PaymentsProcessing/PaymentsProcessingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1624.0,
+                "y": 208.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:PaymentCaptured@PaymentsProcessing>PaymentsProcessingService",
+            "type": "EVENT",
+            "label": "PaymentCaptured",
+            "groupId": "group:PaymentsProcessing>PaymentsProcessingService",
+            "system": "PaymentsProcessing",
+            "service": "PaymentsProcessingService",
+            "servicePath": "PaymentsProcessing/PaymentsProcessingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1624.0,
+                "y": 318.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:PaymentDeclined@PaymentsProcessing>PaymentsProcessingService",
+            "type": "EVENT",
+            "label": "PaymentDeclined",
+            "groupId": "group:PaymentsProcessing>PaymentsProcessingService",
+            "system": "PaymentsProcessing",
+            "service": "PaymentsProcessingService",
+            "servicePath": "PaymentsProcessing/PaymentsProcessingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1624.0,
+                "y": 428.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:PaymentFailed@PaymentsProcessing>PaymentsProcessingService",
+            "type": "EVENT",
+            "label": "PaymentFailed",
+            "groupId": "group:PaymentsProcessing>PaymentsProcessingService",
+            "system": "PaymentsProcessing",
+            "service": "PaymentsProcessingService",
+            "servicePath": "PaymentsProcessing/PaymentsProcessingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1624.0,
+                "y": 538.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:PaymentRetried@PaymentsProcessing>PaymentsProcessingService",
+            "type": "EVENT",
+            "label": "PaymentRetried",
+            "groupId": "group:PaymentsProcessing>PaymentsProcessingService",
+            "system": "PaymentsProcessing",
+            "service": "PaymentsProcessingService",
+            "servicePath": "PaymentsProcessing/PaymentsProcessingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1624.0,
+                "y": 648.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:PaymentRetryExhausted@PaymentsProcessing>PaymentsProcessingService",
+            "type": "EVENT",
+            "label": "PaymentRetryExhausted",
+            "groupId": "group:PaymentsProcessing>PaymentsProcessingService",
+            "system": "PaymentsProcessing",
+            "service": "PaymentsProcessingService",
+            "servicePath": "PaymentsProcessing/PaymentsProcessingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1624.0,
+                "y": 758.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:PaymentVoided@PaymentsProcessing>PaymentsProcessingService",
+            "type": "EVENT",
+            "label": "PaymentVoided",
+            "groupId": "group:PaymentsProcessing>PaymentsProcessingService",
+            "system": "PaymentsProcessing",
+            "service": "PaymentsProcessingService",
+            "servicePath": "PaymentsProcessing/PaymentsProcessingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1624.0,
+                "y": 868.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "command:scheduleFulfillment",
+            "type": "COMMAND",
+            "label": "scheduleFulfillment",
+            "groupId": "group:FulfillmentShipping>FulfillmentShippingService",
+            "system": "FulfillmentShipping",
+            "service": "FulfillmentShippingService",
+            "servicePath": "FulfillmentShipping/FulfillmentShippingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 64.0,
+                "y": 581.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:FulfillmentFailed@FulfillmentShipping>FulfillmentShippingService",
+            "type": "EVENT",
+            "label": "FulfillmentFailed",
+            "groupId": "group:FulfillmentShipping>FulfillmentShippingService",
+            "system": "FulfillmentShipping",
+            "service": "FulfillmentShippingService",
+            "servicePath": "FulfillmentShipping/FulfillmentShippingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 400.0,
+                "y": 581.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:FulfillmentScheduled@FulfillmentShipping>FulfillmentShippingService",
+            "type": "EVENT",
+            "label": "FulfillmentScheduled",
+            "groupId": "group:FulfillmentShipping>FulfillmentShippingService",
+            "system": "FulfillmentShipping",
+            "service": "FulfillmentShippingService",
+            "servicePath": "FulfillmentShipping/FulfillmentShippingService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 400.0,
+                "y": 691.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "command:sendOrderCancelledNotification",
+            "type": "COMMAND",
+            "label": "sendOrderCancelledNotification",
+            "groupId": "group:NotificationsConsumer>NotificationsConsumerService",
+            "system": "NotificationsConsumer",
+            "service": "NotificationsConsumerService",
+            "servicePath": "NotificationsConsumer/NotificationsConsumerService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 676.0,
+                "y": 574.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "command:sendOrderConfirmation",
+            "type": "COMMAND",
+            "label": "sendOrderConfirmation",
+            "groupId": "group:NotificationsConsumer>NotificationsConsumerService",
+            "system": "NotificationsConsumer",
+            "service": "NotificationsConsumerService",
+            "servicePath": "NotificationsConsumer/NotificationsConsumerService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 676.0,
+                "y": 684.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "command:sendStockUnavailableNotification",
+            "type": "COMMAND",
+            "label": "sendStockUnavailableNotification",
+            "groupId": "group:NotificationsConsumer>NotificationsConsumerService",
+            "system": "NotificationsConsumer",
+            "service": "NotificationsConsumerService",
+            "servicePath": "NotificationsConsumer/NotificationsConsumerService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 676.0,
+                "y": 794.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:OrderCancelledNotificationSent@NotificationsConsumer>NotificationsConsumerService",
+            "type": "EVENT",
+            "label": "OrderCancelledNotificationSent",
+            "groupId": "group:NotificationsConsumer>NotificationsConsumerService",
+            "system": "NotificationsConsumer",
+            "service": "NotificationsConsumerService",
+            "servicePath": "NotificationsConsumer/NotificationsConsumerService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1012.0,
+                "y": 574.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:OrderConfirmationSent@NotificationsConsumer>NotificationsConsumerService",
+            "type": "EVENT",
+            "label": "OrderConfirmationSent",
+            "groupId": "group:NotificationsConsumer>NotificationsConsumerService",
+            "system": "NotificationsConsumer",
+            "service": "NotificationsConsumerService",
+            "servicePath": "NotificationsConsumer/NotificationsConsumerService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1012.0,
+                "y": 684.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        },
+        {
+            "id": "event:StockUnavailableNotificationSent@NotificationsConsumer>NotificationsConsumerService",
+            "type": "EVENT",
+            "label": "StockUnavailableNotificationSent",
+            "groupId": "group:NotificationsConsumer>NotificationsConsumerService",
+            "system": "NotificationsConsumer",
+            "service": "NotificationsConsumerService",
+            "servicePath": "NotificationsConsumer/NotificationsConsumerService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "position": {
+                "x": 1012.0,
+                "y": 794.0
+            },
+            "dimensions": {
+                "width": 156.0,
+                "height": 92.0
+            }
+        }
+    ],
+    "layout": {
+        "engine": "zfl-services-grid",
+        "direction": "LR",
+        "rankSpacing": 72.0,
+        "nodeSpacing": 18.0
+    },
+    "bounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1844.0,
+        "height": 1034.0
+    }
+}

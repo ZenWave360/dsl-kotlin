@@ -10,27 +10,39 @@ sealed interface ZflActionStep
 @SerialName("service")
 data class ZflServiceStep(
     val system: String,
-    val service: String
+    val service: String?,
+    val servicePath: String
 ) : ZflActionStep
 
 @Serializable
 @SerialName("call")
 data class ZflCallStep(
     val action: String,
-    val handlers: List<ZflOutcomeHandler> = emptyList()
+    val async: Boolean = false,
+    val handlers: List<ZflEndOutcomeHandler> = emptyList()
 ) : ZflActionStep
 
 @Serializable
 @SerialName("signal")
 data class ZflSignalStep(
-    val outcome: String,
+    val endOutcome: String,
     val emits: Boolean = false,
-    val response: Boolean = false
+    val response: Boolean = false,
+    val options: Map<String, String?> = emptyMap()
 ) : ZflActionStep
 
 @Serializable
-data class ZflOutcomeHandler(
-    val outcome: String,
+data class ZflEndOutcomeHandler(
+    val endOutcome: String,
     val action: String? = null,
-    val emits: String? = null
+    val signal: ZflHandlerSignal? = null
+)
+
+@Serializable
+data class ZflHandlerSignal(
+    val events: List<String> = emptyList(),
+    val emits: Boolean = false,
+    val response: Boolean = false,
+    val options: Map<String, String?> = emptyMap(),
+    val outcome: String? = null
 )

@@ -1,12 +1,45 @@
 package io.zenwave360.language.zdl.formatter
 
 import io.zenwave360.language.readTestFile
+import io.zenwave360.language.utils.JSONPath
 import io.zenwave360.language.zdl.ZdlParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class ZdlFormatterTest {
+
+    @Test
+    fun format_preserves_multiline_string_content() {
+        val delimiter = "\"\"\""
+        val trailingSpaces = "  "
+        val input = """
+            config {
+                plugins {
+                ZDLToAsyncAPIPlugin {
+                applicationExtensions $delimiter
+                    x-application-bindings:
+                      x-principal: orders_checkout$trailingSpaces
+                $delimiter
+                }
+                }
+            }
+        """.trimIndent()
+        val parser = ZdlParser()
+        val valueBefore = JSONPath.get<String>(
+            parser.parseModel(input),
+            "$.plugins.ZDLToAsyncAPIPlugin.config.applicationExtensions"
+        )
+
+        val formatted = ZdlFormatter().format(input)
+        val valueAfter = JSONPath.get<String>(
+            parser.parseModel(formatted),
+            "$.plugins.ZDLToAsyncAPIPlugin.config.applicationExtensions"
+        )
+
+        assertEquals(valueBefore, valueAfter)
+        assertTrue(formatted.contains("x-principal: orders_checkout  \n"))
+    }
 
     @Test
     fun format_normalizes_basic_zdl_structure_without_reordering() {

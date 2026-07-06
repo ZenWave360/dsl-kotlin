@@ -286,40 +286,52 @@ class ZflListenerImpl : ZflBaseListener() {
 
     override fun enterFlow_do_service(ctx: ZflParser.Flow_do_serviceContext) {
         val action = currentStack.last()
-        val serviceNameContext = ctx.flow_service_name()
-        val systemName = getText(serviceNameContext.flow_service_system_name()) ?: "DefaultSystem"
-        val serviceName = getText(serviceNameContext.flow_service_service_name()) ?: "DefaultService"
+        val segments = ctx.flow_service_path().flow_service_segment().mapNotNull { getText(it) }
+        val systemName = segments.firstOrNull() ?: "DefaultSystem"
+        val serviceName = segments.getOrNull(1)
+        val servicePath = segments.joinToString("/")
 
         action["system"] = systemName
         action["service"] = serviceName
+        action["servicePath"] = servicePath
         appendStep(action, buildMap()
             .with("type", "service")
             .with("system", systemName)
-            .with("service", serviceName))
+            .with("service", serviceName)
+            .with("servicePath", servicePath))
 
-        registerCommand(systemName, serviceName, action["name"] as? String)
+        registerCommand(systemName, serviceName ?: systemName, action["name"] as? String)
     }
 
     override fun enterFlow_do_call(ctx: ZflParser.Flow_do_callContext) {
         appendStep(currentStack.last(), buildMap()
             .with("type", "call")
+            .with("async", ctx.ASYNC() != null)
             .with("action", getText(ctx.flow_command_name())))
     }
 
     override fun enterFlow_do_on(ctx: ZflParser.Flow_do_onContext) {
-        val outcome = getText(ctx.flow_event_name(0))
+        val endOutcome = getText(ctx.flow_event_name())
         val step = buildMap()
             .with("type", "on")
-            .with("outcome", outcome)
+            .with("endOutcome", endOutcome)
 
         when {
             ctx.CALL() != null -> {
                 step["kind"] = "call"
                 step["action"] = getText(ctx.flow_command_name())
             }
-            ctx.EMITS() != null -> {
-                step["kind"] = "emits"
-                step["emits"] = getText(ctx.flow_event_name(1))
+            ctx.flow_signal_body() != null -> {
+                val options = getOptions(ctx.annotations())
+                val signalBody = ctx.flow_signal_body() ?: return
+                val eventNames = signalBody.flow_event_list().flow_event_name().mapNotNull { getText(it) }
+                val explicitOutcome = options["outcome"] as? String
+                step["kind"] = "signal"
+                step["events"] = eventNames
+                step["emits"] = signalBody.EMITS() != null
+                step["response"] = signalBody.RESPONSE() != null
+                step["options"] = options
+                step["outcome"] = if (signalBody.EMITS() != null) explicitOutcome ?: endOutcome else null
             }
         }
 
@@ -327,27 +339,50 @@ class ZflListenerImpl : ZflBaseListener() {
     }
 
     override fun enterFlow_do_signal(ctx: ZflParser.Flow_do_signalContext) {
-        val outcome = getText(ctx.flow_event_name())
         val action = currentStack.last()
-        appendStep(action, buildMap()
-            .with("type", "signal")
-            .with("outcome", outcome)
-            .with("emits", ctx.EMITS() != null)
-            .with("response", ctx.RESPONSE() != null))
-        @Suppress("UNCHECKED_CAST")
-        if (ctx.EMITS() != null) {
-            (action["emits"] as MutableList<Any?>).add(outcome)
+        val options = getOptions(ctx.annotations())
+        val outcome = options["outcome"] as? String
+        val signalBody = ctx.flow_signal_body()
+        val eventNames = signalBody.flow_event_list().flow_event_name().mapNotNull { getText(it) }
+        eventNames.forEachIndexed { index, endOutcome ->
+            appendStep(action, buildMap()
+                .with("type", "signal")
+                .with("endOutcome", endOutcome)
+                .with("emits", signalBody.EMITS() != null)
+                .with("response", signalBody.RESPONSE() != null)
+                .with("eventCount", eventNames.size)
+                .with("eventIndex", index)
+                .with("options", options)
+                .with("outcome", if (signalBody.EMITS() != null) outcome else null))
+            @Suppress("UNCHECKED_CAST")
+            if (signalBody.EMITS() != null) {
+                (action["emits"] as MutableList<Any?>).add(endOutcome)
+                (action["emissions"] as MutableList<Any?>).add(buildMap()
+                    .with("eventName", endOutcome)
+                    .with("outcome", outcome))
+            }
+            @Suppress("UNCHECKED_CAST")
+            if (signalBody.RESPONSE() != null) {
+                // TODO: Preserve response @outcome metadata when responses gain edge representation.
+                (action["responses"] as MutableList<Any?>).add(endOutcome)
+            }
         }
-        @Suppress("UNCHECKED_CAST")
-        if (ctx.RESPONSE() != null) {
-            (action["responses"] as MutableList<Any?>).add(outcome)
+    }
+
+    private fun getOptions(ctx: ZflParser.AnnotationsContext?): MutableMap<String, Any?> {
+        val options = buildMap()
+        ctx?.option()?.forEach { option ->
+            val name = option.option_name().text.replace("@", "")
+            val value = getOptionValue(option.option_value())
+            options[name] = value
         }
+        return options
     }
 
     // End block
     override fun enterFlow_end(ctx: ZflParser.Flow_endContext) {
         val end = buildMap()
-            .with("outcomes", buildMap())
+            .with("endOutcomes", buildMap())
 
         currentStack.addLast(end)
         val flow = currentStack[currentStack.size - 2]
@@ -359,16 +394,16 @@ class ZflListenerImpl : ZflBaseListener() {
     }
 
     override fun enterFlow_end_outcomes(ctx: ZflParser.Flow_end_outcomesContext) {
-        val outcomes = buildMap()
-        ctx.flow_end_outcome().forEach { outcome ->
-            val outcomeName = outcome.flow_end_outcome_name()?.text
-            val outcomeEvents = getOutcomeEvents(outcome.flow_end_outcome_list())
+        val endOutcomes = buildMap()
+        ctx.flow_end_outcome().forEach { endOutcome ->
+            val outcomeName = endOutcome.flow_end_outcome_name()?.text
+            val outcomeEvents = getOutcomeEvents(endOutcome.flow_end_outcome_list())
             if (outcomeName != null) {
-                outcomes.with(outcomeName, outcomeEvents)
+                endOutcomes.with(outcomeName, outcomeEvents)
             }
         }
 
-        currentStack.last().appendToWithMap("outcomes", outcomes)
+        currentStack.last().appendToWithMap("endOutcomes", endOutcomes)
     }
 
     private fun getOutcomeEvents(ctx: ZflParser.Flow_end_outcome_listContext?): List<String>? {
@@ -398,6 +433,7 @@ class ZflListenerImpl : ZflBaseListener() {
             .with("options", buildMap())
             .with("steps", mutableListOf<Any?>())
             .with("emits", mutableListOf<Any?>())
+            .with("emissions", mutableListOf<Any?>())
             .with("responses", mutableListOf<Any?>())
 
         actions[actionName ?: ""] = action

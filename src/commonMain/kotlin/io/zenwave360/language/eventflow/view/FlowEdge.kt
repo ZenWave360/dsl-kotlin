@@ -13,6 +13,7 @@ data class FlowEdge(
     val target: String,
     val type: FlowEdgeType,
     val label: String? = null,
+    /** Outcome-node synthesis belongs to renderers; this model stores edge metadata only. */
+    val outcome: String? = null,
     val sourceRef: SourceRef? = null
 )
-

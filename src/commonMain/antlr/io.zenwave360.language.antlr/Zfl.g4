@@ -35,6 +35,7 @@ EQUALS: '=';
 ARRAY: '[]';
 OPTIONAL: '?';
 DOT: '.';
+SLASH: '/';
 
 // Keywords
 IMPORT: 'import';
@@ -50,6 +51,7 @@ START: 'start';
 WHEN: 'when';
 DO: 'do';
 CALL: 'call';
+ASYNC: 'async';
 ON: 'on';
 EMITS: 'emits';
 RESPONSE: 'response';
@@ -91,8 +93,6 @@ fragment ESC :   '\\' ['"\\/bfnrt] ;
 // Whitespace
 WS: [ \t\r\n]+ -> channel(HIDDEN);
 
-PATTERN_REGEX: '/' .*? '/' ; // TODO: improve regex
-
 /** "catch all" rule for any char not matche in a token rule of your
  *  grammar. Lexers in Intellij must return all tokens good and bad.
  *  There must be a token to cover all characters, which makes sense, for
@@ -112,7 +112,7 @@ javadoc: JAVADOC;
 suffix_javadoc: JAVADOC;
 
 // values
-keyword: ID | IMPORT | CONFIG | FLOW | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | DO | FOR | END | COMPLETED | SUSPENDED | CANCELLED | AND | RESPONSE | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
+keyword: ID | IMPORT | CONFIG | FLOW | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | DO | FOR | END | COMPLETED | SUSPENDED | CANCELLED | AND | ASYNC | RESPONSE | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
 
 //complex_value: value | array | object;
 //value: simple | object;
@@ -155,7 +155,7 @@ system: javadoc? annotations system_name LBRACE system_body RBRACE;
 system_name: ID;
 system_body: system_services;
 system_services: system_service*;
-system_service: SERVICE system_service_name (FOR LPAREN system_service_aggregates RPAREN)? (LBRACE system_service_body RBRACE)?;
+system_service: javadoc? annotations SERVICE system_service_name (FOR LPAREN system_service_aggregates RPAREN)? (LBRACE system_service_body RBRACE)?;
 system_service_name: ID;
 system_service_aggregates: ID (COMMA ID)*;
 system_service_body: COMMANDS COLON system_service_command_list;
@@ -181,13 +181,14 @@ flow_command_name: ID;
 flow_do: javadoc? annotations DO flow_command_name LBRACE flow_do_body RBRACE;
 flow_do_body: flow_do_statement*;
 flow_do_statement: flow_do_service | flow_do_call | flow_do_on | flow_do_signal;
-flow_do_service: SERVICE flow_service_name;
-flow_do_call: CALL flow_command_name;
-flow_do_on: ON flow_event_name (CALL flow_command_name | EMITS flow_event_name);
-flow_do_signal: ((EMITS RESPONSE?) | RESPONSE) flow_event_name;
-flow_service_name: flow_service_system_name DOT flow_service_service_name;
-flow_service_system_name: ID;
-flow_service_service_name: ID;
+flow_do_service: SERVICE flow_service_path;
+flow_do_call: ASYNC? CALL flow_command_name;
+flow_do_on: annotations ON flow_event_name (CALL flow_command_name | flow_signal_body);
+flow_do_signal: annotations flow_signal_body;
+flow_signal_body: ((EMITS RESPONSE?) | RESPONSE) flow_event_list;
+flow_event_list: flow_event_name (COMMA flow_event_name)*;
+flow_service_path: flow_service_segment ((DOT | SLASH) flow_service_segment)*;
+flow_service_segment: ID;
 flow_event_name: ID;
 
 // end block
