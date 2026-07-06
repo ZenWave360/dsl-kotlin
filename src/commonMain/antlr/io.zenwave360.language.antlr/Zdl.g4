@@ -95,8 +95,9 @@ JAVADOC: '/**' .*? '*/';
 LINE_COMMENT : '//' .*? '\r'? '\n' -> channel(HIDDEN) ; // Match "//" stuff '\n'
 COMMENT : '/*' .*? '*/' -> channel(HIDDEN) ; // Match "/*" stuff "*/"
 
-DOUBLE_QUOTED_STRING :  '"' (ESC | ~["\\])* '"' ;
-SINGLE_QUOTED_STRING :  '\'' (ESC | ~['\\])* '\'' ;
+MULTILINE_STRING : '"""' .*? '"""' ;
+DOUBLE_QUOTED_STRING :  '"' (ESC | ~["\\\r\n])* '"' ;
+SINGLE_QUOTED_STRING :  '\'' (ESC | ~['\\\r\n])* '\'' ;
 fragment ESC :   '\\' ['"\\/bfnrt] ;
 
 // Whitespace
@@ -137,8 +138,8 @@ keyword: ID | IMPORT | CONFIG | APIS | ZDL | PLUGINS | DISABLED | ASYNCAPI | OPE
 
 complex_value : value | array_plain | pairs;
 value: object| array | simple;
-string: keyword | SINGLE_QUOTED_STRING | DOUBLE_QUOTED_STRING;
-simple: ID | SINGLE_QUOTED_STRING | DOUBLE_QUOTED_STRING | INT | NUMBER | TRUE | FALSE | NULL | keyword;
+string: keyword | SINGLE_QUOTED_STRING | DOUBLE_QUOTED_STRING | MULTILINE_STRING;
+simple: ID | SINGLE_QUOTED_STRING | DOUBLE_QUOTED_STRING | MULTILINE_STRING | INT | NUMBER | TRUE | FALSE | NULL | keyword;
 object: LBRACE pair (COMMA pair)* RBRACE
       | LBRACE RBRACE;
 pair: string COLON value;

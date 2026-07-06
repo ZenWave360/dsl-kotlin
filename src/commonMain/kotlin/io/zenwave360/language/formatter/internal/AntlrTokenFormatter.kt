@@ -166,14 +166,18 @@ internal class FormatterWriter(
         writeIndentIfNeeded()
 
         if (text.startsWith("//")) {
-            val normalized = text.trimEnd('\r', '\n')
+            val normalized = text.trimEnd()
             buffer.append(normalized)
             writeNewlines(1)
             return
         }
 
-        buffer.append(text)
-        isAtLineStart = text.endsWith('\n')
+        val normalized = text
+            .replace("\r\n", "\n")
+            .lines()
+            .joinToString("\n") { it.trimEnd() }
+        buffer.append(normalized)
+        isAtLineStart = normalized.endsWith('\n')
     }
 
     fun writeNewlines(count: Int) {
@@ -189,8 +193,6 @@ internal class FormatterWriter(
 
     fun finish(): String {
         val result = buffer.toString()
-            .lines()
-            .joinToString("\n") { it.trimEnd() }
             .trimEnd('\n')
 
         return if (result.isEmpty()) {

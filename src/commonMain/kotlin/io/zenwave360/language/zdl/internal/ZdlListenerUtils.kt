@@ -25,6 +25,7 @@ internal object ZdlListenerUtils {
         ctx.keyword()?.let { return it.text }
         ctx.SINGLE_QUOTED_STRING()?.let { return unquote(it.text, "'") }
         ctx.DOUBLE_QUOTED_STRING()?.let { return unquote(it.text, "\"") }
+        ctx.MULTILINE_STRING()?.let { return unquoteMultiline(it.text) }
         return ctx.text
     }
 
@@ -33,6 +34,7 @@ internal object ZdlListenerUtils {
         ctx.keyword()?.let { return it.text }
         ctx.SINGLE_QUOTED_STRING()?.let { return unquote(it.text, "'") }
         ctx.DOUBLE_QUOTED_STRING()?.let { return unquote(it.text, "\"") }
+        ctx.MULTILINE_STRING()?.let { return unquoteMultiline(it.text) }
         ctx.INT()?.let { return ctx.INT()!!.text.toLong() }
         ctx.NUMBER()?.let { return ctx.NUMBER()!!.text /* keep as string to avoid java.math in common */ }
         if (ctx.TRUE() != null) return true
@@ -68,6 +70,9 @@ internal object ZdlListenerUtils {
             .replace(Regex(escape + Regex.escape(quote)), quote)
             .replace(Regex(Regex.escape(quote) + "$"), "")
     }
+
+    fun unquoteMultiline(text: String): String =
+        text.removePrefix("\"\"\"").removeSuffix("\"\"\"").trimIndent()
 
     fun getObject(ctx: ZdlParser.ObjectContext?): Any? {
         if (ctx == null) return null
