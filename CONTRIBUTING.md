@@ -30,49 +30,29 @@
 
 ## Release Process
 
-### 1. Create a Release
+See [RELEASING.md](RELEASING.md) and [docs/release-security.md](docs/release-security.md)
+for the full flow. In short: add a `release-notes/release-notes.v<version>.md`
+file to `main`, then trigger the **Release from Notes** workflow from GitHub
+Actions with the release version (and, optionally, the next development
+version and whether to publish to npm). It prepares the version bump, tags the
+release, builds credential-free, and — after you approve the protected
+`maven-central-upload` environment — signs and uploads the deployment to Maven
+Central as USER_MANAGED, then creates the GitHub Release. A human still has to
+log into [central.sonatype.com](https://central.sonatype.com) and click
+**Publish** to make it live.
 
-Trigger the **Create Gradle Release** workflow from GitHub Actions:
+### Snapshot Releases
 
-1. Go to **Actions** → **Create Gradle Release** → **Run workflow**
-2. Enter the release version (e.g., `1.5.0`)
-3. Enter the next development version (e.g., `1.6.0-SNAPSHOT`)
-
-This workflow will:
-- Update version in `build.gradle.kts` to the release version
-- Create a git tag `v{version}`
-- Update version to the next development version
-- Create a PR with the changes
-- Auto-merge the PR
-- Push the release tag
-
-### 2. Publish the Release
-
-After the tag is created, create a GitHub Release:
-
-1. Go to **Releases** → **Draft a new release**
-2. Select the tag created in step 1 (e.g., `v1.5.0`)
-3. Generate release notes or write your own
-4. Publish the release
-
-This automatically triggers the **Publish Release to Maven Central and NPM** workflow, which:
-- Builds and tests the project
-- Publishes to Maven Central
-- ~~Publishes to NPM registry as `@zenwave360/zdl`~~ (currently disabled)
-
-### 3. Snapshot Releases
-
-Snapshots are automatically published when pushing to `develop` or `next` branches via the **Build and Publish Snapshots** workflow.
-
-> **Note**: Snapshot publishing to Maven Central is currently disabled. Enable by uncommenting the publish step in `.github/workflows/publish-snapshots.yml`.
+Snapshots are automatically published when pushing to `develop` or `next` branches via the **Build and Publish Snapshots** workflow (`.github/workflows/publish-maven-snapshots.yml`).
 
 ## Required Secrets
 
-The following GitHub secrets must be configured for releases:
+The following GitHub secrets must be configured, scoped to the `maven-central-upload` and `maven-central-snapshots` GitHub Environments (not repository-level — see [docs/release-security.md](docs/release-security.md)):
 
 - `CENTRAL_USERNAME` - Maven Central username
 - `CENTRAL_TOKEN` - Maven Central token
 - `SIGN_KEY` - GPG signing key
 - `SIGN_KEY_PASS` - GPG signing key password
-- ~~`NPM_TOKEN` - NPM authentication token~~ (not needed while NPM publishing is disabled)
+
+npm publication uses OIDC trusted publishing — no npm token is ever stored.
 

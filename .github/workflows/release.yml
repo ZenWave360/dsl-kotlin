@@ -1,0 +1,48 @@
+name: Release
+
+run-name: "Release v${{ inputs.version }} from main"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semantic version to release, without a v prefix (e.g. 1.0.0 or 1.0.0-rc.1)"
+        required: true
+        type: string
+      developmentVersion:
+        description: "Next development version (e.g. 1.0.1-SNAPSHOT). Leave empty to auto-derive the next patch SNAPSHOT."
+        required: false
+        type: string
+        default: ""
+      publishNpm:
+        description: "Publish @zenwave360/dsl to npm (requires npm-publish environment approval)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    uses: ZenWave360/release-workflows/.github/workflows/release-gradle.yml@main
+    with:
+      version: ${{ inputs.version }}
+      development-version: ${{ inputs.developmentVersion }}
+      artifact-id: dsl-kotlin
+      publish-npm: true
+      dispatch-publish-npm: ${{ inputs.publishNpm }}
+      npm-package: "@zenwave360/dsl"
+      npm-package-dir: build/js/packages/dsl-kotlin
+    secrets:
+      CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+      CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+      SIGN_KEY: ${{ secrets.SIGN_KEY }}
+      SIGN_KEY_PASS: ${{ secrets.SIGN_KEY_PASS }}

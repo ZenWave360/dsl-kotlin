@@ -1,0 +1,21 @@
+# Dependabot keeps release-relevant dependencies current:
+#  - github-actions: bumps the full-SHA pins in .github/workflows (supply-chain
+#    control -- pinned actions only move via a reviewable PR).
+#  - gradle: dependency/plugin updates against the working branch 'develop'.
+#  - npm: Node.js integration-test project dependencies.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "gradle"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/nodejs-test-project"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"

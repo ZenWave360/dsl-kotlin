@@ -71,10 +71,31 @@ val generateJavaGrammarSource by tasks.registering(JavaExec::class) {
     outputs.dir(layout.buildDirectory.dir("generated/antlr/jvmMain/java/").get().asFile)
 }
 
+val hasSigningCredentials = sequenceOf(
+    "signingInMemoryKey",
+    "signingKey",
+    "signing.secretKeyRingFile",
+).any { !providers.gradleProperty(it).orNull.isNullOrBlank() }
+
+// Local staging repository used by the release workflow: the build job publishes
+// here with NO credentials (task: publishAllPublicationsToLocalStagingRepository),
+// and a separate privileged job signs and uploads the result to the Central
+// Portal without executing any Gradle code. See docs/release-security.md.
+publishing {
+    repositories {
+        maven {
+            name = "localStaging"
+            url = uri(layout.buildDirectory.dir("staging-deploy"))
+        }
+    }
+}
+
 mavenPublishing {
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
 
-    signAllPublications()
+    if (hasSigningCredentials) {
+        signAllPublications()
+    }
 
     pom {
         name.set("ZDL Kotlin Multiplatform")

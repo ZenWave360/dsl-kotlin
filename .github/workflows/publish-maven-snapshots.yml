@@ -1,0 +1,22 @@
+name: Build and Publish Snapshots
+
+on:
+  push:
+    branches: [develop, next]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maven-snapshots-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish-snapshot:
+    uses: ZenWave360/release-workflows/.github/workflows/publish-snapshots-gradle.yml@main
+    secrets:
+      CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+      CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+      SIGN_KEY: ${{ secrets.SIGN_KEY }}
+      SIGN_KEY_PASS: ${{ secrets.SIGN_KEY_PASS }}

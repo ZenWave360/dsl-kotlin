@@ -3,10 +3,10 @@ ZenWave Domain and Flow Language
 =====================================
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.zenwave360.dsl/dsl-kotlin.svg?label=Maven%20Central&logo=apachemaven)](https://search.maven.org/artifact/io.zenwave360.dsl/dsl-kotlin)
-[![build](https://github.com/ZenWave360/zdl-kotlin/workflows/Verify%20Main%20and%20Publish%20Coverage/badge.svg)](https://github.com/ZenWave360/zdl-kotlin/actions/workflows/main.yml)
-[![line coverage](https://raw.githubusercontent.com/ZenWave360/zdl-kotlin/badges/coverage.svg)](https://github.com/ZenWave360/zdl-kotlin/actions/workflows/main.yml)
-[![branch coverage](https://raw.githubusercontent.com/ZenWave360/zdl-kotlin/badges/branch-coverage.svg)](https://github.com/ZenWave360/zdl-kotlin/actions/workflows/main.yml)
-[![GitHub](https://img.shields.io/github/license/ZenWave360/zdl-kotlin)](https://github.com/ZenWave360/zdl-kotlin/blob/main/LICENSE)
+[![build](https://github.com/ZenWave360/dsl-kotlin/actions/workflows/publish-maven-snapshots.yml/badge.svg?branch=develop)](https://github.com/ZenWave360/dsl-kotlin/actions/workflows/publish-maven-snapshots.yml)
+[![line coverage](https://raw.githubusercontent.com/ZenWave360/dsl-kotlin/badges/coverage.svg)](https://github.com/ZenWave360/dsl-kotlin/actions/workflows/main.yml)
+[![branch coverage](https://raw.githubusercontent.com/ZenWave360/dsl-kotlin/badges/branches.svg)](https://github.com/ZenWave360/dsl-kotlin/actions/workflows/main.yml)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/ZenWave360/dsl-kotlin/blob/main/LICENSE)
 
 `dsl-kotlin` provides Kotlin Multiplatform parsers for both ZDL and ZFL.
 
