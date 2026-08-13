@@ -1,6 +1,8 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
-    kotlin("multiplatform") version "2.0.21"
-    kotlin("plugin.serialization") version "2.0.21"
+    kotlin("multiplatform") version "2.3.0"
+    kotlin("plugin.serialization") version "2.3.0"
     id("com.strumenta.antlr-kotlin") version "1.0.9"
     id("com.vanniktech.maven.publish") version "0.31.0"
     id("org.jetbrains.kotlinx.kover") version "0.9.4"
@@ -134,8 +136,13 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
 }
 
 kotlin {
+    jvmToolchain(17)
+
     jvm {
-        withJava() // Enables Java compilation for the JVM target
+        withJava() // Required while generated Java grammar sources use the Java source-set DSL.
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
     }
     js(IR) {
         nodejs()
@@ -161,7 +168,7 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-                implementation("com.strumenta:antlr-kotlin-runtime:1.0.3")
+                implementation("com.strumenta:antlr-kotlin-runtime:1.0.4")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
             }
             kotlin.srcDir(generateKotlinGrammarSource)
