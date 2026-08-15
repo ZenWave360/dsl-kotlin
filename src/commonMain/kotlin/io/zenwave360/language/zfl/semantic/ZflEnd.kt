@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ZflEnd(
+    val description: String? = null,
     val endOutcomes: Map<String, List<String>> = emptyMap(),
     val sourceRef: SourceRef
 )

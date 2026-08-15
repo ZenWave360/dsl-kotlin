@@ -65,6 +65,8 @@ class ZdlListenerImpl : ZdlBaseListener() {
         val name = ctx.field_name().text
         val value = getComplexValue(ctx.complex_value())
         model.appendTo("config", name, value)
+        model.setLocation("config.$name", getLocations(ctx))
+        model.setLocation("config.$name.value", getLocations(ctx.complex_value()))
     }
 
     override fun enterApi(ctx: ZdlParser.ApiContext) {

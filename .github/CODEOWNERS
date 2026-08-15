@@ -1,0 +1,32 @@
+# Code owners for files that can alter the release pipeline or execute code
+# while release/publication credentials are present.
+#
+# IMPORTANT: CODEOWNERS has no effect unless the 'main' branch ruleset requires
+# a pull request with "Require review from Code Owners" enabled. As a solo
+# maintainer you cannot approve your own PRs, so enable code-owner review only
+# once the project has a second trusted maintainer. Until then this file still
+# documents ownership and triggers review requests. See docs/release-security.md.
+
+# CI/CD workflows, this file, and repository automation
+/.github/                       @ivangsa
+
+# Gradle build definitions: plugins and build logic declared here execute
+# during release builds and snapshot publication.
+/build.gradle.kts               @ivangsa
+/settings.gradle.kts            @ivangsa
+/gradle/                        @ivangsa
+/gradlew                        @ivangsa
+/gradlew.bat                    @ivangsa
+
+# Kotlin/JS toolchain lockfile (yarn.lock) used by the Gradle build.
+/kotlin-js-store/               @ivangsa
+
+# npm code executed during builds (Node.js integration tests).
+/nodejs-test-project/           @ivangsa
+
+# Release notes consumed verbatim by the release workflow.
+/release-notes/                 @ivangsa
+
+# Release documentation.
+/docs/release-security.md       @ivangsa
+/RELEASING.md                   @ivangsa

@@ -219,24 +219,37 @@ class ZflListenerImpl : ZflBaseListener() {
             .keys
         val triggers = collectedTriggers.distinct()
         val actionName = getText(ctx.flow_command_name())
+        val flow = currentStack.last()
+        val flowName = flow["name"] as String
+        val occurrence = createOccurrence(
+            flow = flow,
+            actionName = actionName,
+            description = javadoc(ctx.javadoc()),
+            triggers = triggers,
+            options = getOptions(ctx.annotations()),
+            definition = false,
+            locations = getLocations(ctx),
+        )
 
         val whenBlock = buildMap()
             .with("triggers", triggers)
             .with("triggerGroups", triggerGroups)
             .with("triggerSeparator", triggerSeparator)
             .with("action", actionName)
+            .with("javadoc", javadoc(ctx.javadoc()))
+            .with("options", getOptions(ctx.annotations()))
+            .with("occurrence", occurrence)
 
         currentStack.addLast(whenBlock)
-        val flow = currentStack[currentStack.size - 2]
 
         @Suppress("UNCHECKED_CAST")
         val whens = (flow["whens"] as MutableList<Any?>)
         whens.add(whenBlock)
 
-        model.setLocation("whens[${whens.size - 1}]", getLocations(ctx))
-        model.setLocation("whens[${whens.size - 1}].triggers", getLocations(ctx.flow_when_trigger()))
+        model.setLocation("flows.$flowName.whens[${whens.size - 1}]", getLocations(ctx))
+        model.setLocation("flows.$flowName.whens[${whens.size - 1}].triggers", getLocations(ctx.flow_when_trigger()))
 
-        val triggerPath = "whens[${whens.size - 1}].triggers"
+        val triggerPath = "flows.$flowName.whens[${whens.size - 1}].triggers"
         triggerGroups.forEach { group ->
             if (group["hasMixedSeparators"] == true) {
                 model.addProblem(triggerPath, null, "Mixed separators are not allowed in when triggers")
@@ -258,19 +271,29 @@ class ZflListenerImpl : ZflBaseListener() {
     override fun enterFlow_do(ctx: ZflParser.Flow_doContext) {
         val flow = currentStack.last()
         val actionName = getText(ctx.flow_command_name())
-        currentStack.addLast(getOrCreateAction(flow, actionName, javadoc(ctx.javadoc())))
+        currentStack.addLast(createOccurrence(
+            flow = flow,
+            actionName = actionName,
+            description = javadoc(ctx.javadoc()),
+            triggers = emptyList(),
+            options = getOptions(ctx.annotations()),
+            definition = true,
+            locations = getLocations(ctx),
+        ))
     }
 
     override fun exitFlow_do(ctx: ZflParser.Flow_doContext) {
+        val occurrence = currentStack.last()
+        val flow = currentStack[currentStack.size - 2]
+        mergeOccurrence(getOrCreateAction(flow, occurrence["name"] as? String, null), occurrence)
         currentStack.removeLast()
     }
 
     override fun enterFlow_do_body(ctx: ZflParser.Flow_do_bodyContext) {
         val current = currentStack.lastOrNull()
         if (current != null && current.containsKey("triggers") && current.containsKey("action")) {
-            val flow = currentStack[currentStack.size - 2]
-            val actionName = current["action"] as? String
-            currentStack.addLast(getOrCreateAction(flow, actionName, null))
+            @Suppress("UNCHECKED_CAST")
+            currentStack.addLast(current["occurrence"] as MutableMap<String, Any?>)
         }
     }
 
@@ -279,6 +302,8 @@ class ZflListenerImpl : ZflBaseListener() {
         if (current != null && current.containsKey("steps") && currentStack.size >= 2) {
             val maybeWhen = currentStack[currentStack.size - 2]
             if (maybeWhen.containsKey("triggers") && maybeWhen.containsKey("action")) {
+                val flow = currentStack[currentStack.size - 3]
+                mergeOccurrence(getOrCreateAction(flow, current["name"] as? String, null), current)
                 currentStack.removeLast()
             }
         }
@@ -291,9 +316,9 @@ class ZflListenerImpl : ZflBaseListener() {
         val serviceName = segments.getOrNull(1)
         val servicePath = segments.joinToString("/")
 
-        action["system"] = systemName
-        action["service"] = serviceName
-        action["servicePath"] = servicePath
+        if (action["system"] == null) action["system"] = systemName
+        if (action["service"] == null) action["service"] = serviceName
+        if (action["servicePath"] == null) action["servicePath"] = servicePath
         appendStep(action, buildMap()
             .with("type", "service")
             .with("system", systemName)
@@ -359,12 +384,16 @@ class ZflListenerImpl : ZflBaseListener() {
                 (action["emits"] as MutableList<Any?>).add(endOutcome)
                 (action["emissions"] as MutableList<Any?>).add(buildMap()
                     .with("eventName", endOutcome)
-                    .with("outcome", outcome))
+                    .with("outcome", outcome)
+                    .with("failure", options.containsKey("failure")))
             }
             @Suppress("UNCHECKED_CAST")
             if (signalBody.RESPONSE() != null) {
-                // TODO: Preserve response @outcome metadata when responses gain edge representation.
                 (action["responses"] as MutableList<Any?>).add(endOutcome)
+                (action["responseDetails"] as MutableList<Any?>).add(buildMap()
+                    .with("name", endOutcome)
+                    .with("outcome", outcome)
+                    .with("options", options))
             }
         }
     }
@@ -383,10 +412,12 @@ class ZflListenerImpl : ZflBaseListener() {
     override fun enterFlow_end(ctx: ZflParser.Flow_endContext) {
         val end = buildMap()
             .with("endOutcomes", buildMap())
+            .with("javadoc", javadoc(ctx.javadoc()))
 
         currentStack.addLast(end)
         val flow = currentStack[currentStack.size - 2]
         flow["end"] = end
+        model.setLocation("flows.${flow["name"]}.end", getLocations(ctx))
     }
 
     override fun exitFlow_end(ctx: ZflParser.Flow_endContext) {
@@ -435,9 +466,69 @@ class ZflListenerImpl : ZflBaseListener() {
             .with("emits", mutableListOf<Any?>())
             .with("emissions", mutableListOf<Any?>())
             .with("responses", mutableListOf<Any?>())
+            .with("responseDetails", mutableListOf<Any?>())
+            .with("occurrences", mutableListOf<Any?>())
 
         actions[actionName ?: ""] = action
         return action
+    }
+
+    private fun createOccurrence(
+        flow: MutableMap<String, Any?>,
+        actionName: String?,
+        description: String?,
+        triggers: List<String>,
+        options: MutableMap<String, Any?>,
+        definition: Boolean,
+        locations: IntArray?,
+    ): MutableMap<String, Any?> {
+        val action = getOrCreateAction(flow, actionName, description)
+        @Suppress("UNCHECKED_CAST")
+        val occurrences = action["occurrences"] as MutableList<Any?>
+        val baseKey = if (definition) {
+            "$actionName@definition"
+        } else {
+            "$actionName@when[${triggers.sorted().joinToString(",")}]"
+        }
+        val duplicate = occurrences.count {
+            val key = (it as? Map<*, *>)?.get("occurrenceKey")?.toString().orEmpty()
+            key == baseKey || key.startsWith("$baseKey#")
+        }
+        val key = if (duplicate == 0) baseKey else "$baseKey#${duplicate + 1}"
+        val occurrenceIndex = (flow["occurrenceCount"] as? Int) ?: 0
+        flow["occurrenceCount"] = occurrenceIndex + 1
+        val locationPath = "flows.${flow["name"]}.actions.$actionName.occurrences[${occurrences.size}]"
+        val occurrence = buildMap()
+            .with("name", actionName)
+            .with("javadoc", description)
+            .with("triggers", triggers)
+            .with("options", options)
+            .with("occurrenceKey", key)
+            .with("occurrenceIndex", occurrenceIndex)
+            .with("definition", definition)
+            .with("locationPath", locationPath)
+            .with("steps", mutableListOf<Any?>())
+            .with("emits", mutableListOf<Any?>())
+            .with("emissions", mutableListOf<Any?>())
+            .with("responses", mutableListOf<Any?>())
+            .with("responseDetails", mutableListOf<Any?>())
+        occurrences.add(occurrence)
+        model.setLocation(locationPath, locations)
+        return occurrence
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun mergeOccurrence(action: MutableMap<String, Any?>, occurrence: MutableMap<String, Any?>) {
+        if (action["javadoc"] == null && occurrence["javadoc"] != null) action["javadoc"] = occurrence["javadoc"]
+        listOf("system", "service", "servicePath").forEach { key ->
+            if (action[key] == null && occurrence[key] != null) action[key] = occurrence[key]
+        }
+        (action["options"] as MutableMap<String, Any?>).putAll(occurrence["options"] as Map<String, Any?>)
+        for (key in listOf("steps", "emits", "emissions", "responses", "responseDetails")) {
+            val target = action[key] as MutableList<Any?>
+            val source = occurrence[key] as List<Any?>
+            source.forEach { if (it !in target) target.add(it) }
+        }
     }
 
     private fun appendStep(action: MutableMap<String, Any?>, step: MutableMap<String, Any?>) {

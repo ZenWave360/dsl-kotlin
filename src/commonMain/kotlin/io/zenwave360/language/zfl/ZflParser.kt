@@ -48,9 +48,10 @@ class ZflParser {
         )
     }
 
-    fun parseModel(model: String): ZflModel {
+    fun parseModel(model: String, sourceName: String = "<zfl>"): ZflModel {
         val parseResult = parse(model)
         val listener = ZflListenerImpl()
+        listener.model["source"] = sourceName
         try {
             ParseTreeWalker.DEFAULT.walk(listener, parseResult.tree)
         } catch (e: Exception) {

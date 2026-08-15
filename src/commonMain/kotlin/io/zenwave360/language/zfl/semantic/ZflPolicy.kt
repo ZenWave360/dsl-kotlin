@@ -8,6 +8,7 @@ data class ZflPolicy(
     val description: String?,
     val triggers: List<String>,
     val condition: String?,
+    val compensates: String? = null,
     val command: String,
     val events: List<String>,
     val sourceRef: SourceRef

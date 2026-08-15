@@ -8,6 +8,7 @@ import io.zenwave360.language.utils.asJavaMap
 import io.zenwave360.language.utils.buildMap
 import io.zenwave360.language.utils.putEntry
 import io.zenwave360.language.utils.with
+import io.zenwave360.language.source.SourceRef
 
 class ZflModel(private val delegate: MutableMap<String, Any?> = buildMap()) : MutableMap<String, Any?> by delegate {
 
@@ -41,6 +42,15 @@ class ZflModel(private val delegate: MutableMap<String, Any?> = buildMap()) : Mu
     @Suppress("UNCHECKED_CAST")
     fun getProblems(): MutableList<MutableMap<String, Any?>> =
         delegate["problems"] as MutableList<MutableMap<String, Any?>>
+
+    fun sourceRef(path: String): SourceRef {
+        val position = getLocations()[path] as? IntArray
+        return SourceRef(
+            file = delegate["source"]?.toString() ?: "<zfl>",
+            line = position?.getOrNull(2)?.coerceAtLeast(1) ?: 1,
+            column = (position?.getOrNull(3) ?: 0) + 1,
+        )
+    }
 
     fun setLocation(location: String, positions: IntArray?): ZflModel {
         if (positions == null || positions.size != 6) return this

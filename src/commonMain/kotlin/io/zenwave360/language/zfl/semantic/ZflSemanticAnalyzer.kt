@@ -6,7 +6,10 @@ import io.zenwave360.language.zfl.ZflModel
 
 class ZflSemanticAnalyzer {
 
+    private lateinit var sourceModel: ZflModel
+
     fun analyze(model: ZflModel): ZflSemanticModel {
+        sourceModel = model
         val actors = mutableMapOf<String, ZflActor>()
         val systems = mutableMapOf<String, ZflSystem>()
         val flows = mutableListOf<ZflFlow>()
@@ -15,7 +18,12 @@ class ZflSemanticAnalyzer {
         model.getSystems().values.forEach { systemData ->
             val systemModel = systemData.asMapOrReturn { return@forEach }
             val systemName = systemModel.getString("name")
-            systems[systemName] = ZflSystem(systemName)
+            val services = systemModel.getMap("services").values.mapNotNull { serviceData ->
+                val service = serviceData as? Map<String, Any?> ?: return@mapNotNull null
+                val name = service.getString("name")
+                name.takeIf(String::isNotBlank)?.let { it to ZflService(it) }
+            }.toMap().toMutableMap()
+            systems[systemName] = ZflSystem(systemName, services)
         }
 
         model.getFlows().values.forEach { flowData ->
@@ -36,11 +44,21 @@ class ZflSemanticAnalyzer {
                     actor = actor,
                     timer = timer,
                     system = system,
-                    sourceRef = sourceRefOf(flowName, startName)
+                    fields = start.getMap("fields").mapValues { (_, fieldData) ->
+                        val field = fieldData as? Map<String, Any?> ?: emptyMap()
+                        ZflField(
+                            name = field.getString("name"),
+                            type = field.getStringOrNull("type"),
+                            isArray = field.getBoolean("isArray"),
+                            description = field.getStringOrNull("javadoc"),
+                            options = field.getStringMap("options"),
+                        )
+                    },
+                    sourceRef = sourceRefOf(flowName, "starts.$startName")
                 )
                 actor?.let { actorName ->
                     actors.getOrPut(actorName) {
-                        ZflActor(actorName, sourceRefOf(flowName, startName))
+                        ZflActor(actorName, sourceRefOf(flowName, "starts.$startName"))
                     }
                 }
             }
@@ -68,7 +86,10 @@ class ZflSemanticAnalyzer {
                             system = command.system,
                             service = command.service,
                             servicePath = command.servicePath,
-                            isError = false,
+                            isError = command.emits.any { it.eventName == eventName && it.failure } ||
+                                command.occurrences.any { occurrence ->
+                                    occurrence.emissions.any { it.eventName == eventName && it.failure }
+                                },
                             sourceRef = sourceRefOf(flowName, eventName)
                         )
                     }
@@ -76,7 +97,7 @@ class ZflSemanticAnalyzer {
             }
 
             val policies = mutableListOf<ZflPolicy>()
-            flowModel.getMapList("whens").forEach { whenModel ->
+            flowModel.getMapList("whens").forEachIndexed { whenIndex, whenModel ->
                 val actionName = whenModel.getString("action")
                 val command = commandByName[actionName]
                 if (command == null) {
@@ -92,9 +113,11 @@ class ZflSemanticAnalyzer {
                     description = whenModel.getString("javadoc"),
                     triggers = whenModel.getList("triggers"),
                     condition = JSONPath.get<String>(whenModel, "options.if"),
+                    compensates = JSONPath.get<String>(whenModel, "options.compensates")
+                        ?: JSONPath.get<String>(whenModel, "options.compensate"),
                     command = actionName,
                     events = command.emits.map { it.eventName },
-                    sourceRef = sourceRefOf(flowName, actionName)
+                    sourceRef = sourceModel.sourceRef("flows.$flowName.whens[$whenIndex]")
                 )
             }
 
@@ -108,6 +131,8 @@ class ZflSemanticAnalyzer {
 
             val endOutcomes = flowModel.getStringListMap("end.endOutcomes")
             val end = ZflEnd(
+                description = flowModel.getStringOrNull("end.javadoc")
+                    ?: flowModel.getMap("end").getStringOrNull("javadoc"),
                 endOutcomes = endOutcomes,
                 sourceRef = sourceRefOf(flowName, "end")
             )
@@ -116,11 +141,13 @@ class ZflSemanticAnalyzer {
             flows += ZflFlow(
                 name = flowName,
                 description = flowModel.getString("javadoc"),
+                options = flowModel.getStringMap("options"),
                 starts = starts,
                 end = end,
                 commands = commandByName.values.toList(),
                 events = events.values.toList(),
                 policies = policies,
+                sourceRef = sourceModel.sourceRef("flows.$flowName"),
             )
         }
 
@@ -135,7 +162,8 @@ class ZflSemanticAnalyzer {
     private fun toCommand(
         flowName: String,
         actionModel: Map<String, Any?>,
-        diagnostics: MutableList<ZflSemanticDiagnostic>
+        diagnostics: MutableList<ZflSemanticDiagnostic>,
+        includeOccurrences: Boolean = true,
     ): ZflCommand {
         val actionName = actionModel.getString("name")
         val systemName = actionModel.getStringOrNull("system")
@@ -155,7 +183,8 @@ class ZflSemanticAnalyzer {
                     val stepSystem = stepModel.getString("system")
                     val stepService = stepModel.getStringOrNull("service")
                     val stepServicePath = stepModel.getString("servicePath")
-                    steps += ZflServiceStep(stepSystem, stepService, stepServicePath)
+                    steps += ZflServiceStep(stepSystem, stepService, stepServicePath,
+                        sourceRefOf(flowName, "actions.$actionName"))
                 }
 
                 "call" -> {
@@ -197,7 +226,8 @@ class ZflSemanticAnalyzer {
                                 )
                             } else {
                                 null
-                            }
+                            },
+                            sourceRef = sourceRefOf(flowName, "actions.$actionName"),
                         )
                     }
                 }
@@ -221,10 +251,15 @@ class ZflSemanticAnalyzer {
                         endOutcome = endOutcome,
                         emits = emits,
                         response = response,
-                        options = options
+                        options = options,
+                        sourceRef = sourceRefOf(flowName, "actions.$actionName"),
                     )
                     if (emits) {
-                        directEmits += ZflEmission(eventName = endOutcome, outcome = outcome)
+                        directEmits += ZflEmission(
+                            eventName = endOutcome,
+                            outcome = outcome,
+                            failure = options.containsKey("failure"),
+                        )
                     }
                     if (response) {
                         directResponses += endOutcome
@@ -259,8 +294,51 @@ class ZflSemanticAnalyzer {
             )
         }
 
+        val responseDetails = actionModel.getResponseList("responseDetails").ifEmpty {
+            responseOutcomes.map { ZflResponse(it) }
+        }
+        val occurrences = if (includeOccurrences) {
+            actionModel.getMapList("occurrences").mapIndexed { index, occurrenceModel ->
+                val effective = LinkedHashMap(actionModel)
+                occurrenceModel.forEach { (key, value) ->
+                    if (key !in setOf("steps", "emissions", "emits", "responses", "responseDetails") ||
+                        (value as? Collection<*>)?.isNotEmpty() == true) {
+                        effective[key] = value
+                    }
+                }
+                effective["occurrences"] = emptyList<Map<String, Any?>>()
+                val parsed = toCommand(flowName, effective, mutableListOf(), includeOccurrences = false)
+                val occurrenceSource = occurrenceModel.getStringOrNull("locationPath")
+                    ?.let(sourceModel::sourceRef) ?: parsed.sourceRef
+                val occurrenceOptions = occurrenceModel.getStringMap("options")
+                ZflCommandOccurrence(
+                    key = occurrenceModel.getStringOrNull("occurrenceKey")
+                        ?: "$actionName@definition",
+                    index = occurrenceModel.getInt("occurrenceIndex").takeIf { it >= 0 } ?: index,
+                    description = occurrenceModel.getStringOrNull("javadoc") ?: parsed.description,
+                    triggers = occurrenceModel.getList("triggers"),
+                    compensates = occurrenceOptions["compensates"] ?: occurrenceOptions["compensate"],
+                    actor = occurrenceOptions["actor"],
+                    timer = occurrenceOptions["time"] ?: occurrenceOptions["timer"],
+                    options = occurrenceOptions,
+                    system = parsed.system,
+                    service = parsed.service,
+                    servicePath = parsed.servicePath,
+                    steps = parsed.steps,
+                    emissions = parsed.emits,
+                    responses = effective.getResponseList("responseDetails").ifEmpty {
+                        parsed.responses.map { ZflResponse(it, sourceRef = occurrenceSource) }
+                    },
+                    sourceRef = occurrenceSource,
+                )
+            }
+        } else {
+            emptyList()
+        }
+
         return ZflCommand(
             name = actionName,
+            description = actionModel.getStringOrNull("javadoc"),
             system = systemName,
             service = serviceName,
             servicePath = servicePath,
@@ -268,13 +346,14 @@ class ZflSemanticAnalyzer {
             emits = emittedOutcomes,
             responses = responseOutcomes,
             steps = steps,
+            occurrences = occurrences,
             sourceRef = sourceRefOf(flowName, actionName)
         )
     }
 
     private fun flushPendingCall(call: MutableCallStep?, steps: MutableList<ZflActionStep>) {
         if (call != null) {
-            steps += ZflCallStep(call.action, call.async, call.handlers.toList())
+            steps += ZflCallStep(call.action, call.async, call.handlers.toList(), call.sourceRef)
         }
     }
 
@@ -379,17 +458,22 @@ class ZflSemanticAnalyzer {
         return diagnostics
     }
 
-    private fun sourceRefOf(flowName: String, name: String): SourceRef =
-        SourceRef(
-            file = "<zfl>",
-            line = 1,
-            column = 1
-        )
+    private fun sourceRefOf(flowName: String, name: String): SourceRef {
+        val relative = if (name.startsWith("starts.") || name.startsWith("actions.") || name == "end") {
+            name
+        } else {
+            "actions.$name"
+        }
+        val preferred = "flows.$flowName.$relative"
+        return if (preferred in sourceModel.getLocations()) sourceModel.sourceRef(preferred)
+        else sourceModel.sourceRef("flows.$flowName")
+    }
 
     private data class MutableCallStep(
         val action: String,
         val async: Boolean = false,
-        val handlers: MutableList<ZflEndOutcomeHandler> = mutableListOf()
+        val handlers: MutableList<ZflEndOutcomeHandler> = mutableListOf(),
+        val sourceRef: SourceRef? = null,
     )
 
     private inline fun Any?.asMapOrReturn(block: () -> Nothing): Map<String, Any?> =
@@ -421,9 +505,24 @@ class ZflSemanticAnalyzer {
         (this[key] as? List<Map<String, Any?>>)?.map { emission ->
             ZflEmission(
                 eventName = emission["eventName"] as? String ?: "",
-                outcome = emission["outcome"] as? String
+                outcome = emission["outcome"] as? String,
+                failure = emission["failure"] as? Boolean ?: false,
+                sourceRef = emission["locationPath"]?.toString()?.let(sourceModel::sourceRef),
             )
         }.orEmpty().filter { it.eventName.isNotEmpty() }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun Map<String, Any?>.getResponseList(key: String): List<ZflResponse> =
+        (this[key] as? List<Map<String, Any?>>)?.mapNotNull { response ->
+            val name = response["name"] as? String ?: return@mapNotNull null
+            ZflResponse(
+                name = name,
+                outcome = response["outcome"] as? String,
+                options = (response["options"] as? Map<String, Any?>)
+                    ?.mapValues { it.value?.toString() }.orEmpty(),
+                sourceRef = response["locationPath"]?.toString()?.let(sourceModel::sourceRef),
+            )
+        }.orEmpty()
 
     private fun Map<String, Any?>.getString(key: String): String =
         this[key] as? String ?: ""

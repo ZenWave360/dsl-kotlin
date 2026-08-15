@@ -409,6 +409,39 @@ class ZflSemanticAnalyzerTest {
         )
     }
 
+    @Test
+    fun testAnalyze_PreservesOccurrencesFailureAndSourceLocations() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(
+            ZflParser().parseModel(
+                """
+                    flow PaymentsFlow {
+                        /** authorize a new payment */
+                        when OrderCreated do authorizePayment {
+                            service Payments.PaymentsService
+                            emits PaymentAuthorized
+                        }
+                        /** authorize a retry */
+                        when PaymentRetried do authorizePayment {
+                            service Payments.PaymentsService
+                            @failure emits PaymentFailed
+                        }
+                        end { completed: PaymentAuthorized }
+                    }
+                """.trimIndent(),
+                "payments.zfl",
+            )
+        )
+
+        val operation = semanticModel.flows.single().commands.single()
+        assertEquals(2, operation.occurrences.size)
+        assertEquals("authorizePayment@when[OrderCreated]", operation.occurrences[0].key)
+        assertEquals("authorize a new payment", operation.occurrences[0].description)
+        assertEquals("authorizePayment@when[PaymentRetried]", operation.occurrences[1].key)
+        assertTrue(operation.occurrences[1].emissions.single().failure)
+        assertEquals("payments.zfl", operation.occurrences[0].sourceRef.file)
+        assertTrue(operation.occurrences[0].sourceRef.line > 1)
+    }
+
     private fun sampleFlow() = """
         systems {
             CatalogProducts {
