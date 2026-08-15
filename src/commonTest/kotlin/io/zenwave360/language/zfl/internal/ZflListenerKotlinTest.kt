@@ -254,6 +254,52 @@ class ZflListenerKotlinTest {
         )
     }
 
+    @Test
+    fun parseZfl_PreservesStableOccurrenceKeysAndLocalBodies() {
+        val model = ZflParser().parseModel(
+            """
+                flow PaymentsFlow {
+                    /** first attempt */
+                    when OrderCreated do authorizePayment {
+                        service Payments.PaymentsService
+                        emits PaymentAuthorized
+                    }
+                    /** retry attempt */
+                    when PaymentRetried do authorizePayment {
+                        service Payments.PaymentsService
+                        @failure emits PaymentFailed
+                    }
+                    when OrderCreated do authorizePayment {
+                        service Payments.PaymentsService
+                        response PaymentPending
+                    }
+                }
+            """.trimIndent(),
+            "payments.zfl",
+        )
+
+        assertEquals(
+            "authorizePayment@when[OrderCreated]",
+            JSONPath.get(model, "$.flows.PaymentsFlow.actions.authorizePayment.occurrences[0].occurrenceKey"),
+        )
+        assertEquals(
+            "authorizePayment@when[PaymentRetried]",
+            JSONPath.get(model, "$.flows.PaymentsFlow.actions.authorizePayment.occurrences[1].occurrenceKey"),
+        )
+        assertEquals(
+            "authorizePayment@when[OrderCreated]#2",
+            JSONPath.get(model, "$.flows.PaymentsFlow.actions.authorizePayment.occurrences[2].occurrenceKey"),
+        )
+        assertEquals(
+            listOf("PaymentAuthorized"),
+            JSONPath.get(model, "$.flows.PaymentsFlow.actions.authorizePayment.occurrences[0].emits"),
+        )
+        assertEquals(
+            listOf("PaymentFailed"),
+            JSONPath.get(model, "$.flows.PaymentsFlow.actions.authorizePayment.occurrences[1].emits"),
+        )
+    }
+
     private fun sampleFlow() = """
         systems {
             CatalogProducts {

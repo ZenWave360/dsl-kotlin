@@ -139,7 +139,6 @@ kotlin {
     jvmToolchain(17)
 
     jvm {
-        withJava() // Required while generated Java grammar sources use the Java source-set DSL.
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
@@ -204,7 +203,7 @@ kotlin {
 
 java {
     sourceSets {
-        getByName("main") {
+        getByName("jvmMain") {
             java.srcDirs(generateJavaGrammarSource)
         }
     }
