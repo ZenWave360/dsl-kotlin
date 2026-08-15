@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "io.zenwave360.dsl"
-version = "1.9.0"
+version = "1.10.0-SNAPSHOT"
 
 val antlrVersion = "4.13.2"
 
