@@ -1,11 +1,12 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
 
 plugins {
     kotlin("multiplatform") version "2.3.0"
     kotlin("plugin.serialization") version "2.3.0"
     id("com.strumenta.antlr-kotlin") version "1.0.9"
     id("com.vanniktech.maven.publish") version "0.31.0"
-    id("org.jetbrains.kotlinx.kover") version "0.9.4"
+    id("org.jetbrains.kotlinx.kover") version "0.9.9"
 }
 
 group = "io.zenwave360.dsl"
@@ -261,17 +262,24 @@ val nodeIntegrationTest = tasks.register<Exec>("nodeIntegrationTest") {
 
 // Make check task depend on Node.js integration tests
 tasks.named("check") {
-    dependsOn("nodeIntegrationTest")
+    dependsOn("nodeIntegrationTest", "koverVerify")
 }
 
 
 // Kover configuration for code coverage
 kover {
+    useJacoco("0.8.14")
+
     reports {
         filters {
             excludes {
                 // skip generated parser
                 packages("io.zenwave360.language.antlr")
+            }
+        }
+        verify {
+            rule {
+                minBound(70, CoverageUnit.BRANCH)
             }
         }
     }
@@ -286,7 +294,10 @@ tasks.register("koverPrintCoverageDetailed") {
     doLast {
         val reportFile = layout.buildDirectory.file("reports/kover/report.xml").get().asFile
         if (reportFile.exists()) {
-            val xml = groovy.xml.XmlParser().parse(reportFile)
+            // JaCoCo reports include a DTD declaration. Strip it before parsing so the
+            // secure XML parser does not need to enable external entity resolution.
+            val reportXml = reportFile.readText().replace(Regex("<!DOCTYPE[^>]*>"), "")
+            val xml = groovy.xml.XmlParser().parseText(reportXml)
             val counters = (xml as groovy.util.Node).get("counter") as groovy.util.NodeList
 
             var lineCovered = 0.0

@@ -290,7 +290,7 @@ class ZdlModelValidator {
             val methods = JSONPath.get(value, "$.methods[*]", listOf<Map<String, Any?>>()) as List<Map<String, Any?>>
             for (method in methods) {
                 val methodName = JSONPath.get(method, "$.name") as? String
-                val hasTransition = method["from"] != null || method["to"] != null
+                val hasTransition = method["transition"] != null
                 if (hasTransition) {
                     validateServiceMethodTransition(model, key, methodName, method, serviceAggregates)
                 }
