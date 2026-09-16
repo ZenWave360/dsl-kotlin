@@ -147,12 +147,18 @@ class ZdlListenerImpl : ZdlBaseListener() {
         val name = getText(ctx.field_name())!!
         val value = getComplexValue(ctx.complex_value())
         currentStack.last().appendTo("config", name, value)
+        val location = "plugins.${currentStack.last()["name"]}.config.$name"
+        model.setLocation(location, getLocations(ctx))
+        model.setLocation("$location.value", getLocations(ctx.complex_value()))
     }
 
     override fun enterPlugin_config_cli_option(ctx: ZdlParser.Plugin_config_cli_optionContext) {
         val keyword = getText(ctx.keyword())!!
         val value = getText(ctx.simple())
         currentStack.last().appendTo("cliOptions", keyword, value)
+        val location = "plugins.${currentStack.last()["name"]}.cliOptions.$keyword"
+        model.setLocation(location, getLocations(ctx))
+        ctx.simple()?.let { model.setLocation("$location.value", getLocations(it)) }
     }
 
     override fun exitPlugin(ctx: ZdlParser.PluginContext) { currentStack.removeLast() }

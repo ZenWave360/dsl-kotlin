@@ -10,6 +10,93 @@ import kotlin.test.*
 class ZdlListenerKotlinTest {
 
     @Test
+    fun parseZdl_PluginOptionSourceSpansPreserveValues() {
+        val delimiter = "\"\"\""
+        val input = """
+            config {
+                title "top level"
+                plugins {
+                    FirstPlugin {
+                        title "double quoted"
+                        single 'single quoted'
+                        count 42
+                        enabled true
+                        disabled false
+                        decimal 1.25
+                        values ["one", 'two']
+                        settings { "key": "value" }
+                        multiline $delimiter
+                            first
+                            second
+                        $delimiter
+                        --output="cli quoted"
+                        --count=42
+                        --enabled=true
+                        --verbose
+                    }
+                    SecondPlugin {
+                        title 'second plugin'
+                        --output='second cli'
+                    }
+                }
+            }
+        """.trimIndent()
+        val model = ZdlParser().parseModel(input)
+        assertTrue(model.getProblems().isEmpty())
+
+        fun assertSource(path: String, expected: String) {
+            val span = assertIs<IntArray>(model.getLocations()[path], path)
+            assertEquals(expected, input.substring(span[0], span[1]), path)
+        }
+
+        assertSource("config.title", "title \"top level\"")
+        assertSource("config.title.value", "\"top level\"")
+        val configPath = "plugins.FirstPlugin.config"
+        val sourceValues = mapOf(
+            "title" to "\"double quoted\"",
+            "single" to "'single quoted'",
+            "count" to "42",
+            "enabled" to "true",
+            "disabled" to "false",
+            "decimal" to "1.25",
+            "values" to "[\"one\", 'two']",
+            "settings" to "{ \"key\": \"value\" }",
+            "multiline" to "$delimiter\n                first\n                second\n            $delimiter"
+        )
+        for ((name, source) in sourceValues) {
+            assertSource("$configPath.$name", "$name $source")
+            assertSource("$configPath.$name.value", source)
+        }
+        assertEquals(mapOf(
+            "title" to "double quoted",
+            "single" to "single quoted",
+            "count" to 42L,
+            "enabled" to true,
+            "disabled" to false,
+            "decimal" to "1.25",
+            "values" to listOf("one", "two"),
+            "settings" to mapOf("key" to "value"),
+            "multiline" to "first\nsecond"
+        ), JSONPath.get(model, "$.plugins.FirstPlugin.config"))
+
+        val cliPath = "plugins.FirstPlugin.cliOptions"
+        for ((name, source) in mapOf("output" to "\"cli quoted\"", "count" to "42", "enabled" to "true")) {
+            assertSource("$cliPath.$name", "--$name=$source")
+            assertSource("$cliPath.$name.value", source)
+        }
+        assertSource("$cliPath.verbose", "--verbose")
+        assertNull(model.getLocations()["$cliPath.verbose.value"])
+        assertEquals(mapOf("output" to "\"cli quoted\"", "count" to "42", "enabled" to "true", "verbose" to null),
+            JSONPath.get(model, "$.plugins.FirstPlugin.cliOptions"))
+        assertSource("plugins.SecondPlugin.config.title", "title 'second plugin'")
+        assertSource("plugins.SecondPlugin.config.title.value", "'second plugin'")
+        assertSource("plugins.SecondPlugin.cliOptions.output", "--output='second cli'")
+        assertSource("plugins.SecondPlugin.cliOptions.output.value", "'second cli'")
+        assertEquals("second plugin", JSONPath.get(model, "$.plugins.SecondPlugin.config.title"))
+        assertEquals("'second cli'", JSONPath.get(model, "$.plugins.SecondPlugin.cliOptions.output"))
+    }
+
+    @Test
     fun parseZdl_MultilineStringTrimsCommonIndentation() {
         val delimiter = "\"\"\""
         val input = """

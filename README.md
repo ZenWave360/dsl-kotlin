@@ -65,6 +65,17 @@ const zflContent = "...";
 const zflModel = parseZfl(zflContent);
 ```
 
+ZDL plugin option source spans are available in `model.locations` under
+`plugins.<plugin>.config.<option>` and `plugins.<plugin>.cliOptions.<option>`.
+Each declaration has a span; its `.value` span covers only the value, including
+quote delimiters. A CLI flag without a value has no `.value` span. The first two
+span entries are the start offset and exclusive end offset in the original
+source, suitable for `source.slice(span[0], span[1])`. Model values are unchanged.
+
+These spans are implemented in shared Kotlin source. JS consumers must rebuild
+the package with `./gradlew jsProductionExecutableCompileSync` and update their
+bundled or installed artifact; an existing JS bundle does not gain them automatically.
+
 * Further reading:
 - [ZDL Domain Language Reference](https://www.zenwave360.io/docs/event-driven-design/zenwave-domain-language/)
 - [ZFL Flow Language Reference](https://www.zenwave360.io/docs/event-driven-design/zenwave-flow-language/)

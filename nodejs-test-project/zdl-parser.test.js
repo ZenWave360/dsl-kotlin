@@ -4,6 +4,40 @@ import { parseZdl } from '@zenwave360/dsl';
 import fs from 'fs';
 import { jsonPath, mapSize, arraySize } from './utils.js';
 
+describe('ZDL Parser - Plugin source spans', () => {
+    it('should recover quoted source without changing option values', () => {
+        const source = `config {
+            plugins {
+                ExamplePlugin {
+                    title "quoted value"
+                    count 42
+                    enabled true
+                    --output='cli value'
+                    --verbose
+                }
+            }
+        }`;
+        const model = parseZdl(source);
+        const slice = path => {
+            const span = model.locations[path];
+            assert.ok(span, path);
+            return source.slice(span[0], span[1]);
+        };
+        assert.equal(slice('plugins.ExamplePlugin.config.title'), 'title "quoted value"');
+        assert.equal(slice('plugins.ExamplePlugin.config.title.value'), '"quoted value"');
+        assert.equal(slice('plugins.ExamplePlugin.cliOptions.output'), "--output='cli value'");
+        assert.equal(slice('plugins.ExamplePlugin.cliOptions.output.value'), "'cli value'");
+        assert.equal(slice('plugins.ExamplePlugin.cliOptions.verbose'), '--verbose');
+        assert.equal(model.locations['plugins.ExamplePlugin.cliOptions.verbose.value'], undefined);
+        assert.equal(model.plugins.ExamplePlugin.config.title, 'quoted value');
+        // The existing JS API exposes Kotlin Long values, not JS numbers.
+        assert.equal(String(model.plugins.ExamplePlugin.config.count), '42');
+        assert.equal(model.plugins.ExamplePlugin.config.enabled, true);
+        assert.equal(model.plugins.ExamplePlugin.cliOptions.output, "'cli value'");
+        assert.equal(model.plugins.ExamplePlugin.cliOptions.verbose, null);
+    });
+});
+
 describe('ZDL Parser - Complete', () => {
     let model;
 
