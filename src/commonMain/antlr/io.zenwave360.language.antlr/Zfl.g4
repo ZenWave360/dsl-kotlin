@@ -76,8 +76,8 @@ OPTION_NAME: '@' [a-zA-Z_][a-zA-Z0-9_]*;
 fragment DIGIT : [0-9] ;
 ID: [a-zA-Z_][a-zA-Z0-9_]*;
 POLICY_ID: [a-zA-Z_][a-zA-Z0-9_-]*;
-INT: DIGIT+ ;
-NUMBER: DIGIT+ ([.] DIGIT+)? ;
+INT: '-'? DIGIT+ ;
+NUMBER: '-'? DIGIT+ ([.] DIGIT+)? ;
 
 // Comments
 //SUFFIX_JAVADOC: {getCharPositionInLine() > 10}? '/**' .*? '*/';

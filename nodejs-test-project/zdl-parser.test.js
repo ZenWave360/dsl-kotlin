@@ -1,6 +1,6 @@
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseZdl } from '@zenwave360/dsl';
+import { parseZdl, generateMermaidFromZdl } from '@zenwave360/dsl';
 import fs from 'fs';
 import { jsonPath, mapSize, arraySize } from './utils.js';
 
@@ -30,11 +30,56 @@ describe('ZDL Parser - Plugin source spans', () => {
         assert.equal(slice('plugins.ExamplePlugin.cliOptions.verbose'), '--verbose');
         assert.equal(model.locations['plugins.ExamplePlugin.cliOptions.verbose.value'], undefined);
         assert.equal(model.plugins.ExamplePlugin.config.title, 'quoted value');
-        // The existing JS API exposes Kotlin Long values, not JS numbers.
-        assert.equal(String(model.plugins.ExamplePlugin.config.count), '42');
+        assert.equal(model.plugins.ExamplePlugin.config.count, 42);
         assert.equal(model.plugins.ExamplePlugin.config.enabled, true);
         assert.equal(model.plugins.ExamplePlugin.cliOptions.output, "'cli value'");
         assert.equal(model.plugins.ExamplePlugin.cliOptions.verbose, null);
+    });
+});
+
+describe('ZDL Parser - Numbers', () => {
+    it('should return integers as JS numbers, keeping the sign of negative literals', () => {
+        const model = parseZdl(`config {
+            offset -3
+            plugins {
+                ExamplePlugin {
+                    maxDepth 3
+                    neg -2
+                    ratio -2.5
+                    values [1, -1]
+                    huge 9007199254740993
+                }
+            }
+        }`);
+        const config = model.plugins.ExamplePlugin.config;
+        assert.equal(model.config.offset, -3);
+        assert.equal(typeof config.maxDepth, 'number');
+        assert.equal(config.maxDepth, 3);
+        assert.equal(JSON.stringify(config.maxDepth), '3');
+        assert.equal(config.neg, -2);
+        assert.equal(config.ratio, '-2.5');
+        assert.deepEqual(Array.from(config.values), [1, -1]);
+        // Beyond Number.MAX_SAFE_INTEGER an integer is returned as its exact decimal string.
+        assert.equal(config.huge, '9007199254740993');
+    });
+});
+
+describe('ZDL Mermaid class diagram', () => {
+    it('should generate an inert Mermaid class diagram', () => {
+        const mermaid = generateMermaidFromZdl(`
+            aggregate OrderAggregate(Order) { cancel(CancelInput) withEvents OrderCancelled }
+            @aggregate entity Order { status OrderStatus required }
+            enum OrderStatus { OPEN, CLOSED }
+            input CancelInput { reason String }
+            event OrderCancelled { id String }
+            service OrderService for (OrderAggregate) { cancelOrder(id, CancelInput) Order withEvents OrderCancelled }
+        `);
+        assert.equal(typeof mermaid, 'string');
+        assert.ok(mermaid.startsWith('classDiagram' + String.fromCharCode(10)), mermaid);
+        assert.match(mermaid, /class Order \{/);
+        assert.match(mermaid, /<<enumeration>>/);
+        assert.match(mermaid, /OrderAggregate \*-- Order/);
+        assert.doesNotMatch(mermaid, /^\s*(click|link|callback)(\s|$)/m);
     });
 });
 

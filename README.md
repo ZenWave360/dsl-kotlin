@@ -76,6 +76,33 @@ These spans are implemented in shared Kotlin source. JS consumers must rebuild
 the package with `./gradlew jsProductionExecutableCompileSync` and update their
 bundled or installed artifact; an existing JS bundle does not gain them automatically.
 
+Numbers in `parseZdl` and `parseZfl` output are plain JavaScript values: an integer is a JS
+`number` (for example `maxDepth 3` gives `3`), or its exact decimal string when it lies beyond
+`Number.MAX_SAFE_INTEGER` (±(2^53 - 1)). Decimals stay strings (`ratio 1.25` gives `"1.25"`),
+as in the JVM model. Negative literals keep their sign (`neg -2` gives `-2`).
+Before 1.10.0 an integer was an opaque Kotlin `Long` object with compiler-generated field names
+(`{"h2_1":3,"i2_1":0}`) and the sign of a negative literal was dropped; JS consumers that worked
+around either should read the value directly. The JVM model is unchanged (`Long` and `String`).
+
+ZDL class diagrams are available as Mermaid text, on the JVM and in JavaScript:
+
+```js
+import { generateMermaidFromZdl } from '@zenwave360/dsl';
+const mermaid = generateMermaidFromZdl(zdlContent); // starts with "classDiagram"
+```
+
+```kotlin
+val mermaid = GenerateMermaidFromZdl().execute(zdlContent)
+```
+
+The diagram contains aggregates with their commands, entities with their fields, enums with their
+values, inputs, outputs and events, services with their commands, and relationships with their
+cardinality. It contains no `click`, `link` or `callback` directives and no remote references.
+
+The JS package loads in browsers and Web Workers as well as in Node.js: `./gradlew check`
+runs `jsBrowserTest` in a headless Chromium-based browser (Karma; set `CHROME_BIN`, or a local
+Chrome, Chromium or Edge is used).
+
 * Further reading:
 - [ZDL Domain Language Reference](https://www.zenwave360.io/docs/event-driven-design/zenwave-domain-language/)
 - [ZFL Flow Language Reference](https://www.zenwave360.io/docs/event-driven-design/zenwave-flow-language/)
