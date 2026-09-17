@@ -12,6 +12,10 @@ plugins {
 group = "io.zenwave360.dsl"
 version = "1.10.0-SNAPSHOT"
 
+// npm prereleases use a separate opt-in train; keep Maven snapshot publishing intact.
+val npmVersion = providers.gradleProperty("npmVersion")
+    .getOrElse(version.toString().replace("-SNAPSHOT", "-next.0"))
+
 val antlrVersion = "4.13.2"
 
 val antlrTool by configurations.creating
@@ -150,12 +154,22 @@ kotlin {
 
         // Generate ES modules instead of CommonJS
         useEsModules()
+        generateTypeScriptDefinitions()
 
         // Set the NPM package name to use scoped naming for main compilation only
         compilations["main"].packageJson {
             customField("name", "@zenwave360/dsl")
-            customField("description", "ZenWave Domain Model Language for JavaScript/TypeScript")
-            customField("keywords", listOf("zdl", "domain-driven-design", "event-storming"))
+            customField("version", npmVersion)
+            customField("description", "ZenWave Domain and Flow Language (ZDL and ZFL) parsers for JavaScript/TypeScript")
+            customField("keywords", listOf("zdl", "zfl", "domain-driven-design", "event-storming"))
+            customField("type", "module")
+            customField("types", "kotlin/dsl-kotlin.d.mts")
+            customField("files", listOf("kotlin/", "README.md", "LICENSE"))
+            customField("publishConfig", mapOf(
+                "access" to "public",
+                "registry" to "https://registry.npmjs.org/",
+                "tag" to if (npmVersion.contains("-")) "next" else "latest"
+            ))
             customField("homepage", "https://github.com/ZenWave360/dsl-kotlin")
             customField("repository", mapOf(
                 "type" to "git",
@@ -198,6 +212,17 @@ kotlin {
                 implementation(npm("fs", "0.0.1-security"))
                 implementation("org.jetbrains.kotlin-wrappers:kotlin-node:18.16.12-pre.610")
             }
+        }
+    }
+}
+
+// Include the documentation and license in the package consumed by npm and CI.
+tasks.named("jsProductionExecutableCompileSync") {
+    inputs.files("README.md", "LICENSE").withPropertyName("npmDocumentation")
+    doLast {
+        copy {
+            from("README.md", "LICENSE")
+            into(layout.buildDirectory.dir("js/packages/dsl-kotlin"))
         }
     }
 }

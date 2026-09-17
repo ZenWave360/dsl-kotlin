@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: maven-snapshots-${{ github.ref }}
@@ -15,6 +16,10 @@ concurrency:
 jobs:
   publish-snapshot:
     uses: ZenWave360/release-workflows/.github/workflows/publish-snapshots-gradle.yml@main
+    with:
+      publish-npm: true
+      npm-package: "@zenwave360/dsl"
+      npm-package-dir: build/js/packages/dsl-kotlin
     secrets:
       CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
       CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}

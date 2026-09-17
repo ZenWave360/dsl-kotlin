@@ -48,11 +48,13 @@ NOTE: JVM version includes working `ZdlParser` and `ZflParser` implementations c
 
 * JavaScript/TypeScript:
 
-NOTE: pending publishing to npm-registy
+For package build and publishing instructions, see [Publishing to npm](docs/npm-publishing.md).
 
 ```bash
-npm install @zenwave360/dsl
+npm install @zenwave360/dsl@next
 ```
+
+The `next` tag selects the opt-in prerelease train. Stable releases use `latest`.
 
 ```js
 import { parseZdl } from '@zenwave360/dsl';
