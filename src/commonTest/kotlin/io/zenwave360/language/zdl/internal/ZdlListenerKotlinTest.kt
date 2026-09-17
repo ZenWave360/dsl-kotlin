@@ -97,6 +97,44 @@ class ZdlListenerKotlinTest {
     }
 
     @Test
+    fun parseZdl_NegativeNumericLiteralsKeepTheirSign() {
+        val input = """
+            config {
+                offset -3
+                plugins {
+                    SomePlugin {
+                        neg -2
+                        pos 2
+                        negDecimal -2.5
+                        values [-1, 1]
+                        --neg=-4
+                    }
+                }
+            }
+            entity Account {
+                balance Integer min(-5) max(10)
+            }
+            enum Level {
+                LOW(-1), HIGH(1)
+            }
+        """.trimIndent()
+        val model = ZdlParser().parseModel(input)
+        assertTrue(model.getProblems().isEmpty(), model.getProblems().toString())
+
+        assertEquals(-3L, JSONPath.get(model, "$.config.offset"))
+        assertEquals(-2L, JSONPath.get(model, "$.plugins.SomePlugin.config.neg"))
+        assertEquals(2L, JSONPath.get(model, "$.plugins.SomePlugin.config.pos"))
+        assertEquals("-2.5", JSONPath.get(model, "$.plugins.SomePlugin.config.negDecimal"))
+        assertEquals(listOf(-1L, 1L), JSONPath.get(model, "$.plugins.SomePlugin.config.values"))
+        assertEquals("-4", JSONPath.get(model, "$.plugins.SomePlugin.cliOptions.neg"))
+        assertEquals("-5", JSONPath.get(model, "$.entities.Account.fields.balance.validations.min.value"))
+        assertEquals("-1", JSONPath.get(model, "$.enums.Level.values.LOW.value"))
+
+        val span = assertIs<IntArray>(model.getLocations()["plugins.SomePlugin.config.neg.value"])
+        assertEquals("-2", input.substring(span[0], span[1]))
+    }
+
+    @Test
     fun parseZdl_MultilineStringTrimsCommonIndentation() {
         val delimiter = "\"\"\""
         val input = """

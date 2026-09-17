@@ -77,6 +77,20 @@ class ZflListenerKotlinTest {
     }
 
     @Test
+    fun parseZfl_NegativeNumericLiteralsKeepTheirSign() {
+        val model = ZflParser().parseModel(
+            """
+                config {
+                    neg -2
+                    negDecimal -0.5
+                }
+            """.trimIndent()
+        )
+        assertEquals(-2L, JSONPath.get(model, "$.config.neg"))
+        assertEquals("-0.5", JSONPath.get(model, "$.config.negDecimal"))
+    }
+
+    @Test
     fun parseZfl_WhenTriggerList_ReportsMixedAndTrailingSeparators() {
         val mixedModel = ZflParser().parseModel(
             """

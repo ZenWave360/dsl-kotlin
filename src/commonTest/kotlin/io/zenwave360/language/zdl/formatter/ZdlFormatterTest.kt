@@ -42,6 +42,21 @@ class ZdlFormatterTest {
     }
 
     @Test
+    fun format_keeps_the_sign_of_negative_numbers() {
+        val input = """
+            config {
+                plugins {
+                    SomePlugin {
+                        neg -2
+                        ratio -0.5
+                    }
+                }
+            }
+        """.trimIndent() + "\n"
+        assertEquals(input, ZdlFormatter().format(input))
+    }
+
+    @Test
     fun format_normalizes_basic_zdl_structure_without_reordering() {
         val input = """
             @import("com.example:artifact:RELEASE")   
