@@ -4,7 +4,7 @@ import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
 plugins {
     kotlin("multiplatform") version "2.3.0"
     kotlin("plugin.serialization") version "2.3.0"
-    id("com.strumenta.antlr-kotlin") version "1.0.9"
+    id("com.strumenta.antlr-kotlin") version "1.0.13"
     id("com.vanniktech.maven.publish") version "0.31.0"
     id("org.jetbrains.kotlinx.kover") version "0.9.9"
 }
