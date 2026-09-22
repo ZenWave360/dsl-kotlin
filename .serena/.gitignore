@@ -1,0 +1,4 @@
+/cache
+/logs
+/*.log
+/project.local.yml
