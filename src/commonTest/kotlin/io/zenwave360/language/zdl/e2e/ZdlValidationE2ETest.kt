@@ -10,6 +10,26 @@ import kotlin.test.assertTrue
 class ZdlValidationE2ETest {
 
     @Test
+    fun syntaxErrorsAreStructuredAndDoNotCascadeIntoSemanticProblems() {
+        val model = ZdlParser().parseModel(
+            """
+                entity Broken {
+                    name String
+                    unexpected ???
+                }
+            """.trimIndent()
+        )
+
+        assertEquals(1, model.getProblems().size)
+        val problem = model.getProblems().single()
+        assertEquals("syntax", problem["path"])
+        val location = problem["location"] as IntArray
+        assertTrue(location[2] >= 1)
+        assertTrue(location[3] >= 0)
+        assertTrue((problem["message"] as String).isNotBlank())
+    }
+
+    @Test
     fun validServiceLifecyclePassesEndToEnd() {
         val model = ZdlParser().parseModel(readTestFile("service-lifecycle.zdl"))
 

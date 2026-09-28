@@ -23,6 +23,15 @@ Unreleased draft for **1.10.0**.
 
 ## Behaviour changes
 
+### Structured ZDL syntax diagnostics
+
+- `ZdlParser.parse` exposes syntax problems in `ZdlParseResult.syntaxProblems` and suppresses
+  ANTLR's direct console output.
+- `parseModel` returns only the first syntax problem and skips semantic validation for malformed
+  input, preventing recovery artifacts from cascading into misleading semantic errors.
+- Syntax problem locations use the same six-integer, zero-based-column representation as other
+  model locations so LSP and CLI consumers can normalize them consistently.
+
 ### Negative numeric literals keep their sign (all platforms)
 
 - `INT` and `NUMBER` tokens in `Zdl.g4` and `Zfl.g4` accept a leading `-`. `neg -2` in a config or plugin block now parses to `-2` (JVM `Long(-2)`), `min(-5)` to `"-5"`, and `-2.5` to `"-2.5"`. Previously the sign was dropped with a token-recognition error. Documents without negative literals lex exactly as before.
