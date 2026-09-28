@@ -10,6 +10,29 @@ import kotlin.test.assertTrue
 class ZdlFormatterTest {
 
     @Test
+    fun format_preserves_config_cli_options() {
+        val input = """
+            config {
+                --force
+                --profile="local build"
+                useJSpecify true
+                plugins {
+                    ExamplePlugin {}
+                }
+            }
+        """.trimIndent() + "\n"
+
+        val formatted = ZdlFormatter().format(input)
+        val model = ZdlParser().parseModel(formatted)
+
+        assertEquals(input, formatted)
+        assertTrue(model.getProblems().isEmpty(), model.getProblems().toString())
+        assertEquals(null, JSONPath.get(model, "$.cliOptions.force"))
+        assertEquals("\"local build\"", JSONPath.get(model, "$.cliOptions.profile"))
+        assertEquals(true, JSONPath.get(model, "$.config.useJSpecify"))
+    }
+
+    @Test
     fun format_preserves_multiline_string_content() {
         val delimiter = "\"\"\""
         val trailingSpaces = "  "
@@ -28,13 +51,13 @@ class ZdlFormatterTest {
         val parser = ZdlParser()
         val valueBefore = JSONPath.get<String>(
             parser.parseModel(input),
-            "$.plugins.ZDLToAsyncAPIPlugin.config.applicationExtensions"
+            "$.pluginsList[0].config.applicationExtensions"
         )
 
         val formatted = ZdlFormatter().format(input)
         val valueAfter = JSONPath.get<String>(
             parser.parseModel(formatted),
-            "$.plugins.ZDLToAsyncAPIPlugin.config.applicationExtensions"
+            "$.pluginsList[0].config.applicationExtensions"
         )
 
         assertEquals(valueBefore, valueAfter)

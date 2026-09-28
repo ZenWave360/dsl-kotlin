@@ -69,6 +69,15 @@ class ZdlListenerImpl : ZdlBaseListener() {
         model.setLocation("config.$name.value", getLocations(ctx.complex_value()))
     }
 
+    override fun enterConfig_cli_option(ctx: ZdlParser.Config_cli_optionContext) {
+        val keyword = getText(ctx.keyword())!!
+        val value = getText(ctx.simple())
+        model.appendTo("cliOptions", keyword, value)
+        val location = "cliOptions.$keyword"
+        model.setLocation(location, getLocations(ctx))
+        ctx.simple()?.let { model.setLocation("$location.value", getLocations(it)) }
+    }
+
     override fun enterApi(ctx: ZdlParser.ApiContext) {
         val name = getText(ctx.api_name())!!
         val type = getText(ctx.api_type())
@@ -128,9 +137,10 @@ class ZdlListenerImpl : ZdlBaseListener() {
             .with("disabled", disabled)
             .with("options", buildMap().with("inherit", inherit))
         )
-        model.appendTo("plugins", name, currentStack.last())
+        model.appendToList("pluginsList", currentStack.last())
 
-        val location = "plugins.$name"
+        val location = "pluginsList.${pluginInstanceCount() - 1}"
+        currentParentLocation = location
         model.setLocation(location, getLocations(ctx))
         model.setLocation("$location.name", getLocations(ctx.plugin_name()))
         model.setLocation("$location.javadoc", getLocations(ctx.javadoc()))
@@ -147,7 +157,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
         val name = getText(ctx.field_name())!!
         val value = getComplexValue(ctx.complex_value())
         currentStack.last().appendTo("config", name, value)
-        val location = "plugins.${currentStack.last()["name"]}.config.$name"
+        val location = "$currentParentLocation.config.$name"
         model.setLocation(location, getLocations(ctx))
         model.setLocation("$location.value", getLocations(ctx.complex_value()))
     }
@@ -156,12 +166,18 @@ class ZdlListenerImpl : ZdlBaseListener() {
         val keyword = getText(ctx.keyword())!!
         val value = getText(ctx.simple())
         currentStack.last().appendTo("cliOptions", keyword, value)
-        val location = "plugins.${currentStack.last()["name"]}.cliOptions.$keyword"
+        val location = "$currentParentLocation.cliOptions.$keyword"
         model.setLocation(location, getLocations(ctx))
         ctx.simple()?.let { model.setLocation("$location.value", getLocations(it)) }
     }
 
-    override fun exitPlugin(ctx: ZdlParser.PluginContext) { currentStack.removeLast() }
+    override fun exitPlugin(ctx: ZdlParser.PluginContext) {
+        currentStack.removeLast()
+        currentParentLocation = null
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun pluginInstanceCount(): Int = (model["pluginsList"] as? List<*>)?.size ?: 0
 
     override fun enterPolicie_body(ctx: ZdlParser.Policie_bodyContext) {
         val name = getText(ctx.policie_name())!!

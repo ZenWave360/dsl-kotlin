@@ -19,6 +19,7 @@ class JsBrowserSmokeTest {
 
     private val zdl = """
         config {
+            --force
             plugins {
                 ExamplePlugin {
                     maxDepth 3
@@ -63,10 +64,11 @@ class JsBrowserSmokeTest {
     @Test
     fun parsesZdlIntoPlainJsValues() {
         val model = parseZdl(zdl).asDynamic()
-        val config = model.plugins.ExamplePlugin.config
+        val config = model.pluginsList[0].config
         assertEquals("number", jsTypeOf(config.maxDepth))
         assertEquals("3", JSON.stringify(config.maxDepth))
         assertEquals("-2", JSON.stringify(config.neg))
+        assertTrue(model.cliOptions.force == null)
         assertEquals("Order", model.aggregates.OrderAggregate.aggregateRoot)
     }
 

@@ -68,11 +68,19 @@ const zflModel = parseZfl(zflContent);
 ```
 
 ZDL plugin option source spans are available in `model.locations` under
-`plugins.<plugin>.config.<option>` and `plugins.<plugin>.cliOptions.<option>`.
+`pluginsList.<n>.config.<option>` and `pluginsList.<n>.cliOptions.<option>`.
 Each declaration has a span; its `.value` span covers only the value, including
 quote delimiters. A CLI flag without a value has no `.value` span. The first two
 span entries are the start offset and exclusive end offset in the original
 source, suitable for `source.slice(span[0], span[1])`. Model values are unchanged.
+
+`model.pluginsList` is every plugin declaration in order. Each instance's
+declaration span is `locations['pluginsList.N']`.
+
+CLI options may also be declared directly inside `config`, before `plugins`,
+for consumers that apply shared command-line defaults. They are reported in
+`model.cliOptions`; their spans use `cliOptions.<option>` and
+`cliOptions.<option>.value`, with no value span for a valueless flag.
 
 These spans are implemented in shared Kotlin source. JS consumers must rebuild
 the package with `./gradlew jsProductionExecutableCompileSync` and update their

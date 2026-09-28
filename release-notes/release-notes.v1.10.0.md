@@ -13,6 +13,14 @@ Unreleased draft for **1.10.0**.
 - The JS target declares `browser()`. `check` runs `jsBrowserTest` (Karma, headless Chrome/Chromium/Edge) and fails if the library cannot load or work without a Node runtime.
 - Node-only test dependencies (`fs` npm placeholder, `kotlin-node` wrappers) were removed; tests read fixtures via `process.getBuiltinModule`. Published artifacts are unaffected.
 
+### Repeated plugin declarations
+
+- `parseZdl` reports every plugin declaration in `pluginsList`, including when several share a type name. Each instance's source span is `locations['pluginsList.N']`. The name-keyed `plugins` map is gone.
+
+### Shared plugin CLI options
+
+- ZDL accepts CLI options such as `--force` directly inside `config`, before `plugins`. The parser reports them in the top-level `cliOptions` map, with declaration and value spans matching plugin-local CLI options.
+
 ## Behaviour changes
 
 ### Negative numeric literals keep their sign (all platforms)

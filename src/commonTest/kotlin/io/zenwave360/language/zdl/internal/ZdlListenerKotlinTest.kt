@@ -10,6 +10,38 @@ import kotlin.test.*
 class ZdlListenerKotlinTest {
 
     @Test
+    fun parseZdl_ConfigCliOptionsAreReportedWithoutCorruptingFollowingConfig() {
+        val input = """
+            config {
+                title "shared"
+                --force
+                --profile="local build"
+                useJSpecify true
+                plugins {
+                    ExamplePlugin {}
+                }
+            }
+        """.trimIndent()
+        val model = ZdlParser().parseModel(input)
+        assertTrue(model.getProblems().isEmpty(), model.getProblems().toString())
+
+        assertEquals("shared", JSONPath.get(model, "$.config.title"))
+        assertEquals(true, JSONPath.get(model, "$.config.useJSpecify"))
+        assertEquals(mapOf("force" to null, "profile" to "\"local build\""),
+            JSONPath.get(model, "$.cliOptions"))
+
+        fun assertSource(path: String, expected: String) {
+            val span = assertIs<IntArray>(model.getLocations()[path], path)
+            assertEquals(expected, input.substring(span[0], span[1]), path)
+        }
+        assertSource("cliOptions.force", "--force")
+        assertNull(model.getLocations()["cliOptions.force.value"])
+        assertSource("cliOptions.profile", "--profile=\"local build\"")
+        assertSource("cliOptions.profile.value", "\"local build\"")
+        assertSource("config.useJSpecify", "useJSpecify true")
+    }
+
+    @Test
     fun parseZdl_PluginOptionSourceSpansPreserveValues() {
         val delimiter = "\"\"\""
         val input = """
@@ -51,7 +83,7 @@ class ZdlListenerKotlinTest {
 
         assertSource("config.title", "title \"top level\"")
         assertSource("config.title.value", "\"top level\"")
-        val configPath = "plugins.FirstPlugin.config"
+        val configPath = "pluginsList.0.config"
         val sourceValues = mapOf(
             "title" to "\"double quoted\"",
             "single" to "'single quoted'",
@@ -77,9 +109,9 @@ class ZdlListenerKotlinTest {
             "values" to listOf("one", "two"),
             "settings" to mapOf("key" to "value"),
             "multiline" to "first\nsecond"
-        ), JSONPath.get(model, "$.plugins.FirstPlugin.config"))
+        ), JSONPath.get(model, "$.pluginsList[0].config"))
 
-        val cliPath = "plugins.FirstPlugin.cliOptions"
+        val cliPath = "pluginsList.0.cliOptions"
         for ((name, source) in mapOf("output" to "\"cli quoted\"", "count" to "42", "enabled" to "true")) {
             assertSource("$cliPath.$name", "--$name=$source")
             assertSource("$cliPath.$name.value", source)
@@ -87,13 +119,47 @@ class ZdlListenerKotlinTest {
         assertSource("$cliPath.verbose", "--verbose")
         assertNull(model.getLocations()["$cliPath.verbose.value"])
         assertEquals(mapOf("output" to "\"cli quoted\"", "count" to "42", "enabled" to "true", "verbose" to null),
-            JSONPath.get(model, "$.plugins.FirstPlugin.cliOptions"))
-        assertSource("plugins.SecondPlugin.config.title", "title 'second plugin'")
-        assertSource("plugins.SecondPlugin.config.title.value", "'second plugin'")
-        assertSource("plugins.SecondPlugin.cliOptions.output", "--output='second cli'")
-        assertSource("plugins.SecondPlugin.cliOptions.output.value", "'second cli'")
-        assertEquals("second plugin", JSONPath.get(model, "$.plugins.SecondPlugin.config.title"))
-        assertEquals("'second cli'", JSONPath.get(model, "$.plugins.SecondPlugin.cliOptions.output"))
+            JSONPath.get(model, "$.pluginsList[0].cliOptions"))
+        assertSource("pluginsList.1.config.title", "title 'second plugin'")
+        assertSource("pluginsList.1.config.title.value", "'second plugin'")
+        assertSource("pluginsList.1.cliOptions.output", "--output='second cli'")
+        assertSource("pluginsList.1.cliOptions.output.value", "'second cli'")
+        assertEquals("second plugin", JSONPath.get(model, "$.pluginsList[1].config.title"))
+        assertEquals("'second cli'", JSONPath.get(model, "$.pluginsList[1].cliOptions.output"))
+    }
+
+    @Test
+    fun parseZdl_DuplicatePluginNamesKeepEveryDeclaration() {
+        val input = """
+            config {
+                plugins {
+                    SamePlugin { targetFolder "one" }
+                    SamePlugin { targetFolder "two" }
+                    OtherPlugin { targetFolder "three" }
+                }
+            }
+        """.trimIndent()
+        val model = ZdlParser().parseModel(input)
+        assertTrue(model.getProblems().isEmpty())
+
+        val pluginsList = assertIs<List<*>>(JSONPath.get(model, "$.pluginsList"))
+        assertEquals(3, pluginsList.size)
+        assertEquals("one", JSONPath.get(model, "$.pluginsList[0].config.targetFolder"))
+        assertEquals("two", JSONPath.get(model, "$.pluginsList[1].config.targetFolder"))
+        assertEquals("three", JSONPath.get(model, "$.pluginsList[2].config.targetFolder"))
+        assertEquals("SamePlugin", JSONPath.get(model, "$.pluginsList[0].name"))
+        assertEquals("SamePlugin", JSONPath.get(model, "$.pluginsList[1].name"))
+
+        fun slice(path: String): String {
+            val span = assertIs<IntArray>(model.getLocations()[path], path)
+            return input.substring(span[0], span[1])
+        }
+        assertEquals("""SamePlugin { targetFolder "one" }""", slice("pluginsList.0"))
+        assertEquals("""SamePlugin { targetFolder "two" }""", slice("pluginsList.1"))
+        assertEquals("""OtherPlugin { targetFolder "three" }""", slice("pluginsList.2"))
+        val first = assertIs<IntArray>(model.getLocations()["pluginsList.0"])
+        val second = assertIs<IntArray>(model.getLocations()["pluginsList.1"])
+        assertTrue(first[0] < second[0])
     }
 
     @Test
@@ -122,15 +188,15 @@ class ZdlListenerKotlinTest {
         assertTrue(model.getProblems().isEmpty(), model.getProblems().toString())
 
         assertEquals(-3L, JSONPath.get(model, "$.config.offset"))
-        assertEquals(-2L, JSONPath.get(model, "$.plugins.SomePlugin.config.neg"))
-        assertEquals(2L, JSONPath.get(model, "$.plugins.SomePlugin.config.pos"))
-        assertEquals("-2.5", JSONPath.get(model, "$.plugins.SomePlugin.config.negDecimal"))
-        assertEquals(listOf(-1L, 1L), JSONPath.get(model, "$.plugins.SomePlugin.config.values"))
-        assertEquals("-4", JSONPath.get(model, "$.plugins.SomePlugin.cliOptions.neg"))
+        assertEquals(-2L, JSONPath.get(model, "$.pluginsList[0].config.neg"))
+        assertEquals(2L, JSONPath.get(model, "$.pluginsList[0].config.pos"))
+        assertEquals("-2.5", JSONPath.get(model, "$.pluginsList[0].config.negDecimal"))
+        assertEquals(listOf(-1L, 1L), JSONPath.get(model, "$.pluginsList[0].config.values"))
+        assertEquals("-4", JSONPath.get(model, "$.pluginsList[0].cliOptions.neg"))
         assertEquals("-5", JSONPath.get(model, "$.entities.Account.fields.balance.validations.min.value"))
         assertEquals("-1", JSONPath.get(model, "$.enums.Level.values.LOW.value"))
 
-        val span = assertIs<IntArray>(model.getLocations()["plugins.SomePlugin.config.neg.value"])
+        val span = assertIs<IntArray>(model.getLocations()["pluginsList.0.config.neg.value"])
         assertEquals("-2", input.substring(span[0], span[1]))
     }
 
@@ -162,9 +228,9 @@ class ZdlListenerKotlinTest {
                   x-clientId: "orders_checkout"
                   x-path: C:\tmp\orders
             """.trimIndent(),
-            JSONPath.get(model, "$.plugins.ZDLToAsyncAPIPlugin.config.applicationExtensions")
+            JSONPath.get(model, "$.pluginsList[0].config.applicationExtensions")
         )
-        assertEquals("inline", JSONPath.get(model, "$.plugins.ZDLToAsyncAPIPlugin.config.inlineValue"))
+        assertEquals("inline", JSONPath.get(model, "$.pluginsList[0].config.inlineValue"))
     }
 
     @Test
@@ -250,8 +316,8 @@ class ZdlListenerKotlinTest {
         assertEquals("restaurants/src/main/resources/apis/asyncapi.yml", JSONPath.get(model, "$.apis.RestaurantsAsyncAPI.config.uri"))
 
         // PLUGINS
-        assertEquals(5, (JSONPath.get(model, "$.plugins") as? Map<*, *>)?.size ?: 0)
-        assertEquals(3, (JSONPath.get(model, "$.plugins.ZDLToAsyncAPIPlugin.config") as? Map<*, *>)?.size ?: 0)
+        assertEquals(6, (JSONPath.get(model, "$.pluginsList") as? List<*>)?.size ?: 0)
+        assertEquals(3, (JSONPath.get(model, "$.pluginsList[1].config") as? Map<*, *>)?.size ?: 0)
 
         // ENUMS
         assertFalse(JSONPath.get(model, "$.enums.OrderStatus.hasValue", false) as Boolean)

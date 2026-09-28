@@ -5,6 +5,29 @@ import fs from 'fs';
 import { jsonPath, mapSize, arraySize } from './utils.js';
 
 describe('ZDL Parser - Plugin source spans', () => {
+    it('should report config-level CLI options without corrupting following config', () => {
+        const source = `config {
+            title "shared"
+            --force
+            --profile="local build"
+            useJSpecify true
+            plugins {
+                ExamplePlugin {}
+            }
+        }`;
+        const model = parseZdl(source);
+        const slice = path => source.slice(model.locations[path][0], model.locations[path][1]);
+        assert.equal(model.problems.length, 0);
+        assert.equal(model.cliOptions.force, null);
+        assert.equal(model.cliOptions.profile, '"local build"');
+        assert.equal(model.config.title, 'shared');
+        assert.equal(model.config.useJSpecify, true);
+        assert.equal(slice('cliOptions.force'), '--force');
+        assert.equal(model.locations['cliOptions.force.value'], undefined);
+        assert.equal(slice('cliOptions.profile.value'), '"local build"');
+        assert.equal(slice('config.useJSpecify'), 'useJSpecify true');
+    });
+
     it('should recover quoted source without changing option values', () => {
         const source = `config {
             plugins {
@@ -23,17 +46,35 @@ describe('ZDL Parser - Plugin source spans', () => {
             assert.ok(span, path);
             return source.slice(span[0], span[1]);
         };
-        assert.equal(slice('plugins.ExamplePlugin.config.title'), 'title "quoted value"');
-        assert.equal(slice('plugins.ExamplePlugin.config.title.value'), '"quoted value"');
-        assert.equal(slice('plugins.ExamplePlugin.cliOptions.output'), "--output='cli value'");
-        assert.equal(slice('plugins.ExamplePlugin.cliOptions.output.value'), "'cli value'");
-        assert.equal(slice('plugins.ExamplePlugin.cliOptions.verbose'), '--verbose');
-        assert.equal(model.locations['plugins.ExamplePlugin.cliOptions.verbose.value'], undefined);
-        assert.equal(model.plugins.ExamplePlugin.config.title, 'quoted value');
-        assert.equal(model.plugins.ExamplePlugin.config.count, 42);
-        assert.equal(model.plugins.ExamplePlugin.config.enabled, true);
-        assert.equal(model.plugins.ExamplePlugin.cliOptions.output, "'cli value'");
-        assert.equal(model.plugins.ExamplePlugin.cliOptions.verbose, null);
+        assert.equal(slice('pluginsList.0.config.title'), 'title "quoted value"');
+        assert.equal(slice('pluginsList.0.config.title.value'), '"quoted value"');
+        assert.equal(slice('pluginsList.0.cliOptions.output'), "--output='cli value'");
+        assert.equal(slice('pluginsList.0.cliOptions.output.value'), "'cli value'");
+        assert.equal(slice('pluginsList.0.cliOptions.verbose'), '--verbose');
+        assert.equal(model.locations['pluginsList.0.cliOptions.verbose.value'], undefined);
+        assert.equal(model.pluginsList[0].config.title, 'quoted value');
+        assert.equal(model.pluginsList[0].config.count, 42);
+        assert.equal(model.pluginsList[0].config.enabled, true);
+        assert.equal(model.pluginsList[0].cliOptions.output, "'cli value'");
+        assert.equal(model.pluginsList[0].cliOptions.verbose, null);
+    });
+
+    it('should keep every plugin declaration when several share a type name', () => {
+        const source = `config {
+            plugins {
+                SamePlugin { targetFolder "one" }
+                SamePlugin { targetFolder "two" }
+                OtherPlugin { targetFolder "three" }
+            }
+        }`;
+        const model = parseZdl(source);
+        assert.equal(arraySize(model.pluginsList), 3);
+        assert.equal(model.pluginsList[0].config.targetFolder, 'one');
+        assert.equal(model.pluginsList[1].config.targetFolder, 'two');
+        assert.equal(model.pluginsList[2].config.targetFolder, 'three');
+        const slice = path => source.slice(model.locations[path][0], model.locations[path][1]);
+        assert.equal(slice('pluginsList.0'), 'SamePlugin { targetFolder "one" }');
+        assert.equal(slice('pluginsList.1'), 'SamePlugin { targetFolder "two" }');
     });
 });
 
@@ -51,7 +92,7 @@ describe('ZDL Parser - Numbers', () => {
                 }
             }
         }`);
-        const config = model.plugins.ExamplePlugin.config;
+        const config = model.pluginsList[0].config;
         assert.equal(model.config.offset, -3);
         assert.equal(typeof config.maxDepth, 'number');
         assert.equal(config.maxDepth, 3);
@@ -131,12 +172,12 @@ describe('ZDL Parser - Complete', () => {
     });
 
     describe('plugins', () => {
-        it('should have 5 plugins', () => {
-            assert.equal(mapSize(jsonPath(model, "$.plugins")), 5);
+        it('should have 6 plugins', () => {
+            assert.equal(arraySize(jsonPath(model, "$.pluginsList")), 6);
         });
 
         it('should have correct ZDLToAsyncAPIPlugin config', () => {
-            assert.equal(mapSize(jsonPath(model, "$.plugins.ZDLToAsyncAPIPlugin.config")), 3);
+            assert.equal(mapSize(jsonPath(model, "$.pluginsList[1].config")), 3);
         });
     });
 

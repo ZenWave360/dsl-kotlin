@@ -124,8 +124,8 @@ internal class AntlrTokenFormatter(
         text.count { it == '\n' }
 
     private companion object {
-        val NO_SPACE_BEFORE = setOf("(", ")", "]", "}", ",", ".", "?", "[]", ":")
-        val NO_SPACE_AFTER = setOf("(", "[", "{", ".")
+        val NO_SPACE_BEFORE = setOf("(", ")", "]", "}", ",", ".", "?", "[]", ":", "=")
+        val NO_SPACE_AFTER = setOf("(", "[", "{", ".", "--", "=")
     }
 }
 

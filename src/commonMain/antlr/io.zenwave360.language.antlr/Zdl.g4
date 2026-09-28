@@ -149,8 +149,10 @@ array_plain: simple (COMMA simple)*;
 pairs: pair (COMMA pair)*;
 
 config: global_javadoc? CONFIG config_body;
-config_body: LBRACE config_option* plugins? RBRACE;
+config_body: LBRACE config_entry* plugins? RBRACE;
+config_entry: config_cli_option | config_option;
 config_option: field_name complex_value;
+config_cli_option: '--' keyword (EQUALS simple)?;
 
 apis: APIS apis_body;
 apis_body: LBRACE api* RBRACE;
