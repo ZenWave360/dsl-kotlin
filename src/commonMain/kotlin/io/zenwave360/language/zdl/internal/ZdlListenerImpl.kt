@@ -576,6 +576,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
 
         val name = currentStack.last()["name"]
         val location = "aggregates.$name"
+        currentParentLocation = location
         model.setLocation(location, getLocations(ctx))
         model.setLocation("$location.name", getLocations(ctx.aggregate_name()))
         model.setLocation("$location.aggregateRoot", getLocations(ctx.aggregate_root()))
@@ -583,12 +584,14 @@ class ZdlListenerImpl : ZdlBaseListener() {
 
     override fun exitAggregate(ctx: ZdlParser.AggregateContext) {
         currentStack.removeLast()
+        currentParentLocation = null
     }
 
     override fun enterAggregate_command(ctx: ZdlParser.Aggregate_commandContext) {
         val aggregateName = getText((ctx.getParent() as ZdlParser.AggregateContext).aggregate_name())!!
         val commandName = getText(ctx.aggregate_command_name())!!
         val location = "aggregates.$aggregateName.commands.$commandName"
+        currentParentLocation = location
         val parameter = ctx.aggregate_command_parameter()?.ID()?.text
         val parameterIsOptional = ctx.aggregate_command_parameter()?.OPTIONAL() != null
         val withEvents = getServiceMethodEvents(location, ctx.with_events())
@@ -628,6 +631,8 @@ class ZdlListenerImpl : ZdlBaseListener() {
             currentStack.last()["transition"] = buildMap().with("from", fromStates).with("to", toState)
         }
         currentStack.removeLast()
+        val aggregateName = getText((ctx.getParent() as ZdlParser.AggregateContext).aggregate_name())!!
+        currentParentLocation = "aggregates.$aggregateName"
     }
 
     override fun enterService(ctx: ZdlParser.ServiceContext) {
@@ -646,17 +651,22 @@ class ZdlListenerImpl : ZdlBaseListener() {
 
         val name = currentStack.last()["name"]
         val location = "services.$name"
+        currentParentLocation = location
         model.setLocation(location, getLocations(ctx))
         model.setLocation("$location.name", getLocations(ctx.service_name()))
         model.setLocation("$location.aggregates", getLocations(ctx.service_aggregates()))
     }
 
-    override fun exitService(ctx: ZdlParser.ServiceContext) { currentStack.removeLast() }
+    override fun exitService(ctx: ZdlParser.ServiceContext) {
+        currentStack.removeLast()
+        currentParentLocation = null
+    }
 
     override fun enterService_method(ctx: ZdlParser.Service_methodContext) {
         val serviceName = getText((ctx.getParent() as ZdlParser.ServiceContext).service_name())!!
         val methodName = getText(ctx.service_method_name())!!
         val location = "services.$serviceName.methods.$methodName"
+        currentParentLocation = location
         val naturalId = if (ctx.service_method_parameter_natural() != null) true else null
         val methodParamId = if (ctx.service_method_parameter_id() != null) "id" else null
         val methodParamIdIsOptional = ctx.service_method_parameter_id()?.OPTIONAL() != null
@@ -709,6 +719,8 @@ class ZdlListenerImpl : ZdlBaseListener() {
             currentStack.last()["transition"] = buildMap().with("from", fromStates).with("to", toState)
         }
         currentStack.removeLast()
+        val serviceName = getText((ctx.getParent() as ZdlParser.ServiceContext).service_name())!!
+        currentParentLocation = "services.$serviceName"
     }
 
     private fun getServiceMethodEvents(location: String, ctx: ZdlParser.With_eventsContext?): List<Any> {

@@ -89,8 +89,14 @@ class ZdlModel(private val delegate: MutableMap<String, Any?> = buildMap()) : Mu
     }
 
     private fun getLocation(path: String): IntArray? {
-        @Suppress("UNCHECKED_CAST")
-        return JSONPath.get(this, "$.locations.['$path']") as? IntArray
+        var candidate = path
+        while (candidate.isNotEmpty()) {
+            @Suppress("UNCHECKED_CAST")
+            val location = JSONPath.get(this, "$.locations.['$candidate']") as? IntArray
+            if (location != null) return location
+            candidate = candidate.substringBeforeLast('.', "")
+        }
+        return null
     }
 
     fun getLocation(line: Int, character: Int): String? {

@@ -418,7 +418,7 @@ class ZdlModelValidator {
     /**
      * Validates from/to state transitions on a service method.
      * Rules:
-     *  1. Method must have an id parameter.
+     *  1. A transition with a from-state must have an id parameter.
      *  2. Target entity is resolved: if service has 1 aggregate → use it;
      *     if multiple → returnType or parameter must be in the aggregate list.
      *  3. Resolved entity must carry a @lifecycle annotation.
@@ -432,10 +432,13 @@ class ZdlModelValidator {
         serviceAggregates: List<String>
     ) {
         val mPath = path("services", serviceKey, "methods", methodName ?: "")
+        val fromStates = JSONPath.get<List<String>>(method, "transition.from")
+        val toState = JSONPath.get<String>(method, "transition.to")
 
-        // Rule 1: id parameter is required for transitions
+        // Rule 1: checking a current state requires an existing entity id.
+        // A to-only transition creates/initializes state and therefore does not require one.
         val paramId = method["paramId"] as? String
-        if (paramId != "id") {
+        if (fromStates != null && paramId != "id") {
             model.addProblem(
                 "$mPath.options.transition.value.from",
                 null, 
@@ -466,10 +469,6 @@ class ZdlModelValidator {
             )
             return
         }
-
-        // Rule 3: validate from/to states
-        val fromStates = JSONPath.get<List<String>>(method, "transition.from")
-        val toState = JSONPath.get<String>(method, "transition.to")
 
         // Rule 3: entity must have @lifecycle
         val enumValues = getEntityLifecycleEnumValues(model, targetEntity)

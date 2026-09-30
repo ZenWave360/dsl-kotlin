@@ -37,6 +37,32 @@ class ZdlValidationE2ETest {
     }
 
     @Test
+    fun serviceTransitionsMayDeclareOnlyFromOrOnlyTo() {
+        val model = ZdlParser().parseModel(
+            """
+                @aggregate
+                @lifecycle(field: status, initial: DRAFT)
+                entity Order {
+                    status OrderStatus required
+                }
+
+                enum OrderStatus { DRAFT, PLACED }
+                input ChangeInput { note String }
+
+                service OrderService for (Order) {
+                    @transition(to: DRAFT)
+                    createOrder(ChangeInput) Order
+
+                    @transition(from: PLACED)
+                    deleteOrder(id) Order
+                }
+            """.trimIndent()
+        )
+
+        assertTrue(model.getProblems().isEmpty(), "Expected one-sided transitions to be valid: ${model.getProblems()}")
+    }
+
+    @Test
     fun invalidServiceTransitionsReportEveryBusinessRule() {
         val model = ZdlParser().parseModel(
             """
