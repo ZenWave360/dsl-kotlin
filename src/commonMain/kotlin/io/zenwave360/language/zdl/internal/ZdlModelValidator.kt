@@ -418,11 +418,10 @@ class ZdlModelValidator {
     /**
      * Validates from/to state transitions on a service method.
      * Rules:
-     *  1. A transition with a from-state must have an id parameter.
-     *  2. Target entity is resolved: if service has 1 aggregate → use it;
+     *  1. Target entity is resolved: if service has 1 aggregate → use it;
      *     if multiple → returnType or parameter must be in the aggregate list.
-     *  3. Resolved entity must carry a @lifecycle annotation.
-     *  4. from/to state values must be valid enum values of the lifecycle status field.
+     *  2. Resolved entity must carry a @lifecycle annotation.
+     *  3. from/to state values must be valid enum values of the lifecycle status field.
      */
     private fun validateServiceMethodTransition(
         model: ZdlModel,
@@ -435,19 +434,7 @@ class ZdlModelValidator {
         val fromStates = JSONPath.get<List<String>>(method, "transition.from")
         val toState = JSONPath.get<String>(method, "transition.to")
 
-        // Rule 1: checking a current state requires an existing entity id.
-        // A to-only transition creates/initializes state and therefore does not require one.
-        val paramId = method["paramId"] as? String
-        if (fromStates != null && paramId != "id") {
-            model.addProblem(
-                "$mPath.options.transition.value.from",
-                null, 
-                "state transitions require an id parameter"
-            )
-            return
-        }
-
-        // Rule 2: resolve target entity
+        // Rule 1: resolve target entity
         val targetEntity: String? = when {
             serviceAggregates.size == 1 -> serviceAggregates[0]
             else -> {
@@ -470,7 +457,7 @@ class ZdlModelValidator {
             return
         }
 
-        // Rule 3: entity must have @lifecycle
+        // Rule 2: entity must have @lifecycle
         val enumValues = getEntityLifecycleEnumValues(model, targetEntity)
         if (enumValues == null) {
             model.addProblem(
@@ -481,7 +468,7 @@ class ZdlModelValidator {
             return
         }
 
-        // Rule 4: validate individual from/to states
+        // Rule 3: validate individual from/to states
         fromStates?.forEachIndexed { i, state ->
             if (!enumValues.contains(state)) {
                 model.addProblem(

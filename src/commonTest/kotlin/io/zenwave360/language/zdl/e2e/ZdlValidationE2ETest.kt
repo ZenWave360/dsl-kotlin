@@ -88,9 +88,16 @@ class ZdlValidationE2ETest {
 
                 input ChangeInput { note String }
 
-                service MissingIdService for (Order) {
-                    @transition(from: DRAFT, to: PLACED)
-                    changeOrder(ChangeInput) Order
+                // id-less from transition (correlated by input): valid, no problem reported
+                service CorrelatedService for (Order) {
+                    @transition(from: [DRAFT, PLACED], to: PLACED)
+                    releaseOrders(ChangeInput) Order[]
+                }
+
+                // id-less from transition: remaining rules still apply
+                service IdlessInvalidStateService for (Order) {
+                    @transition(from: GONE, to: PLACED)
+                    releaseOrders(ChangeInput) Order[]
                 }
 
                 service InvalidStateService for (Order) {
@@ -118,7 +125,7 @@ class ZdlValidationE2ETest {
         val messages = model.getProblems().map { it["message"] as String }
         assertEquals(
             listOf(
-                "state transitions require an id parameter",
+                "GONE is not a valid state value",
                 "UNKNOWN is not a valid state value",
                 "MISSING is not a valid state value",
                 "cannot determine target entity for state transition",
