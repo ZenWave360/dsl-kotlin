@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/** Verifies manifest-graph call and outcome semantics through the complete public pipeline. */
+/** Verifies architecture-graph call and outcome semantics through the complete public pipeline. */
 class ManifestGraphE2ETest {
 
     @Test
