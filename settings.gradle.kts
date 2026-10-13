@@ -7,3 +7,4 @@ pluginManagement {
 
 rootProject.name = "dsl-kotlin"
 
+include("dsl-kotlin", "dsl-views")
