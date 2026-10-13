@@ -9,7 +9,7 @@
     "test:zfl": "node --test zfl-parser.test.js"
   },
   "dependencies": {
-    "@zenwave360/dsl": "file:../build/js/packages/dsl-kotlin",
+    "@zenwave360/dsl": "file:../../build/js/packages/dsl-kotlin",
     "jsonpath": "^1.1.1"
   }
 }

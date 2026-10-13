@@ -12,6 +12,6 @@ private val nodeFs: dynamic by lazy {
 }
 
 actual fun readTestFile(fileName: String): String {
-    val fullPath = "../../../../src/commonTest/resources/$fileName"
+    val fullPath = "../../../../dsl-kotlin/src/commonTest/resources/$fileName"
     return nodeFs.readFileSync(fullPath, "utf8") as String
 }
