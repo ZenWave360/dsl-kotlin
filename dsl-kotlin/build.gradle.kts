@@ -1,16 +1,10 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
-
 plugins {
-    kotlin("multiplatform") version "2.3.0"
-    kotlin("plugin.serialization") version "2.3.0"
-    id("com.strumenta.antlr-kotlin") version "1.0.9"
-    id("com.vanniktech.maven.publish") version "0.31.0"
-    id("org.jetbrains.kotlinx.kover") version "0.9.9"
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.antlr.kotlin)
+    alias(libs.plugins.maven.publish)
+    alias(libs.plugins.kotlinx.kover)
 }
-
-group = "io.zenwave360.dsl"
-version = "1.10.0-SNAPSHOT"
 
 // npm prereleases use a separate opt-in train; keep Maven snapshot publishing intact.
 val npmVersion = providers.gradleProperty("npmVersion")
@@ -78,62 +72,11 @@ val generateJavaGrammarSource by tasks.registering(JavaExec::class) {
     outputs.dir(layout.buildDirectory.dir("generated/antlr/jvmMain/java/").get().asFile)
 }
 
-val hasSigningCredentials = sequenceOf(
-    "signingInMemoryKey",
-    "signingKey",
-    "signing.secretKeyRingFile",
-).any { !providers.gradleProperty(it).orNull.isNullOrBlank() }
-
-// Local staging repository used by the release workflow: the build job publishes
-// here with NO credentials (task: publishAllPublicationsToLocalStagingRepository),
-// and a separate privileged job signs and uploads the result to the Central
-// Portal without executing any Gradle code. See docs/release-security.md.
-publishing {
-    repositories {
-        maven {
-            name = "localStaging"
-            url = uri(layout.buildDirectory.dir("staging-deploy"))
-        }
-    }
-}
-
 mavenPublishing {
-    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
-
-    if (hasSigningCredentials) {
-        signAllPublications()
-    }
-
     pom {
         name.set("ZDL Kotlin Multiplatform")
         description.set("ZenWave Domain Language (ZDL) parser for Kotlin Multiplatform (JVM and JS)")
-        url.set("https://github.com/ZenWave360/dsl-kotlin")
-
-        licenses {
-            license {
-                name.set("MIT License")
-                url.set("https://opensource.org/licenses/MIT")
-            }
-        }
-
-        developers {
-            developer {
-                id.set("ivangsa")
-                name.set("Ivan Garcia Sainz-Aja")
-                email.set("ivangsa@gmail.com")
-            }
-        }
-
-        scm {
-            connection.set("scm:git:git://github.com/ZenWave360/dsl-kotlin.git")
-            developerConnection.set("scm:git:ssh://github.com/ZenWave360/dsl-kotlin.git")
-            url.set("https://github.com/ZenWave360/dsl-kotlin")
-        }
     }
-}
-
-repositories {
-    mavenCentral()
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
@@ -141,26 +84,18 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
 }
 
 kotlin {
-    jvmToolchain(17)
-
-    jvm {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
-        }
-    }
+    // JVM and JS targets are declared in the root build; only module specifics here.
     js(IR) {
-        nodejs()
         browser {
             testTask {
                 // The common test suite reads its fixtures from the filesystem, so it runs on Node
                 // only. In the browser, JsBrowserSmokeTest loads the library and exercises it without
                 // a Node runtime; a static Node import anywhere in the bundle fails this run.
                 filter.includeTestsMatching("io.zenwave360.language.JsBrowserSmokeTest")
-                useKarma {
-                    useChromeHeadless()
-                }
             }
         }
+        // Keep the file names of the npm package (kotlin/dsl-kotlin.mjs, .d.mts) as in the single-module build.
+        outputModuleName = "dsl-kotlin"
         binaries.executable()
 
         // Generate ES modules instead of CommonJS
@@ -224,11 +159,12 @@ kotlin {
 
 // Include the documentation and license in the package consumed by npm and CI.
 tasks.named("jsProductionExecutableCompileSync") {
-    inputs.files("README.md", "LICENSE").withPropertyName("npmDocumentation")
+    val npmDocumentation = rootProject.files("README.md", "LICENSE")
+    inputs.files(npmDocumentation).withPropertyName("npmDocumentation")
     doLast {
         copy {
-            from("README.md", "LICENSE")
-            into(layout.buildDirectory.dir("js/packages/dsl-kotlin"))
+            from(npmDocumentation)
+            into(rootProject.layout.buildDirectory.dir("js/packages/dsl-kotlin"))
         }
     }
 }
@@ -250,28 +186,6 @@ tasks.withType<org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest>()
     .configureEach {
         useMocha {
             timeout = "10s"
-        }
-    }
-
-// Karma launches Chrome through CHROME_BIN. When it is not set, fall back to a locally
-// installed Chromium-based browser (Chrome, Chromium or Microsoft Edge).
-tasks.withType<org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest>()
-    .matching { it.name == "jsBrowserTest" }
-    .configureEach {
-        if (System.getenv("CHROME_BIN").isNullOrBlank()) {
-            val candidates = listOf(
-                "C:/Program Files/Google/Chrome/Application/chrome.exe",
-                "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
-                "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
-                "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
-                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-                "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-                "/usr/bin/google-chrome",
-                "/usr/bin/chromium",
-                "/usr/bin/chromium-browser",
-                "/usr/bin/microsoft-edge",
-            )
-            candidates.firstOrNull { file(it).exists() }?.let { environment("CHROME_BIN", it) }
         }
     }
 
@@ -317,28 +231,9 @@ val nodeIntegrationTest = tasks.register<Exec>("nodeIntegrationTest") {
 
 // Make check task depend on Node.js integration tests
 tasks.named("check") {
-    dependsOn("nodeIntegrationTest", "koverVerify")
+    dependsOn("nodeIntegrationTest")
 }
 
-
-// Kover configuration for code coverage
-kover {
-    useJacoco("0.8.14")
-
-    reports {
-        filters {
-            excludes {
-                // skip generated parser
-                packages("io.zenwave360.language.antlr")
-            }
-        }
-        verify {
-            rule {
-                minBound(70, CoverageUnit.BRANCH)
-            }
-        }
-    }
-}
 
 // Task to print both line and branch coverage
 tasks.register("koverPrintCoverageDetailed") {
