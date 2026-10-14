@@ -1,0 +1,124 @@
+config {
+    id "urn:com.arcadiaeditions:orders:checkout"
+    version "0.1.0"
+    title "Arcadia Editions - Orders Checkout"
+    basePackage "com.arcadiaeditions.orders.checkout"
+
+    plugins {
+        /** Generates an AsyncAPI v3 specification from this ZDL model. */
+        ZDLToAsyncAPIPlugin {
+            id "urn:com.arcadiaeditions:orders:checkout:asyncapi"
+            applicationExtensions """
+            x-application-bindings:
+              x-principal: orders_checkout
+              x-clientId: orders_checkout
+              x-groupId: orders_checkout
+            """
+            schemaFormat avro
+            idType integer
+            idTypeFormat int64
+            avroPackage com.arcadiaeditions.orders.checkout.events.avro
+            includeCloudEventsHeaders true
+            includeKafkaCommonHeaders true
+            asyncapiOverlayFiles "https://raw.githubusercontent.com/arcadia-editions/api-contract-commons/refs/heads/main/asyncapi-overlay.yml"
+            targetFile "./asyncapi.yml"
+        }
+        ZDLToAsyncAPIClientPlugin {
+            id "urn:com.arcadiaeditions:orders:checkout:asyncapi:client"
+            applicationExtensions """
+            x-application-bindings:
+              x-principal: orders_checkout
+              x-clientId: orders_checkout
+              x-groupId: orders_checkout
+            """
+            title "Arcadia Editions - Orders Checkout - AsyncAPI Client"
+            asyncapiOverlayFiles "https://raw.githubusercontent.com/arcadia-editions/api-contract-commons/refs/heads/main/asyncapi-client-overlay.yml"
+            targetFile "./asyncapi-client.yml"
+        }
+        /** Generates an OpenAPI 3.0 specification from this ZDL model. */
+        ZDLToOpenAPIPlugin {
+            idType integer
+            idTypeFormat int64
+            targetFile "./openapi.yml"
+        }
+    }
+}
+
+apis {
+    asyncapi client PaymentsProcessingApi "https://raw.githubusercontent.com/arcadia-editions/payments-processing-api/main/asyncapi.yml"
+    asyncapi client CatalogInventoryApi "https://raw.githubusercontent.com/arcadia-editions/catalog-inventory-api/main/asyncapi.yml"
+    zdl client CatalogInventoryZdl "https://raw.githubusercontent.com/arcadia-editions/catalog-inventory-api/main/domain-model.zdl"
+}
+
+@aggregate
+@lifecycle(field: status, initial: CREATED)
+entity Order(checkout_order) {
+    orderId String required unique
+    status OrderStatus required
+    items String[] required
+    createdAt Instant
+    confirmedAt Instant
+    cancelledAt Instant
+}
+
+enum OrderStatus {
+    CREATED
+    CONFIRMED
+    CANCELLED
+}
+
+input StartOrderCheckoutInput {
+    items String[] minlength(1)
+}
+
+input ConfirmOrderInput {
+    orderId String required
+}
+
+input CancelOrderInput {
+    orderId String required
+}
+
+@rest("/orders")
+service OrdersCheckoutService for (Order) {
+
+    @post
+    @transition(to: CREATED)
+    @calls(zdl: CatalogInventoryZdl, command: InventoryService.reserveStock)
+    startOrderCheckout(StartOrderCheckoutInput) Order withEvents [OrderCreated | StockUnavailable]
+
+    @asyncapi(api: PaymentsProcessingApi, channel: "payment-authorized-event-v1")
+    @transition(from: CREATED, to: CONFIRMED)
+    @calls(zdl: CatalogInventoryZdl, command: InventoryService.confirmStockReservation)
+    confirmOrder(ConfirmOrderInput) Order withEvents OrderConfirmed
+
+    @asyncapi(api: CatalogInventoryApi, channel: "stock-released-event-v1")
+    @transition(from: [CREATED, CONFIRMED], to: CANCELLED)
+    cancelOrder(CancelOrderInput) Order withEvents OrderCancelled
+}
+
+@asyncapi({ channel: "order-created-event-v1", topic: "orders-checkout.order-created.event.avro.v1" })
+event OrderCreated {
+    orderId String
+    version Integer
+}
+
+@asyncapi({ channel: "stock-unavailable-event-v1", topic: "orders-checkout.stock-unavailable.event.avro.v1" })
+event StockUnavailable {
+    productId String
+    requestedQuantity Integer
+}
+
+@asyncapi({ channel: "order-confirmed-event-v1", topic: "orders-checkout.order-confirmed.event.avro.v1" })
+event OrderConfirmed {
+    orderId String
+    version Integer
+    confirmedAt Instant
+}
+
+@asyncapi({ channel: "order-cancelled-event-v1", topic: "orders-checkout.order-cancelled.event.avro.v1" })
+event OrderCancelled {
+    orderId String
+    version Integer
+    cancelledAt Instant
+}

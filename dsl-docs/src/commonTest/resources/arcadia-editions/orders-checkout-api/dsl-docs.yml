@@ -1,0 +1,7 @@
+# dsl-docs config used by the tests; not part of the upstream repository.
+zdl: [domain-model.zdl]
+zfl: [../business-flows/place-order-flow.zfl]
+openapi: [openapi.yml]
+asyncapi: [asyncapi.yml, asyncapi-client.yml]
+pages:
+  - { title: Service summary, path: SUMMARY.md }

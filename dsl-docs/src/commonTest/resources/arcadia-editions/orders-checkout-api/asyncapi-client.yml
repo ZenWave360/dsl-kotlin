@@ -1,0 +1,45 @@
+asyncapi: 3.0.0
+id: urn:com.arcadiaeditions:orders:checkout:asyncapi:client
+
+info:
+  title: Arcadia Editions - Orders Checkout - AsyncAPI Client
+  version: "0.1.1"
+  description: Consumed AsyncAPI channels for Arcadia Editions - Orders Checkout.
+
+x-application-bindings:
+  x-principal: orders_checkout
+  x-clientId: orders_checkout
+  x-groupId: orders_checkout
+
+channels:
+  payment-authorized-event-v1:
+    $ref: https://raw.githubusercontent.com/arcadia-editions/payments-processing-api/main/asyncapi.yml#/channels/payment-authorized-event-v1
+  stock-released-event-v1:
+    $ref: https://raw.githubusercontent.com/arcadia-editions/catalog-inventory-api/main/asyncapi.yml#/channels/stock-released-event-v1
+
+operations:
+  onPaymentAuthorizedEvent:
+    action: receive
+    channel:
+      $ref: "#/channels/payment-authorized-event-v1"
+    traits:
+    - $ref: "#/components/operationTraits/clientIdAndPrincipal"
+  onStockReleasedEvent:
+    action: receive
+    channel:
+      $ref: "#/channels/stock-released-event-v1"
+    traits:
+    - $ref: "#/components/operationTraits/clientIdAndPrincipal"
+
+components:
+  messageTraits:
+    CommonHeaders:
+      $ref: https://raw.githubusercontent.com/arcadia-editions/api-contract-commons/refs/heads/main/asyncapi-message-traits.yml#/components/messageTraits/CommonHeaders
+  operationTraits:
+    clientIdAndPrincipal:
+      bindings:
+        kafka:
+          x-principal:
+            $ref: "#/x-application-bindings/x-principal"
+          x-groupId:
+            $ref: "#/x-application-bindings/x-groupId"

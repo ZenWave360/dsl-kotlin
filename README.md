@@ -94,20 +94,25 @@ Before 1.10.0 an integer was an opaque Kotlin `Long` object with compiler-genera
 (`{"h2_1":3,"i2_1":0}`) and the sign of a negative literal was dropped; JS consumers that worked
 around either should read the value directly. The JVM model is unchanged (`Long` and `String`).
 
-ZDL class diagrams are available as Mermaid text, on the JVM and in JavaScript:
+The repository builds three modules:
 
-```js
-import { generateMermaidFromZdl } from '@zenwave360/dsl';
-const mermaid = generateMermaidFromZdl(zdlContent); // starts with "classDiagram"
-```
+| Module | Maven artifact | Content |
+| --- | --- | --- |
+| `dsl-kotlin` | `io.zenwave360.dsl:dsl-kotlin` | ZDL and ZFL parsers, semantic models, event flow view models; npm `@zenwave360/dsl` |
+| `dsl-views` | `io.zenwave360.dsl:dsl-views` | Mermaid diagrams from ZDL and ZFL models |
+| `dsl-docs` | `io.zenwave360.dsl:dsl-docs` | Markdown documentation with those diagrams, from ZDL, ZFL, OpenAPI and AsyncAPI files; see [dsl-docs/README.md](dsl-docs/README.md) |
+
+ZDL class diagrams and ZFL flowcharts and sequence diagrams are Mermaid text from `dsl-views`:
 
 ```kotlin
-val mermaid = GenerateMermaidFromZdl().execute(zdlContent)
+val classDiagram = GenerateMermaidFromZdl().execute(zdlContent)
+val flowDiagrams = GenerateMermaidFromZfl().execute(zflContent)
 ```
 
-The diagram contains aggregates with their commands, entities with their fields, enums with their
+The class diagram contains aggregates with their commands, entities with their fields, enums with their
 values, inputs, outputs and events, services with their commands, and relationships with their
 cardinality. It contains no `click`, `link` or `callback` directives and no remote references.
+`dsl-views` and `dsl-docs` are not published to npm yet.
 
 The JS package loads in browsers and Web Workers as well as in Node.js: `./gradlew check`
 runs `jsBrowserTest` in a headless Chromium-based browser (Karma; set `CHROME_BIN`, or a local
