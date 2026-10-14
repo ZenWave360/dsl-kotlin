@@ -5,7 +5,7 @@ plugins {
     kotlin("multiplatform") version "2.3.0"
     kotlin("plugin.serialization") version "2.3.0"
     id("com.strumenta.antlr-kotlin") version "1.0.9"
-    id("com.vanniktech.maven.publish") version "0.31.0"
+    id("com.vanniktech.maven.publish") version "0.37.0"
     id("org.jetbrains.kotlinx.kover") version "0.9.9"
 }
 
