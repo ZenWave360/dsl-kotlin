@@ -9,4 +9,4 @@ pluginManagement {
 // (io.zenwave360.dsl:dsl-kotlin) and Gradle would resolve project(":dsl-kotlin") to the root.
 rootProject.name = "dsl-kotlin-parent"
 
-include("dsl-kotlin", "dsl-views")
+include("dsl-kotlin", "dsl-views", "dsl-docs")

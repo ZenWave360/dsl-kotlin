@@ -1,6 +1,6 @@
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseZdl, generateMermaidFromZdl } from '@zenwave360/dsl';
+import { parseZdl } from '@zenwave360/dsl';
 import fs from 'fs';
 import { jsonPath, mapSize, arraySize } from './utils.js';
 
@@ -102,25 +102,6 @@ describe('ZDL Parser - Numbers', () => {
         assert.deepEqual(Array.from(config.values), [1, -1]);
         // Beyond Number.MAX_SAFE_INTEGER an integer is returned as its exact decimal string.
         assert.equal(config.huge, '9007199254740993');
-    });
-});
-
-describe('ZDL Mermaid class diagram', () => {
-    it('should generate an inert Mermaid class diagram', () => {
-        const mermaid = generateMermaidFromZdl(`
-            aggregate OrderAggregate(Order) { cancel(CancelInput) withEvents OrderCancelled }
-            @aggregate entity Order { status OrderStatus required }
-            enum OrderStatus { OPEN, CLOSED }
-            input CancelInput { reason String }
-            event OrderCancelled { id String }
-            service OrderService for (OrderAggregate) { cancelOrder(id, CancelInput) Order withEvents OrderCancelled }
-        `);
-        assert.equal(typeof mermaid, 'string');
-        assert.ok(mermaid.startsWith('classDiagram' + String.fromCharCode(10)), mermaid);
-        assert.match(mermaid, /class Order \{/);
-        assert.match(mermaid, /<<enumeration>>/);
-        assert.match(mermaid, /OrderAggregate \*-- Order/);
-        assert.doesNotMatch(mermaid, /^\s*(click|link|callback)(\s|$)/m);
     });
 });
 

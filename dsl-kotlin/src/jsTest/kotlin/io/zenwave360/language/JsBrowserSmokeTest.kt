@@ -1,8 +1,6 @@
 package io.zenwave360.language
 
-import generateMermaidFromZdl
 import io.zenwave360.language.eventflow.application.GenerateFlowViewFromZfl
-import io.zenwave360.language.eventflow.application.GenerateMermaidFromZfl
 import kotlinx.coroutines.test.runTest
 import parseZdl
 import parseZfl
@@ -73,18 +71,9 @@ class JsBrowserSmokeTest {
     }
 
     @Test
-    fun generatesMermaidClassDiagramFromZdl() {
-        val mermaid = generateMermaidFromZdl(zdl)
-        assertTrue(mermaid.startsWith("classDiagram\n"), mermaid)
-        assertTrue(mermaid.contains("OrderAggregate *-- Order"), mermaid)
-    }
-
-    @Test
-    fun parsesZflAndGeneratesMermaid() {
+    fun parsesZfl() {
         val model = parseZfl(zfl).asDynamic()
         assertTrue(model.flows.SimpleFlow != undefined)
-        val diagrams = GenerateMermaidFromZfl().execute(zfl)
-        assertTrue(diagrams.flowchart.startsWith("flowchart TD"))
     }
 
     @Test

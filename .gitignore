@@ -51,3 +51,7 @@ build/
 
 .codex/
 .grok/config.toml
+
+# Local copies of sample projects used to preview views (dsl-views/samples).
+# Not committed: sample content is not part of this repo.
+dsl-views/samples/

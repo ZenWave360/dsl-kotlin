@@ -154,6 +154,7 @@ subprojects {
 dependencies {
     kover(project(":dsl-kotlin"))
     kover(project(":dsl-views"))
+    kover(project(":dsl-docs"))
 }
 
 kover {
