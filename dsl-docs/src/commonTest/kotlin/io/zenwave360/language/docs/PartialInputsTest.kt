@@ -27,7 +27,7 @@ class PartialInputsTest {
     fun withoutAsyncApiThereIsNoEventsPage() {
         val output = generate(SourceKind.ZDL, SourceKind.ZFL, SourceKind.OPENAPI)
 
-        assertEquals(listOf("README.md", "apis.md", "architecture.md", "domain.md", "flows.md"), output.files.map { it.path })
+        assertEquals(listOf("README.md", "apis.md", "architecture.md", "domain.md", "flows.md", "flows/place-order-flow.md"), output.files.map { it.path })
         assertFalse(output.readme().contains("events.md"))
     }
 
@@ -51,7 +51,7 @@ class PartialInputsTest {
     fun onlyZfl() {
         val output = generate(SourceKind.ZFL)
 
-        assertEquals(listOf("README.md", "flows.md"), output.files.map { it.path })
+        assertEquals(listOf("README.md", "flows.md", "flows/place-order-flow.md"), output.files.map { it.path })
         assertTrue(output.files.last().content.contains("```mermaid\nflowchart"))
         assertTrue(output.readme().contains("# Documentation\n"))
     }

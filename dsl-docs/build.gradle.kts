@@ -30,6 +30,8 @@ kotlin {
                 // Diagrams and model views come from dsl-views (and dsl-kotlin through it).
                 api(project(":dsl-views"))
                 implementation("it.krzeminski:snakeyaml-engine-kmp:4.0.1")
+                // Needed on the compile classpath to name MermaidSequenceRenderMode, a serializable enum of dsl-views.
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
             }
         }
         commonTest {

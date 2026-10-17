@@ -37,10 +37,12 @@ class DslDocs {
         val openapi = sources.filter { it.kind == SourceKind.OPENAPI }.map { SpecDocument(it) }
         val asyncapi = sources.filter { it.kind == SourceKind.ASYNCAPI }.map { SpecDocument(it) }
 
+        var architectureContext: ArchitectureContext? = null
         if (zdl.isNotEmpty()) {
             val architecture = ZdlArchitectureReader().read(zdl.map { ZdlSource(it.source.path, it.source.content) })
             val diagrams = ZdlArchitectureToMermaidTransformer().transform(architecture)
             val context = ArchitectureContext(architecture, diagrams, zdl, input.sourcesHref)
+            architectureContext = context
             files += DocsFile(ArchitecturePage.PATH, ArchitecturePage.render(context, problems))
             pages += PageEntry(ArchitecturePage.PATH, ArchitecturePage.TITLE, ArchitecturePage.summary(context))
             if (context.modulePages) {
@@ -55,7 +57,7 @@ class DslDocs {
             }
         }
         if (zfl.isNotEmpty()) {
-            files += DocsFile(FlowsPage.PATH, FlowsPage.render(zfl, problems))
+            files += FlowsPage.render(zfl, architectureContext, problems)
             pages += PageEntry(FlowsPage.PATH, FlowsPage.TITLE, count(zfl.size, "ZFL file"))
         }
         if (openapi.isNotEmpty()) {

@@ -34,15 +34,15 @@ class DslDocsCliTest {
         assertEquals(0, run("build", "--config", config.path, "--out", docs.path), err.toString())
 
         val snapshots = File("src/commonTest/resources/snapshots/orders-checkout")
-        assertEquals(snapshots.list()!!.sorted(), docs.list()!!.sorted())
-        for (file in docs.listFiles()!!) {
-            val generated = file.readText()
-            assertFalse(generated.contains('\r'), "${file.name} has CRLF")
+        assertEquals(markdownFiles(snapshots), markdownFiles(docs))
+        for (name in markdownFiles(docs)) {
+            val generated = File(docs, name).readText()
+            assertFalse(generated.contains('\r'), "$name has CRLF")
             // The CLI links the hand-written page relative to the output folder, so only those links differ.
-            val expected = File(snapshots, file.name).readText().replace("\r\n", "\n")
-            assertEquals(expected.replace("(../SUMMARY.md)", "(${relativeSummary(docs)})").replace("(../domain-model.zdl)", "(${relativeSummary(docs).removeSuffix("SUMMARY.md")}domain-model.zdl)"), generated, file.name)
+            val expected = File(snapshots, name).readText().replace("\r\n", "\n")
+            assertEquals(expected.replace("(../SUMMARY.md)", "(${relativeSummary(docs)})").replace("(../domain-model.zdl)", "(${relativeSummary(docs).removeSuffix("SUMMARY.md")}domain-model.zdl)"), generated, name)
         }
-        assertTrue(out.toString().startsWith("Wrote 6 files to"))
+        assertTrue(out.toString().startsWith("Wrote 7 files to"))
     }
 
     @Test
@@ -52,7 +52,8 @@ class DslDocsCliTest {
         run("build", "--config", config.path, "--out", first.path)
         run("build", "--config", config.path, "--out", second.path)
 
-        for (name in first.list()!!) {
+        assertTrue(markdownFiles(first).contains("flows/place-order-flow.md"))
+        for (name in markdownFiles(first)) {
             assertTrue(File(first, name).readBytes().contentEquals(File(second, name).readBytes()), name)
         }
     }
@@ -230,4 +231,8 @@ class DslDocsCliTest {
 
     private fun relativeSummary(docs: File): String =
         File(fixtures, "orders-checkout-api/SUMMARY.md").canonicalFile.relativeTo(docs.canonicalFile).invariantSeparatorsPath
+
+    /** Relative paths of the generated pages, subfolders included. */
+    private fun markdownFiles(dir: File): List<String> =
+        dir.walkTopDown().filter { it.isFile }.map { it.relativeTo(dir).invariantSeparatorsPath }.sorted().toList()
 }

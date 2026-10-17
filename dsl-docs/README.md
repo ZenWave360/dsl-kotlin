@@ -68,7 +68,7 @@ JSON works too: it is valid YAML.
 | `architecture.md` | Diagram of the modules (one per ZDL file) with their events and direct calls, event table, module table, direct calls | There are ZDL files |
 | `domain.md` | Per ZDL file: class diagram, glossary, commands, events | There is one ZDL file |
 | `modules/<module>.md` | The same for one module, plus the events it consumes and the calls it makes | There are several ZDL files (replaces `domain.md`) |
-| `flows.md` | Per ZFL file: flowchart and one sequence diagram per outcome | There are ZFL files |
+| `flows.md`, `flows/<flow>.md` | Index of the flows, and one page per flow: happy path, flowchart, outcomes, systems (linked to module pages) and every other path as a sequence diagram | There are ZFL files |
 | `apis.md` | Per OpenAPI file: operations and schemas | There are OpenAPI files |
 | `events.md` | Per AsyncAPI file (v2 or v3): operations with channel and address, messages and payload schemas | There are AsyncAPI files |
 
