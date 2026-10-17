@@ -35,7 +35,9 @@ data class MermaidSequenceDiagram(
     val title: String,
     val startLabel: String,
     val branchLabels: List<String> = emptyList(),
-    val mermaid: String
+    val mermaid: String,
+    /** True for the one diagram that follows the happy path (first declared alternative at every choice). */
+    val happy: Boolean = false
 )
 
 @Serializable

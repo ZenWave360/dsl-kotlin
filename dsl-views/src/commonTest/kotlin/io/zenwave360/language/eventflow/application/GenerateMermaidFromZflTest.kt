@@ -64,7 +64,7 @@ class GenerateMermaidFromZflTest {
         val diagrams = GenerateMermaidFromZfl().execute(zflContent, MermaidSequenceRenderMode.ALT_BLOCKS)
 
         assertEquals(MermaidSequenceRenderMode.ALT_BLOCKS, diagrams.sequenceRenderMode)
-        assertTrue(diagrams.sequences.single().mermaid.contains("alt via PaymentAuthorized"))
+        assertTrue(diagrams.sequences.single().mermaid.contains("alt PaymentAuthorized"))
     }
 
     @Test

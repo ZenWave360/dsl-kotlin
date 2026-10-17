@@ -1,13 +1,8 @@
 package io.zenwave360.language.eventflow.view
 
-import io.zenwave360.language.zfl.semantic.ZflActionStep
-import io.zenwave360.language.zfl.semantic.ZflCallStep
-import io.zenwave360.language.zfl.semantic.ZflCommand
 import io.zenwave360.language.zfl.semantic.ZflFlow
 import io.zenwave360.language.zfl.semantic.ZflPolicy
 import io.zenwave360.language.zfl.semantic.ZflSemanticModel
-import io.zenwave360.language.zfl.semantic.ZflServiceStep
-import io.zenwave360.language.zfl.semantic.ZflSignalStep
 import io.zenwave360.language.zfl.semantic.ZflStart
 
 class ZflToMermaidDiagramsTransformer(
@@ -31,20 +26,13 @@ class ZflToMermaidDiagramsTransformer(
                 sequences = emptyList()
             )
 
-        val commandByName = flow.commands.associateBy { it.name }
         val policiesByTrigger = flow.policies
             .flatMap { policy -> policy.triggers.map { trigger -> trigger to policy } }
             .groupBy({ it.first }, { it.second })
 
-        val sequences = flow.end.endOutcomes.keys.flatMap { endOutcome ->
-            renderSequences(
-                flow = flow,
-                endOutcome = endOutcome,
-                commandByName = commandByName,
-                policiesByTrigger = policiesByTrigger,
-                sequenceRenderMode = sequenceRenderMode
-            )
-        }
+        val engine = ZflSequencePaths(flow, maxCommandVisitsPerPath)
+        val paths = engine.paths()
+        val sequences = renderSequences(flow, paths, engine.happy(paths), sequenceRenderMode)
 
         return MermaidDiagramsView(
             flowName = flow.name,
@@ -166,450 +154,94 @@ class ZflToMermaidDiagramsTransformer(
         return lines.joinToString("\n")
     }
 
+
     private fun renderSequences(
         flow: ZflFlow,
-        endOutcome: String,
-        commandByName: Map<String, ZflCommand>,
-        policiesByTrigger: Map<String, List<ZflPolicy>>,
+        paths: List<SequencePath>,
+        happy: SequencePath?,
         sequenceRenderMode: MermaidSequenceRenderMode
-    ): List<MermaidSequenceDiagram> {
-        val terminalEvents = flow.end.endOutcomes[endOutcome].orEmpty().toSet()
-        val variants = mutableListOf<SequenceVariant>()
-
-        flow.starts.forEach { start ->
-            policiesByTrigger[start.name].orEmpty().forEach { policy ->
-                val startParticipant = participantForStart(start)
-                val initial = mutableListOf<SequenceMessage>()
-                initial += SequenceMessage(
-                    from = startParticipant,
-                    to = participantForCommand(commandByName[policy.command]),
-                    label = policy.command,
-                    dashed = false
-                )
-
-                val execution = executeCommand(
-                    commandName = policy.command,
-                    callerParticipant = startParticipant,
-                    commandByName = commandByName,
-                    path = TraversalPath(),
-                    prefixMessages = initial
-                )
-
-                execution.forEach { result ->
-                    variants += continueFromEvents(
-                        eventNames = result.eventNames,
-                        emitterParticipant = result.emitterParticipant,
-                        terminalEvents = terminalEvents,
-                        endOutcome = endOutcome,
-                        entryTrigger = start.name,
-                        commandByName = commandByName,
-                        policiesByTrigger = policiesByTrigger,
-                        path = result.path,
-                        messages = result.messages,
-                        warnings = result.warnings,
-                        branchLabel = result.branchLabel
-                    )
-                }
-            }
-        }
-
-        val distinctVariants = variants.distinctBy { it.messages to it.warnings to it.terminalParticipant }
-        val families = groupScenarioFamilies(distinctVariants)
-
-        return if (sequenceRenderMode == MermaidSequenceRenderMode.SEPARATE_VARIANTS) {
-            families.flatMap { family ->
-                val prefixLength = commonPrefixLength(family.map { it.messages })
-                val suffixLength = commonSuffixLength(family.map { it.messages }, prefixLength)
-                family.map { variant ->
-                    variant to deriveForkLabel(variant.branchLabel, variant.messages, prefixLength, suffixLength)
-                }
-            }.map { entry ->
-                val startLabel = entry.first.entryTrigger
-                val branchLabel = entry.second
-                MermaidSequenceDiagram(
-                    endOutcome = endOutcome,
-                    title = buildSequenceTitle(endOutcome, startLabel, branchLabel),
-                    startLabel = startLabel,
-                    branchLabels = listOf(branchLabel),
-                    mermaid = renderSequenceDiagram(endOutcome, entry.first)
-                )
-            }
-        } else {
-            families.mapIndexedNotNull { _, family ->
-                val useAltBlocks = shouldRenderAltBlocks(sequenceRenderMode, family)
-                val startLabel = family.firstOrNull()?.entryTrigger ?: return@mapIndexedNotNull null
-                val branchLabels = deriveFamilyBranchLabels(family)
-                if (useAltBlocks) {
+    ): List<MermaidSequenceDiagram> =
+        flow.end.endOutcomes.keys.flatMap { endOutcome ->
+            val ofOutcome = paths.filter { it.endOutcome == endOutcome }
+            if (sequenceRenderMode == MermaidSequenceRenderMode.SEPARATE_VARIANTS) {
+                ofOutcome.map { path ->
                     MermaidSequenceDiagram(
                         endOutcome = endOutcome,
-                        title = buildSequenceTitle(endOutcome, startLabel),
-                        startLabel = startLabel,
-                        branchLabels = branchLabels,
-                        mermaid = renderAltSequenceDiagram(endOutcome, family)
-                    )
-                } else {
-                    val variant = family.firstOrNull() ?: return@mapIndexedNotNull null
-                    MermaidSequenceDiagram(
-                        endOutcome = endOutcome,
-                        title = buildSequenceTitle(endOutcome, startLabel),
-                        startLabel = startLabel,
-                        branchLabels = branchLabels,
-                        mermaid = renderSequenceDiagram(endOutcome, variant)
+                        title = buildSequenceTitle(endOutcome, path.start.name, path.choiceLabels),
+                        startLabel = path.start.name,
+                        branchLabels = path.choiceLabels,
+                        mermaid = renderSequenceDiagram(endOutcome, path),
+                        happy = path === happy
                     )
                 }
-            }
-        }
-    }
-
-    private fun shouldRenderAltBlocks(
-        sequenceRenderMode: MermaidSequenceRenderMode,
-        variants: List<SequenceVariant>
-    ): Boolean =
-        when (sequenceRenderMode) {
-            MermaidSequenceRenderMode.SEPARATE_VARIANTS -> false
-            MermaidSequenceRenderMode.ALT_BLOCKS -> variants.size > 1
-            MermaidSequenceRenderMode.AUTO -> variants.size > 1
-        }
-
-    private fun groupScenarioFamilies(variants: List<SequenceVariant>): List<List<SequenceVariant>> =
-        variants.groupBy { variant ->
-            variant.messages.firstOrNull()
-        }.values.toList()
-
-    private fun executeCommand(
-        commandName: String,
-        callerParticipant: SequenceParticipant,
-        commandByName: Map<String, ZflCommand>,
-        path: TraversalPath,
-        prefixMessages: List<SequenceMessage>
-    ): List<CommandExecutionResult> {
-        val command = commandByName[commandName] ?: return emptyList()
-        val owner = participantForCommand(command)
-        val nextPath = path.visit(commandName, maxCommandVisitsPerPath)
-        if (nextPath.truncated) {
-            return listOf(
-                CommandExecutionResult(
-                    eventNames = emptyList(),
-                    emitterParticipant = owner,
-                    messages = prefixMessages,
-                    warnings = listOf("Cycle detected while visiting command '$commandName'; traversal truncated."),
-                    path = nextPath,
-                    branchLabel = null
-                )
-            )
-        }
-
-        var currentMessages = prefixMessages
-        var results = emptyList<CommandExecutionResult>()
-
-        var index = 0
-        while (index < command.steps.size) {
-            val step = command.steps[index]
-            when (step) {
-                is ZflServiceStep -> Unit
-                is ZflSignalStep -> {
-                    if (step.emits || step.response) {
-                        val outcome = step.options["outcome"]
-                        val emittedSteps = if (outcome != null && step.emits) {
-                            command.steps
-                                .drop(index)
-                                .takeWhile {
-                                    it is ZflSignalStep &&
-                                        it.emits &&
-                                        it.options["outcome"] == outcome
-                                }
-                                .map { it as ZflSignalStep }
+            } else {
+                ofOutcome.groupBy { it.startIndex }.values.map { family ->
+                    val startLabel = family.first().start.name
+                    val branchLabels = familyLabels(family)
+                    MermaidSequenceDiagram(
+                        endOutcome = endOutcome,
+                        title = buildSequenceTitle(endOutcome, startLabel, emptyList()),
+                        startLabel = startLabel,
+                        branchLabels = if (family.size > 1) branchLabels.distinct() else family.first().choiceLabels,
+                        mermaid = if (family.size > 1) {
+                            renderAltSequenceDiagram(endOutcome, family, branchLabels)
                         } else {
-                            listOf(step)
-                        }
-                        results += CommandExecutionResult(
-                            eventNames = emittedSteps.map { it.endOutcome },
-                            emitterParticipant = owner,
-                            messages = currentMessages,
-                            warnings = emptyList(),
-                            path = nextPath,
-                            branchLabel = outcome
-                        )
-                        index += emittedSteps.size
-                        continue
-                    }
-                }
-                is ZflCallStep -> {
-                    val callPrefix = currentMessages + SequenceMessage(
-                        from = owner,
-                        to = participantForCommand(commandByName[step.action]),
-                        label = if (step.async) "async call ${step.action}" else step.action,
-                        dashed = false
-                    )
-                    if (step.async) {
-                        currentMessages = callPrefix
-                        index++
-                        continue
-                    }
-                    val callResults = executeCommand(
-                        commandName = step.action,
-                        callerParticipant = owner,
-                        commandByName = commandByName,
-                        path = nextPath,
-                        prefixMessages = callPrefix
-                    )
-                    results += applyOutcomeHandlers(
-                        callResults = callResults,
-                        handlers = step.handlers,
-                        callerParticipant = owner,
-                        commandByName = commandByName
+                            renderSequenceDiagram(endOutcome, family.first())
+                        },
+                        happy = family.any { it === happy }
                     )
                 }
-                is ZflActionStep -> Unit
-            }
-            index++
-        }
-
-        return results
-    }
-
-    private fun applyOutcomeHandlers(
-        callResults: List<CommandExecutionResult>,
-        handlers: List<io.zenwave360.language.zfl.semantic.ZflEndOutcomeHandler>,
-        callerParticipant: SequenceParticipant,
-        commandByName: Map<String, ZflCommand>
-    ): List<CommandExecutionResult> {
-        val results = mutableListOf<CommandExecutionResult>()
-        callResults.forEach { result ->
-            if (result.eventNames.isEmpty()) {
-                results += result
-                return@forEach
-            }
-            if (result.eventNames.size != 1) {
-                results += result
-                return@forEach
-            }
-            val returnedEvent = result.eventNames.single()
-            val returned = result.messages + SequenceMessage(
-                from = result.emitterParticipant,
-                to = callerParticipant,
-                label = returnedEvent,
-                dashed = true
-            )
-            val matchingHandlers = handlers.filter { it.endOutcome == returnedEvent }
-            if (matchingHandlers.isEmpty()) {
-                results += result.copy(messages = returned, emitterParticipant = callerParticipant)
-            }
-            matchingHandlers.forEach { handler ->
-                val signal = handler.signal
-                val action = handler.action
-                when {
-                    signal?.emits == true -> {
-                        results += CommandExecutionResult(
-                            eventNames = signal.events,
-                            emitterParticipant = callerParticipant,
-                            messages = returned,
-                            warnings = result.warnings,
-                            path = result.path,
-                            branchLabel = signal.outcome ?: result.branchLabel
-                        )
-                    }
-                    action != null -> {
-                        val nestedPrefix = returned + SequenceMessage(
-                            from = callerParticipant,
-                            to = participantForCommand(commandByName[action]),
-                            label = action,
-                            dashed = false
-                        )
-                        results += executeCommand(
-                            commandName = action,
-                            callerParticipant = callerParticipant,
-                            commandByName = commandByName,
-                            path = result.path,
-                            prefixMessages = nestedPrefix
-                        ).map { nested -> nested.copy(warnings = result.warnings + nested.warnings) }
-                    }
-                }
             }
         }
-        return results
-    }
 
-    private fun continueFromEvents(
-        eventNames: List<String>,
-        emitterParticipant: SequenceParticipant,
-        terminalEvents: Set<String>,
-        endOutcome: String,
-        entryTrigger: String,
-        commandByName: Map<String, ZflCommand>,
-        policiesByTrigger: Map<String, List<ZflPolicy>>,
-        path: TraversalPath,
-        messages: List<SequenceMessage>,
-        warnings: List<String>,
-        branchLabel: String?
-    ): List<SequenceVariant> {
-        if (eventNames.isEmpty()) {
-            return emptyList()
-        }
-        return continueFromEventSequence(
-            remainingEvents = eventNames,
-            emitterParticipant = emitterParticipant,
-            terminalEvents = terminalEvents,
-            endOutcome = endOutcome,
-            entryTrigger = entryTrigger,
-            commandByName = commandByName,
-            policiesByTrigger = policiesByTrigger,
-            path = path,
-            messages = messages,
-            warnings = warnings,
-            branchLabel = branchLabel
-        )
-    }
-
-    private fun continueFromEventSequence(
-        remainingEvents: List<String>,
-        emitterParticipant: SequenceParticipant,
-        terminalEvents: Set<String>,
-        endOutcome: String,
-        entryTrigger: String,
-        commandByName: Map<String, ZflCommand>,
-        policiesByTrigger: Map<String, List<ZflPolicy>>,
-        path: TraversalPath,
-        messages: List<SequenceMessage>,
-        warnings: List<String>,
-        branchLabel: String?
-    ): List<SequenceVariant> {
-        val eventName = remainingEvents.firstOrNull() ?: return listOf(
-            SequenceVariant(
-                messages = messages,
-                warnings = warnings,
-                terminalParticipant = emitterParticipant,
-                endOutcome = endOutcome,
-                entryTrigger = entryTrigger,
-                branchLabel = branchLabel
-            )
-        )
-        if (eventName.isBlank()) {
-            return emptyList()
-        }
-
-        if (eventName in terminalEvents) {
-            val terminalMessages = messages + SequenceMessage(
-                from = emitterParticipant,
-                to = emitterParticipant,
-                label = eventName,
-                dashed = true
-            )
-            return continueFromEventSequence(
-                remainingEvents = remainingEvents.drop(1),
-                emitterParticipant = emitterParticipant,
-                terminalEvents = terminalEvents,
-                endOutcome = endOutcome,
-                entryTrigger = entryTrigger,
-                commandByName = commandByName,
-                policiesByTrigger = policiesByTrigger,
-                path = path,
-                messages = terminalMessages,
-                warnings = warnings,
-                branchLabel = branchLabel
-            )
-        }
-
-        val variants = mutableListOf<SequenceVariant>()
-        policiesByTrigger[eventName].orEmpty().forEach { policy ->
-            val consumer = participantForCommand(commandByName[policy.command])
-            val prefix = messages +
-                SequenceMessage(
-                    from = emitterParticipant,
-                    to = consumer,
-                    label = eventName,
-                    dashed = true
-                ) +
-                SequenceMessage(
-                    from = consumer,
-                    to = consumer,
-                    label = policy.command,
-                    dashed = false
-                )
-
-            val executions = executeCommand(
-                commandName = policy.command,
-                callerParticipant = consumer,
-                commandByName = commandByName,
-                path = path,
-                prefixMessages = prefix
-            )
-            executions.forEach { execution ->
-                variants += continueFromEventSequence(
-                    remainingEvents = execution.eventNames + remainingEvents.drop(1),
-                    emitterParticipant = execution.emitterParticipant,
-                    terminalEvents = terminalEvents,
-                    endOutcome = endOutcome,
-                    entryTrigger = entryTrigger,
-                    commandByName = commandByName,
-                    policiesByTrigger = policiesByTrigger,
-                    path = execution.path,
-                    messages = execution.messages,
-                    warnings = warnings + execution.warnings,
-                    branchLabel = execution.branchLabel ?: branchLabel
-                )
-            }
-        }
-        return variants
-    }
-
-    private fun renderSequenceDiagram(endOutcome: String, variant: SequenceVariant): String {
-        val participants = collectParticipants(listOf(variant))
+    private fun renderSequenceDiagram(endOutcome: String, path: SequencePath): String {
         val lines = mutableListOf<String>()
-        appendSequenceHeader(lines, participants)
-        variant.warnings.distinct().forEach { warning ->
-            lines += "    %% $warning"
-        }
-        appendMessages(lines, variant.messages)
-        lines += "    Note over ${variant.terminalParticipant.alias}: end $endOutcome"
+        appendSequenceHeader(lines, collectParticipants(listOf(path)))
+        appendMessages(lines, path.messages)
+        lines += "    Note over ${path.terminal.alias}: end $endOutcome"
         return lines.joinToString("\n")
     }
 
     private fun renderAltSequenceDiagram(
         endOutcome: String,
-        variants: List<SequenceVariant>
+        paths: List<SequencePath>,
+        labels: List<String>
     ): String {
-        val participants = collectParticipants(variants)
-        val prefixLength = commonPrefixLength(variants.map { it.messages })
-        val suffixLength = commonSuffixLength(variants.map { it.messages }, prefixLength)
-        val prefix = variants.firstOrNull()?.messages?.take(prefixLength).orEmpty()
-        val suffix = variants.firstOrNull()?.messages?.takeLast(suffixLength).orEmpty()
+        val prefixLength = commonPrefixLength(paths.map { it.messages })
+        val suffixLength = commonSuffixLength(paths.map { it.messages }, prefixLength)
         val lines = mutableListOf<String>()
 
-        appendSequenceHeader(lines, participants)
-        variants.flatMap { it.warnings }.distinct().forEach { warning ->
-            lines += "    %% $warning"
-        }
-        appendMessages(lines, prefix)
+        appendSequenceHeader(lines, collectParticipants(paths))
+        appendMessages(lines, paths.first().messages.take(prefixLength))
 
-        variants.forEachIndexed { index, variant ->
-            val middle = variant.messages.subList(prefixLength, variant.messages.size - suffixLength)
-            val label = deriveForkLabel(variant.branchLabel, variant.messages, prefixLength, suffixLength)
-            lines += if (index == 0) {
-                "    alt $label"
-            } else {
-                "    else $label"
-            }
+        val forkAlias = paths.first().messages.getOrNull(prefixLength - 1)?.to?.alias ?: paths.first().terminal.alias
+        paths.forEachIndexed { index, path ->
+            val middle = path.messages.subList(prefixLength, path.messages.size - suffixLength)
+            lines += if (index == 0) "    alt ${escapeSequence(labels[index])}" else "    else ${escapeSequence(labels[index])}"
             if (middle.isEmpty()) {
-                lines += "        Note over ${variant.terminalParticipant.alias}: no additional steps"
+                lines += "        Note over $forkAlias: no additional steps"
             } else {
                 appendMessages(lines, middle, "        ")
             }
         }
         lines += "    end"
 
-        appendMessages(lines, suffix)
-        lines += "    Note over ${variants.first().terminalParticipant.alias}: end $endOutcome"
+        appendMessages(lines, paths.first().messages.takeLast(suffixLength))
+        lines += "    Note over ${paths.first().terminal.alias}: end $endOutcome"
         return lines.joinToString("\n")
     }
 
-    private fun deriveFamilyBranchLabels(variants: List<SequenceVariant>): List<String> {
-        if (variants.isEmpty()) {
-            return emptyList()
+    /** Alt label of each path: its choices without the ones every path of the family shares. */
+    private fun familyLabels(paths: List<SequencePath>): List<String> {
+        val all = paths.map { it.choiceLabels }
+        val shortest = all.minOf { it.size }
+        var prefix = 0
+        while (prefix < shortest && all.all { it[prefix] == all.first()[prefix] }) prefix++
+        var suffix = 0
+        while (suffix < shortest - prefix - 1 && all.all { it[it.size - 1 - suffix] == all.first()[all.first().size - 1 - suffix] }) suffix++
+        return all.map { labels ->
+            labels.subList(prefix, labels.size - suffix).joinToString(" → ").ifBlank { "variant" }
         }
-        val prefixLength = commonPrefixLength(variants.map { it.messages })
-        val suffixLength = commonSuffixLength(variants.map { it.messages }, prefixLength)
-        return variants.map { deriveForkLabel(it.branchLabel, it.messages, prefixLength, suffixLength) }.distinct()
     }
 
     private fun appendSequenceHeader(
@@ -617,24 +249,28 @@ class ZflToMermaidDiagramsTransformer(
         participants: List<SequenceParticipant>
     ) {
         lines += "sequenceDiagram"
-        participants.forEach { participant ->
-            if (participant.kind == ParticipantKind.ACTOR) {
-                lines += "    actor ${participant.alias}"
-            } else {
-                lines += "    participant ${participant.alias} as \"${escapeSequence(participant.label)}\""
-            }
+        participants.filter { it.kind == ParticipantKind.ACTOR }.forEach { lines += "    actor ${it.alias}" }
+        val others = participants.filter { it.kind != ParticipantKind.ACTOR }
+        others.filter { it.system == null }.forEach { lines += participantLine(it, "    ") }
+        others.filter { it.system != null }.groupBy { it.system }.forEach { (system, members) ->
+            lines += "    box transparent ${escapeSequence(system.orEmpty())}"
+            members.forEach { lines += participantLine(it, "        ") }
+            lines += "    end"
         }
     }
 
-    private fun collectParticipants(variants: List<SequenceVariant>): List<SequenceParticipant> {
-        val participants = linkedSetOf<SequenceParticipant>()
-        variants.forEach { variant ->
-            variant.messages.forEach { message ->
-                participants += message.from
-                participants += message.to
+    private fun participantLine(participant: SequenceParticipant, indent: String): String =
+        "${indent}participant ${participant.alias} as ${escapeSequence(participant.label)}"
+
+    private fun collectParticipants(paths: List<SequencePath>): List<SequenceParticipant> {
+        val participants = linkedMapOf<String, SequenceParticipant>()
+        paths.forEach { path ->
+            path.messages.forEach { message ->
+                if (message.from.alias !in participants) participants[message.from.alias] = message.from
+                if (message.to.alias !in participants) participants[message.to.alias] = message.to
             }
         }
-        return participants.toList()
+        return participants.values.toList()
     }
 
     private fun appendMessages(
@@ -649,9 +285,6 @@ class ZflToMermaidDiagramsTransformer(
     }
 
     private fun commonPrefixLength(messageLists: List<List<SequenceMessage>>): Int {
-        if (messageLists.isEmpty()) {
-            return 0
-        }
         val shortestLength = messageLists.minOf { it.size }
         var index = 0
         while (index < shortestLength && messageLists.all { it[index] == messageLists.first()[index] }) {
@@ -664,19 +297,11 @@ class ZflToMermaidDiagramsTransformer(
         messageLists: List<List<SequenceMessage>>,
         prefixLength: Int
     ): Int {
-        if (messageLists.isEmpty()) {
-            return 0
-        }
         val shortestLength = messageLists.minOf { it.size }
         var suffixLength = 0
         while (suffixLength < shortestLength - prefixLength) {
-            val candidateIndex = messageLists.first().size - 1 - suffixLength
-            val candidate = messageLists.first()[candidateIndex]
-            val matches = messageLists.all { messages ->
-                val currentIndex = messages.size - 1 - suffixLength
-                currentIndex >= prefixLength && messages[currentIndex] == candidate
-            }
-            if (!matches) {
+            val candidate = messageLists.first()[messageLists.first().size - 1 - suffixLength]
+            if (!messageLists.all { it[it.size - 1 - suffixLength] == candidate }) {
                 break
             }
             suffixLength++
@@ -684,45 +309,20 @@ class ZflToMermaidDiagramsTransformer(
         return suffixLength
     }
 
-    private fun deriveForkLabel(
-        branchLabel: String?,
-        messages: List<SequenceMessage>,
-        prefixLength: Int,
-        suffixLength: Int
-    ): String {
-        if (branchLabel != null) {
-            return branchLabel
-        }
-        val middle = messages.subList(prefixLength, messages.size - suffixLength)
-        val forkMessage = middle.firstOrNull { it.dashed } ?: middle.firstOrNull() ?: messages.lastOrNull()
-        return forkMessage?.label?.let { "via $it" } ?: "variant"
-    }
-
     private fun buildSequenceTitle(
         endOutcome: String,
         startLabel: String,
-        branchLabel: String? = null
+        choices: List<String>
     ): String =
         buildString {
             append(endOutcome)
             append(": from ")
             append(startLabel)
-            if (branchLabel != null) {
-                append(" ")
-                append(branchLabel)
+            if (choices.isNotEmpty()) {
+                append(" via ")
+                append(choices.joinToString(" → "))
             }
         }
-
-    private fun participantForStart(start: ZflStart): SequenceParticipant {
-        val label = start.actor ?: start.timer ?: start.system ?: start.name
-        val kind = if (start.actor != null) ParticipantKind.ACTOR else ParticipantKind.PARTICIPANT
-        return SequenceParticipant(alias = participantAlias(label), label = label, kind = kind)
-    }
-
-    private fun participantForCommand(command: ZflCommand?): SequenceParticipant {
-        val label = command?.service ?: command?.system ?: command?.name ?: "Flow"
-        return SequenceParticipant(alias = participantAlias(label), label = label, kind = ParticipantKind.PARTICIPANT)
-    }
 
     private fun flowchartNodeId(prefix: String, value: String): String =
         "${prefix}_${value.replace(Regex("[^A-Za-z0-9_]"), "_")}"
@@ -738,65 +338,9 @@ class ZflToMermaidDiagramsTransformer(
     private fun flowchartOutcomeNodeId(commandName: String, outcome: String): String =
         flowchartNodeId("outcome", "${commandName}_$outcome")
 
-    private fun participantAlias(value: String): String =
-        value.replace(Regex("[^A-Za-z0-9_]"), "_")
-            .replace(Regex("_+"), "_")
-            .trim('_')
-            .ifBlank { "Participant" }
-
     private fun escape(value: String): String =
         value.replace("\"", "\\\"")
 
     private fun escapeSequence(value: String): String =
         value.replace("\n", " ").replace(":", " -")
-
-    private data class CommandExecutionResult(
-        val eventNames: List<String>,
-        val emitterParticipant: SequenceParticipant,
-        val messages: List<SequenceMessage>,
-        val warnings: List<String>,
-        val path: TraversalPath,
-        val branchLabel: String?
-    )
-
-    private data class SequenceVariant(
-        val messages: List<SequenceMessage>,
-        val warnings: List<String>,
-        val terminalParticipant: SequenceParticipant,
-        val endOutcome: String,
-        val entryTrigger: String,
-        val branchLabel: String?
-    )
-
-    private data class SequenceMessage(
-        val from: SequenceParticipant,
-        val to: SequenceParticipant,
-        val label: String,
-        val dashed: Boolean
-    )
-
-    private data class SequenceParticipant(
-        val alias: String,
-        val label: String,
-        val kind: ParticipantKind
-    )
-
-    private enum class ParticipantKind {
-        ACTOR,
-        PARTICIPANT
-    }
-
-    private data class TraversalPath(
-        val commandVisits: Map<String, Int> = emptyMap(),
-        val truncated: Boolean = false
-    ) {
-        fun visit(commandName: String, maxVisits: Int): TraversalPath {
-            val count = commandVisits[commandName] ?: 0
-            return if (count >= maxVisits) {
-                copy(truncated = true)
-            } else {
-                copy(commandVisits = commandVisits + (commandName to count + 1), truncated = false)
-            }
-        }
-    }
 }

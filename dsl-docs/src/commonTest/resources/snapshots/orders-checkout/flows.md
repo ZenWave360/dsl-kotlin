@@ -206,60 +206,45 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     actor Customer
-    participant OrdersCheckoutService as "OrdersCheckoutService"
-    participant InventoryService as "InventoryService"
-    participant PaymentsProcessingService as "PaymentsProcessingService"
-    participant FulfillmentShippingService as "FulfillmentShippingService"
-    participant NotificationsConsumerService as "NotificationsConsumerService"
-    %% Cycle detected while visiting command 'authorizePayment'; traversal truncated.
-    %% Cycle detected while visiting command 'retryPayment'; traversal truncated.
+    box transparent OrdersCheckout
+        participant OrdersCheckoutService as OrdersCheckoutService
+    end
+    box transparent CatalogInventory
+        participant InventoryService as InventoryService
+    end
+    box transparent PaymentsProcessing
+        participant PaymentsProcessingService as PaymentsProcessingService
+    end
+    box transparent FulfillmentShipping
+        participant FulfillmentShippingService as FulfillmentShippingService
+    end
+    box transparent NotificationsConsumer
+        participant NotificationsConsumerService as NotificationsConsumerService
+    end
     Customer->>OrdersCheckoutService: startOrderCheckout
     OrdersCheckoutService->>InventoryService: reserveStock
     InventoryService-->>OrdersCheckoutService: StockReservedResult
     OrdersCheckoutService-->>PaymentsProcessingService: OrderCreated
     PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
     alt authorized
-        PaymentsProcessingService-->>OrdersCheckoutService: PaymentAuthorized
-        OrdersCheckoutService->>OrdersCheckoutService: confirmOrder
-        OrdersCheckoutService-->>FulfillmentShippingService: OrderConfirmed
-        FulfillmentShippingService->>FulfillmentShippingService: scheduleFulfillment
-        FulfillmentShippingService-->>PaymentsProcessingService: FulfillmentScheduled
-        PaymentsProcessingService->>PaymentsProcessingService: capturePayment
-        PaymentsProcessingService-->>NotificationsConsumerService: PaymentCaptured
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderConfirmation
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderConfirmationSent
-    else retried
+        Note over PaymentsProcessingService: no additional steps
+    else failed → retried → authorized
         PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
         PaymentsProcessingService->>PaymentsProcessingService: retryPayment
         PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
         PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>OrdersCheckoutService: PaymentAuthorized
-        OrdersCheckoutService->>OrdersCheckoutService: confirmOrder
-        OrdersCheckoutService-->>FulfillmentShippingService: OrderConfirmed
-        FulfillmentShippingService->>FulfillmentShippingService: scheduleFulfillment
-        FulfillmentShippingService-->>PaymentsProcessingService: FulfillmentScheduled
-        PaymentsProcessingService->>PaymentsProcessingService: capturePayment
-        PaymentsProcessingService-->>NotificationsConsumerService: PaymentCaptured
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderConfirmation
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderConfirmationSent
-        NotificationsConsumerService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-    else retried
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
     end
+    PaymentsProcessingService-->>OrdersCheckoutService: PaymentAuthorized
+    OrdersCheckoutService->>OrdersCheckoutService: confirmOrder
+    OrdersCheckoutService->>InventoryService: confirmStockReservation
+    InventoryService-->>OrdersCheckoutService: StockReservationConfirmed
+    OrdersCheckoutService-->>FulfillmentShippingService: OrderConfirmed
+    FulfillmentShippingService->>FulfillmentShippingService: scheduleFulfillment
+    FulfillmentShippingService-->>PaymentsProcessingService: FulfillmentScheduled
+    PaymentsProcessingService->>PaymentsProcessingService: capturePayment
+    PaymentsProcessingService-->>NotificationsConsumerService: PaymentCaptured
+    NotificationsConsumerService->>NotificationsConsumerService: sendOrderConfirmation
+    NotificationsConsumerService-->>NotificationsConsumerService: OrderConfirmationSent
     Note over NotificationsConsumerService: end completed
 ```
 
@@ -268,37 +253,22 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Customer
-    participant OrdersCheckoutService as "OrdersCheckoutService"
-    participant InventoryService as "InventoryService"
-    participant PaymentsProcessingService as "PaymentsProcessingService"
-    participant NotificationsConsumerService as "NotificationsConsumerService"
-    %% Cycle detected while visiting command 'authorizePayment'; traversal truncated.
-    %% Cycle detected while visiting command 'retryPayment'; traversal truncated.
+    box transparent OrdersCheckout
+        participant OrdersCheckoutService as OrdersCheckoutService
+    end
+    box transparent CatalogInventory
+        participant InventoryService as InventoryService
+    end
+    box transparent NotificationsConsumer
+        participant NotificationsConsumerService as NotificationsConsumerService
+    end
     Customer->>OrdersCheckoutService: startOrderCheckout
     OrdersCheckoutService->>InventoryService: reserveStock
-    alt retried
-        InventoryService-->>OrdersCheckoutService: StockReservedResult
-        OrdersCheckoutService-->>PaymentsProcessingService: OrderCreated
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-    else StockUnavailableResult
-        InventoryService-->>OrdersCheckoutService: StockUnavailableResult
-        OrdersCheckoutService-->>NotificationsConsumerService: StockUnavailable
-        NotificationsConsumerService->>NotificationsConsumerService: sendStockUnavailableNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: StockUnavailableNotificationSent
-    end
-    Note over PaymentsProcessingService: end stockGone
+    InventoryService-->>OrdersCheckoutService: StockUnavailableResult
+    OrdersCheckoutService-->>NotificationsConsumerService: StockUnavailable
+    NotificationsConsumerService->>NotificationsConsumerService: sendStockUnavailableNotification
+    NotificationsConsumerService-->>NotificationsConsumerService: StockUnavailableNotificationSent
+    Note over NotificationsConsumerService: end stockGone
 ```
 
 ### Sequence: orderCancelled: from StartOrderCheckout
@@ -306,21 +276,47 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Customer
-    participant OrdersCheckoutService as "OrdersCheckoutService"
-    participant InventoryService as "InventoryService"
-    participant PaymentsProcessingService as "PaymentsProcessingService"
-    participant FulfillmentShippingService as "FulfillmentShippingService"
-    participant NotificationsConsumerService as "NotificationsConsumerService"
-    %% Cycle detected while visiting command 'authorizePayment'; traversal truncated.
-    %% Cycle detected while visiting command 'retryPayment'; traversal truncated.
+    box transparent OrdersCheckout
+        participant OrdersCheckoutService as OrdersCheckoutService
+    end
+    box transparent CatalogInventory
+        participant InventoryService as InventoryService
+    end
+    box transparent PaymentsProcessing
+        participant PaymentsProcessingService as PaymentsProcessingService
+    end
+    box transparent NotificationsConsumer
+        participant NotificationsConsumerService as NotificationsConsumerService
+    end
+    box transparent FulfillmentShipping
+        participant FulfillmentShippingService as FulfillmentShippingService
+    end
     Customer->>OrdersCheckoutService: startOrderCheckout
     OrdersCheckoutService->>InventoryService: reserveStock
     InventoryService-->>OrdersCheckoutService: StockReservedResult
     OrdersCheckoutService-->>PaymentsProcessingService: OrderCreated
     PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-    alt authorized
+    alt declined
+        PaymentsProcessingService-->>InventoryService: PaymentDeclined
+    else authorized → FulfillmentFailed
         PaymentsProcessingService-->>OrdersCheckoutService: PaymentAuthorized
         OrdersCheckoutService->>OrdersCheckoutService: confirmOrder
+        OrdersCheckoutService->>InventoryService: confirmStockReservation
+        InventoryService-->>OrdersCheckoutService: StockReservationConfirmed
+        OrdersCheckoutService-->>FulfillmentShippingService: OrderConfirmed
+        FulfillmentShippingService->>FulfillmentShippingService: scheduleFulfillment
+        FulfillmentShippingService-->>PaymentsProcessingService: FulfillmentFailed
+        PaymentsProcessingService->>PaymentsProcessingService: voidPayment
+        PaymentsProcessingService-->>InventoryService: PaymentVoided
+    else failed → retry-exhausted
+        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
+        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
+        PaymentsProcessingService-->>InventoryService: PaymentRetryExhausted
+    else authorized → FulfillmentScheduled → PaymentCaptureFailed
+        PaymentsProcessingService-->>OrdersCheckoutService: PaymentAuthorized
+        OrdersCheckoutService->>OrdersCheckoutService: confirmOrder
+        OrdersCheckoutService->>InventoryService: confirmStockReservation
+        InventoryService-->>OrdersCheckoutService: StockReservationConfirmed
         OrdersCheckoutService-->>FulfillmentShippingService: OrderConfirmed
         FulfillmentShippingService->>FulfillmentShippingService: scheduleFulfillment
         FulfillmentShippingService-->>PaymentsProcessingService: FulfillmentScheduled
@@ -328,41 +324,43 @@ sequenceDiagram
         PaymentsProcessingService-->>PaymentsProcessingService: PaymentCaptureFailed
         PaymentsProcessingService->>PaymentsProcessingService: voidPayment
         PaymentsProcessingService-->>InventoryService: PaymentVoided
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-    else authorized
-        PaymentsProcessingService-->>OrdersCheckoutService: PaymentAuthorized
-        OrdersCheckoutService->>OrdersCheckoutService: confirmOrder
-        OrdersCheckoutService-->>FulfillmentShippingService: OrderConfirmed
-        FulfillmentShippingService->>FulfillmentShippingService: scheduleFulfillment
-        FulfillmentShippingService-->>PaymentsProcessingService: FulfillmentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: voidPayment
-        PaymentsProcessingService-->>InventoryService: PaymentVoided
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-    else declined
+    else failed → retried → declined
+        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
+        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
+        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
+        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
         PaymentsProcessingService-->>InventoryService: PaymentDeclined
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-    else retried
+    else failed → retried → authorized → FulfillmentFailed
         PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
         PaymentsProcessingService->>PaymentsProcessingService: retryPayment
         PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
         PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
         PaymentsProcessingService-->>OrdersCheckoutService: PaymentAuthorized
         OrdersCheckoutService->>OrdersCheckoutService: confirmOrder
+        OrdersCheckoutService->>InventoryService: confirmStockReservation
+        InventoryService-->>OrdersCheckoutService: StockReservationConfirmed
+        OrdersCheckoutService-->>FulfillmentShippingService: OrderConfirmed
+        FulfillmentShippingService->>FulfillmentShippingService: scheduleFulfillment
+        FulfillmentShippingService-->>PaymentsProcessingService: FulfillmentFailed
+        PaymentsProcessingService->>PaymentsProcessingService: voidPayment
+        PaymentsProcessingService-->>InventoryService: PaymentVoided
+    else failed → retried → failed → retry-exhausted
+        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
+        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
+        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
+        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
+        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
+        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
+        PaymentsProcessingService-->>InventoryService: PaymentRetryExhausted
+    else failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed
+        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
+        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
+        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
+        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
+        PaymentsProcessingService-->>OrdersCheckoutService: PaymentAuthorized
+        OrdersCheckoutService->>OrdersCheckoutService: confirmOrder
+        OrdersCheckoutService->>InventoryService: confirmStockReservation
+        InventoryService-->>OrdersCheckoutService: StockReservationConfirmed
         OrdersCheckoutService-->>FulfillmentShippingService: OrderConfirmed
         FulfillmentShippingService->>FulfillmentShippingService: scheduleFulfillment
         FulfillmentShippingService-->>PaymentsProcessingService: FulfillmentScheduled
@@ -370,277 +368,13 @@ sequenceDiagram
         PaymentsProcessingService-->>PaymentsProcessingService: PaymentCaptureFailed
         PaymentsProcessingService->>PaymentsProcessingService: voidPayment
         PaymentsProcessingService-->>InventoryService: PaymentVoided
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-        NotificationsConsumerService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-    else retry-exhausted
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>OrdersCheckoutService: PaymentAuthorized
-        OrdersCheckoutService->>OrdersCheckoutService: confirmOrder
-        OrdersCheckoutService-->>FulfillmentShippingService: OrderConfirmed
-        FulfillmentShippingService->>FulfillmentShippingService: scheduleFulfillment
-        FulfillmentShippingService-->>PaymentsProcessingService: FulfillmentScheduled
-        PaymentsProcessingService->>PaymentsProcessingService: capturePayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentCaptureFailed
-        PaymentsProcessingService->>PaymentsProcessingService: voidPayment
-        PaymentsProcessingService-->>InventoryService: PaymentVoided
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-        NotificationsConsumerService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>InventoryService: PaymentRetryExhausted
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-    else retried
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>OrdersCheckoutService: PaymentAuthorized
-        OrdersCheckoutService->>OrdersCheckoutService: confirmOrder
-        OrdersCheckoutService-->>FulfillmentShippingService: OrderConfirmed
-        FulfillmentShippingService->>FulfillmentShippingService: scheduleFulfillment
-        FulfillmentShippingService-->>PaymentsProcessingService: FulfillmentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: voidPayment
-        PaymentsProcessingService-->>InventoryService: PaymentVoided
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-        NotificationsConsumerService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-    else retry-exhausted
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>OrdersCheckoutService: PaymentAuthorized
-        OrdersCheckoutService->>OrdersCheckoutService: confirmOrder
-        OrdersCheckoutService-->>FulfillmentShippingService: OrderConfirmed
-        FulfillmentShippingService->>FulfillmentShippingService: scheduleFulfillment
-        FulfillmentShippingService-->>PaymentsProcessingService: FulfillmentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: voidPayment
-        PaymentsProcessingService-->>InventoryService: PaymentVoided
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-        NotificationsConsumerService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>InventoryService: PaymentRetryExhausted
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-    else retried
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>InventoryService: PaymentDeclined
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-        NotificationsConsumerService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-    else retry-exhausted
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>InventoryService: PaymentDeclined
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-        NotificationsConsumerService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>InventoryService: PaymentRetryExhausted
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-    else retried
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-    else retry-exhausted
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>InventoryService: PaymentRetryExhausted
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-        NotificationsConsumerService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-    else authorized
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>InventoryService: PaymentRetryExhausted
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-        NotificationsConsumerService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>OrdersCheckoutService: PaymentAuthorized
-        OrdersCheckoutService->>OrdersCheckoutService: confirmOrder
-        OrdersCheckoutService-->>FulfillmentShippingService: OrderConfirmed
-        FulfillmentShippingService->>FulfillmentShippingService: scheduleFulfillment
-        FulfillmentShippingService-->>PaymentsProcessingService: FulfillmentScheduled
-        PaymentsProcessingService->>PaymentsProcessingService: capturePayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentCaptureFailed
-        PaymentsProcessingService->>PaymentsProcessingService: voidPayment
-        PaymentsProcessingService-->>InventoryService: PaymentVoided
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-    else authorized
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>InventoryService: PaymentRetryExhausted
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-        NotificationsConsumerService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>OrdersCheckoutService: PaymentAuthorized
-        OrdersCheckoutService->>OrdersCheckoutService: confirmOrder
-        OrdersCheckoutService-->>FulfillmentShippingService: OrderConfirmed
-        FulfillmentShippingService->>FulfillmentShippingService: scheduleFulfillment
-        FulfillmentShippingService-->>PaymentsProcessingService: FulfillmentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: voidPayment
-        PaymentsProcessingService-->>InventoryService: PaymentVoided
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-    else declined
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>InventoryService: PaymentRetryExhausted
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-        NotificationsConsumerService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>InventoryService: PaymentDeclined
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-    else failed
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>InventoryService: PaymentRetryExhausted
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-        NotificationsConsumerService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentRetried
-        PaymentsProcessingService->>PaymentsProcessingService: authorizePayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-    else retry-exhausted
-        PaymentsProcessingService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>InventoryService: PaymentRetryExhausted
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
-        NotificationsConsumerService-->>PaymentsProcessingService: PaymentFailed
-        PaymentsProcessingService->>PaymentsProcessingService: retryPayment
-        PaymentsProcessingService-->>InventoryService: PaymentRetryExhausted
-        InventoryService->>InventoryService: releaseStock
-        InventoryService-->>OrdersCheckoutService: StockReleased
-        OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
-        OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
-        NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
-        NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
     end
+    InventoryService->>InventoryService: releaseStock
+    InventoryService-->>OrdersCheckoutService: StockReleased
+    OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
+    OrdersCheckoutService-->>NotificationsConsumerService: OrderCancelled
+    NotificationsConsumerService->>NotificationsConsumerService: sendOrderCancelledNotification
+    NotificationsConsumerService-->>NotificationsConsumerService: OrderCancelledNotificationSent
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
@@ -649,9 +383,15 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Scheduler
-    participant InventoryService as "InventoryService"
-    participant OrdersCheckoutService as "OrdersCheckoutService"
-    participant NotificationsConsumerService as "NotificationsConsumerService"
+    box transparent CatalogInventory
+        participant InventoryService as InventoryService
+    end
+    box transparent OrdersCheckout
+        participant OrdersCheckoutService as OrdersCheckoutService
+    end
+    box transparent NotificationsConsumer
+        participant NotificationsConsumerService as NotificationsConsumerService
+    end
     Scheduler->>InventoryService: releaseStock
     InventoryService-->>OrdersCheckoutService: StockReleased
     OrdersCheckoutService->>OrdersCheckoutService: cancelOrder

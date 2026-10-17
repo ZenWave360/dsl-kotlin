@@ -1,6 +1,6 @@
 package io.zenwave360.language.eventflow.view
 
-import io.zenwave360.language.readTestFile
+import io.zenwave360.language.readViewsTestFile
 import io.zenwave360.language.zfl.ZflParser
 import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
 import kotlin.test.Test
@@ -116,9 +116,9 @@ class ZflToMermaidDiagramsTransformerTest {
         val done = diagrams.sequences.single { it.endOutcome == "done" }
         assertEquals("done: from CheckoutStarted", done.title)
         assertEquals("CheckoutStarted", done.startLabel)
-        assertEquals(listOf("via PaymentAuthorized", "via PaymentDeclined"), done.branchLabels)
-        assertTrue(done.mermaid.contains("alt via PaymentAuthorized"))
-        assertTrue(done.mermaid.contains("else via PaymentDeclined"))
+        assertEquals(listOf("PaymentAuthorized", "PaymentDeclined"), done.branchLabels)
+        assertTrue(done.mermaid.contains("alt PaymentAuthorized"))
+        assertTrue(done.mermaid.contains("else PaymentDeclined"))
         assertTrue(done.mermaid.contains("Customer->>OrderService: createOrder"))
         assertTrue(done.mermaid.contains("PaymentService-->>NotificationService: PaymentAuthorized"))
         assertTrue(done.mermaid.contains("PaymentService-->>NotificationService: PaymentDeclined"))
@@ -252,7 +252,7 @@ class ZflToMermaidDiagramsTransformerTest {
 
     @Test
     fun testTransform_PlaceOrderFlow_DefaultModeSplitsScenarioFamiliesBeforeMerging() {
-        val zflContent = readTestFile("flow/place-order-flow.zfl")
+        val zflContent = readViewsTestFile("flow/place-order-flow.zfl")
 
         val diagrams = ZflToMermaidDiagramsTransformer()
             .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)))
@@ -271,7 +271,7 @@ class ZflToMermaidDiagramsTransformerTest {
 
     @Test
     fun testTransform_AutoModeUsesAltBlocksForMultipleVariants() {
-        val zflContent = readTestFile("flow/place-order-flow.zfl")
+        val zflContent = readViewsTestFile("flow/place-order-flow.zfl")
 
         val diagrams = ZflToMermaidDiagramsTransformer()
             .transform(
@@ -321,8 +321,8 @@ class ZflToMermaidDiagramsTransformerTest {
         assertEquals(2, done.size)
         assertTrue(done.any { it.title == "done: from CheckoutStarted via PaymentAuthorized" })
         assertTrue(done.any { it.title == "done: from CheckoutStarted via PaymentDeclined" })
-        assertTrue(done.any { it.branchLabels == listOf("via PaymentAuthorized") })
-        assertTrue(done.any { it.branchLabels == listOf("via PaymentDeclined") })
+        assertTrue(done.any { it.branchLabels == listOf("PaymentAuthorized") })
+        assertTrue(done.any { it.branchLabels == listOf("PaymentDeclined") })
     }
 
     @Test
