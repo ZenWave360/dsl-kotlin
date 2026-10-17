@@ -1,13 +1,19 @@
 package io.zenwave360.language.docs
 
+import io.zenwave360.language.docs.pages.ArchitectureContext
+import io.zenwave360.language.docs.pages.ArchitecturePage
 import io.zenwave360.language.docs.pages.AsyncApiPage
 import io.zenwave360.language.docs.pages.DomainPage
 import io.zenwave360.language.docs.pages.FlowsPage
 import io.zenwave360.language.docs.pages.IndexPage
+import io.zenwave360.language.docs.pages.ModulePage
 import io.zenwave360.language.docs.pages.OpenApiPage
 import io.zenwave360.language.docs.pages.PageEntry
 import io.zenwave360.language.docs.pages.SpecDocument
 import io.zenwave360.language.docs.pages.ZdlDocument
+import io.zenwave360.language.zdl.architecture.ZdlArchitectureReader
+import io.zenwave360.language.zdl.architecture.ZdlSource
+import io.zenwave360.language.zdl.view.ZdlArchitectureToMermaidTransformer
 
 /**
  * Generates Markdown documentation for one service or monolith from its ZDL, ZFL, OpenAPI and
@@ -32,8 +38,21 @@ class DslDocs {
         val asyncapi = sources.filter { it.kind == SourceKind.ASYNCAPI }.map { SpecDocument(it) }
 
         if (zdl.isNotEmpty()) {
-            files += DocsFile(DomainPage.PATH, DomainPage.render(zdl, problems))
-            pages += PageEntry(DomainPage.PATH, DomainPage.TITLE, count(zdl.size, "ZDL file"))
+            val architecture = ZdlArchitectureReader().read(zdl.map { ZdlSource(it.source.path, it.source.content) })
+            val diagrams = ZdlArchitectureToMermaidTransformer().transform(architecture)
+            val context = ArchitectureContext(architecture, diagrams, zdl, input.sourcesHref)
+            files += DocsFile(ArchitecturePage.PATH, ArchitecturePage.render(context, problems))
+            pages += PageEntry(ArchitecturePage.PATH, ArchitecturePage.TITLE, ArchitecturePage.summary(context))
+            if (context.modulePages) {
+                for (module in architecture.modules.filter { !it.referenced && context.document(it) != null }) {
+                    val path = context.pagePath(module)!!
+                    files += DocsFile(path, ModulePage.render(context, module, problems))
+                    pages += PageEntry(path, module.name, "module, ${context.document(module)!!.source.path.substringAfterLast('/')}")
+                }
+            } else {
+                files += DocsFile(DomainPage.PATH, DomainPage.render(zdl, problems))
+                pages += PageEntry(DomainPage.PATH, DomainPage.TITLE, count(zdl.size, "ZDL file"))
+            }
         }
         if (zfl.isNotEmpty()) {
             files += DocsFile(FlowsPage.PATH, FlowsPage.render(zfl, problems))

@@ -11,6 +11,7 @@ Version 0.1.0
 
 ## Contents
 
+- [Architecture](architecture.md): 1 module, 4 events
 - [Domain model](domain.md): 1 ZDL file
 - [Event flows](flows.md): 1 ZFL file
 - [HTTP APIs](apis.md): 1 OpenAPI file

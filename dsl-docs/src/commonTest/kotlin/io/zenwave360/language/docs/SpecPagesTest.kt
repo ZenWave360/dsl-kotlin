@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 class SpecPagesTest {
 
     private fun page(kind: SourceKind, text: String): String =
-        DslDocs().generate(DocsInput(listOf(DocsSource(kind, "spec.yml", text)))).files.first { it.path != "README.md" }.content
+        DslDocs().generate(DocsInput(listOf(DocsSource(kind, "spec.yml", text)))).files.first { it.path != "README.md" && it.path != "architecture.md" }.content
 
     @Test
     fun openApiReferencesCombinatorsAndArrays() {

@@ -31,6 +31,9 @@ data class DocsLink(
  * [title] and [version] default to the first ZDL `config` title and version, then the first
  * OpenAPI or AsyncAPI `info`. [date] is printed only when given, so the output never depends
  * on the clock.
+ *
+ * [sourcesHref] is the relative path from the output folder to the folder the source paths are relative to,
+ * for example `../`. Pages use it to link to the ZDL files; when null they name the files without a link.
  */
 data class DocsInput(
     val sources: List<DocsSource>,
@@ -38,6 +41,7 @@ data class DocsInput(
     val version: String? = null,
     val date: String? = null,
     val links: List<DocsLink> = emptyList(),
+    val sourcesHref: String? = null,
 )
 
 /** One generated file. [path] is relative to the output folder and always uses `/`. */

@@ -38,11 +38,11 @@ class DslDocsCliTest {
         for (file in docs.listFiles()!!) {
             val generated = file.readText()
             assertFalse(generated.contains('\r'), "${file.name} has CRLF")
-            // The CLI links the hand-written page relative to the output folder, so only that line differs.
+            // The CLI links the hand-written page relative to the output folder, so only those links differ.
             val expected = File(snapshots, file.name).readText().replace("\r\n", "\n")
-            assertEquals(expected.replace("(../SUMMARY.md)", "(${relativeSummary(docs)})"), generated, file.name)
+            assertEquals(expected.replace("(../SUMMARY.md)", "(${relativeSummary(docs)})").replace("(../domain-model.zdl)", "(${relativeSummary(docs).removeSuffix("SUMMARY.md")}domain-model.zdl)"), generated, file.name)
         }
-        assertTrue(out.toString().startsWith("Wrote 5 files to"))
+        assertTrue(out.toString().startsWith("Wrote 6 files to"))
     }
 
     @Test

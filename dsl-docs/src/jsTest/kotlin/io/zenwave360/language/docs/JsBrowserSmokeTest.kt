@@ -13,7 +13,7 @@ class JsBrowserSmokeTest {
     fun generatesFromAnInlineModel() {
         val output = DslDocs().generate(DocsInput(listOf(DocsSource(SourceKind.ZDL, "model.zdl", "entity Order { name String }"))))
 
-        assertEquals(listOf("README.md", "domain.md"), output.files.map { it.path })
+        assertEquals(listOf("README.md", "architecture.md", "domain.md"), output.files.map { it.path })
         assertTrue(output.files.last().content.contains("class Order"))
     }
 }

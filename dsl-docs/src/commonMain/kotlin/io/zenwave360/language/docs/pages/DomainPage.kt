@@ -34,34 +34,42 @@ internal object DomainPage {
         }
     }
 
-    private fun section(document: ZdlDocument): String = buildString {
+    /** One ZDL file: class diagram, glossary, commands and events. On `domain.md` it is a `##` section; on a module page ([intros] set) it is the page, and each section starts with a line saying what it shows. */
+    internal fun section(document: ZdlDocument, intros: Boolean = false, beforeDiagram: String = "", atEnd: String = ""): String = buildString {
+        val h = if (intros) "##" else "###"
         val model = document.model
-        append("## ").append(Markdown.inline(document.title ?: document.source.path)).append("\n\n")
+        append(if (intros) "# " else "## ").append(Markdown.inline(document.title ?: document.source.path)).append("\n\n")
         append("Source: ").append(Markdown.code(document.source.path)).append("\n\n")
         model.string("javadoc")?.let { append(Markdown.javadoc(it)).append("\n\n") }
         append(Markdown.problems(document.problems))
+        append(beforeDiagram)
 
-        append("### Class diagram\n\n")
+        append("$h Class diagram\n\n")
+        if (intros) append("Aggregates, entities and enums of this module and how they relate.\n\n")
         append(Markdown.mermaid(ZdlToMermaidClassDiagramTransformer().transform(model))).append('\n')
 
         val glossary = glossary(model)
         if (glossary.isNotEmpty()) {
-            append("### Glossary\n\n")
+            append("$h Glossary\n\n")
+            if (intros) append("Every named type and service of this module.\n\n")
             append(Markdown.table(listOf("Term", "Kind", "Description"), glossary)).append('\n')
         }
 
         val commands = commands(model)
         if (commands.isNotEmpty()) {
-            append("### Commands\n\n")
+            append("$h Commands\n\n")
+            if (intros) append("The methods of the module's services and the events each one emits.\n\n")
             append(Markdown.table(listOf("Service", "Command", "Input", "Returns", "Events", "Description"), commands)).append('\n')
         }
 
         val events = model["events"].asMap().values.map { it.asMap() }
         if (events.isNotEmpty()) {
-            append("### Events\n\n")
+            append("$h Events\n\n")
+            if (intros) append("Events declared by this module and their fields.\n\n")
             val rows = events.map { event -> listOf(event.string("name"), fields(event), Markdown.javadoc(event.string("javadoc"))) }
             append(Markdown.table(listOf("Event", "Fields", "Description"), rows)).append('\n')
         }
+        append(atEnd)
     }
 
     /** Every named type and service, sorted by name so the order does not depend on the file layout. */

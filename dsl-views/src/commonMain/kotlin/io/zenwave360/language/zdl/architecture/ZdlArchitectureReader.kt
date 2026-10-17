@@ -129,12 +129,16 @@ private class Reading(private val parser: ZdlParser) {
             problems += "${from.path}: $what refers to unknown zdl client '$client'"
             return null
         }
-        val target = resolvePath(from.path, uri)
+        val isUrl = Regex("^[A-Za-z][A-Za-z0-9+.-]*://").containsMatchIn(uri)
+        val target = if (isUrl) uri else resolvePath(from.path, uri)
         modules.values.firstOrNull { !it.referenced && it.path == target }?.let { return it }
         val fileName = target.substringAfterLast('/')
-        val sameName = modules.values.filter { !it.referenced && it.path.substringAfterLast('/') == fileName }
+        // A ZDL never refers to itself through a client: the same file name in another folder is another module.
+        val sameName = modules.values.filter { !it.referenced && it !== from.module && it.path.substringAfterLast('/') == fileName }
         if (sameName.size == 1) return sameName.first()
-        val slug = slugOf(target)
+        // A generic file name (domain-model.zdl) says nothing about a remote module: use the client name.
+        val generic = target.substringAfterLast('/').removeSuffix(".zdl") in setOf("domain-model", "model")
+        val slug = if (isUrl && generic) kebab(client.removeSuffix("Zdl").removeSuffix("Api")) else slugOf(target)
         val id = pascalCase(slug)
         modules[id]?.let { return it }
         return ArchModule(id, slug, titleCase(slug), target, null, true).also { modules[id] = it }
@@ -253,3 +257,5 @@ private fun pascalCase(slug: String): String {
 }
 
 private fun titleCase(slug: String) = words(slug).joinToString(" ") { it.replaceFirstChar(Char::uppercaseChar) }
+
+private fun kebab(name: String) = name.replace(Regex("([a-z0-9])([A-Z])"), "$1-$2").lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-').ifEmpty { "module" }

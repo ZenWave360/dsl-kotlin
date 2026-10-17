@@ -186,6 +186,22 @@ class ZdlArchitectureReaderTest {
     }
 
     @Test
+    fun remoteClientWithTheSameGenericFileNameIsNotTheDeclaringModule() {
+        val zdl = """
+            config { title "Orders" }
+            apis { zdl client CatalogInventoryZdl "https://example.com/catalog-inventory-api/main/domain-model.zdl" }
+            entity Order { id Long }
+            service OrdersService for (Order) {
+                @calls(zdl: CatalogInventoryZdl, command: InventoryService.reserveStock)
+                start(Order) Order
+            }
+        """.trimIndent()
+        val a = reader.read(listOf(ZdlSource("domain-model.zdl", zdl)))
+        assertEquals(listOf("CatalogInventory", "DomainModel"), a.modules.map { it.id })
+        assertEquals(listOf("DomainModel" to "CatalogInventory"), a.calls.map { it.caller to it.callee })
+    }
+
+    @Test
     fun missingTitleFallsBackToTheSlugWords() {
         val a = reader.read(listOf(ZdlSource("payments-processing-model.zdl", "")))
         assertEquals("Payments Processing", a.modules.single().name)

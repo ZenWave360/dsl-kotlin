@@ -8,3 +8,16 @@ fun arcadiaOrdersCheckout(): List<DocsSource> = listOf(
     DocsSource(SourceKind.ASYNCAPI, "asyncapi.yml", readTestFile("arcadia-editions/orders-checkout-api/asyncapi.yml")),
     DocsSource(SourceKind.ASYNCAPI, "asyncapi-client.yml", readTestFile("arcadia-editions/orders-checkout-api/asyncapi-client.yml")),
 )
+
+/** The six modules of the Arcadia Editions modulith: one ZDL file per module. */
+val arcadiaModulithFiles = listOf(
+    "catalog-inventory-domain-model.zdl",
+    "catalog-products-domain-model.zdl",
+    "fulfillment-shipping-domain-model.zdl",
+    "notifications-consumer-domain-model.zdl",
+    "orders-checkout-domain-model.zdl",
+    "payments-processing-domain-model.zdl",
+)
+
+fun arcadiaModulith(): List<DocsSource> =
+    arcadiaModulithFiles.map { DocsSource(SourceKind.ZDL, it, readTestFile("arcadia-editions-modulith/$it")) }

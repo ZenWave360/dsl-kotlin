@@ -75,7 +75,10 @@ class DslDocsCli(private val out: PrintStream, private val err: PrintStream) {
             DocsLink(page.title, File(base, page.href).canonicalFile.relativeTo(out.canonicalFile).invariantSeparatorsPath)
         }
         val output = DslDocs().generate(
-            DocsInput(sources = sources, title = config.title, version = config.version, date = config.date, links = links),
+            DocsInput(
+                sources = sources, title = config.title, version = config.version, date = config.date, links = links,
+                sourcesHref = sourcesHref(base, out),
+            ),
         )
 
         val manual = output.files.map { File(out, it.path) }.filter { it.isFile && !isGenerated(it) }
@@ -93,6 +96,13 @@ class DslDocsCli(private val out: PrintStream, private val err: PrintStream) {
             File(out, file.path).writeBytes(file.content.encodeToByteArray())
         }
         return output
+    }
+
+    /** Path from the output folder to the config folder, with a trailing `/` (empty when they are the same), or null when there is none. */
+    private fun sourcesHref(base: File, out: File): String? = try {
+        base.canonicalFile.relativeTo(out.canonicalFile).invariantSeparatorsPath.let { if (it.isEmpty()) "" else "$it/" }
+    } catch (e: IllegalArgumentException) {
+        null
     }
 
     private fun isGenerated(file: File): Boolean =
