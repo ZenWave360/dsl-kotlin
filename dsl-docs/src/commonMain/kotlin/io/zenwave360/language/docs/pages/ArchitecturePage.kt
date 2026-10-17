@@ -51,7 +51,16 @@ private fun link(text: String, href: String) = "[$text](${href.replace(" ", "%20
 private fun sourceLink(context: ArchitectureContext, module: ArchModule, depth: Int): String {
     val name = module.path.substringAfterLast('/')
     val prefix = context.sourcesHref ?: return Markdown.code(name)
-    return link(Markdown.code(name), "../".repeat(depth) + prefix + module.path)
+    return link(Markdown.code(name), collapseDots("../".repeat(depth) + prefix + module.path))
+}
+
+/** Resolves `x/../` pairs so `../../cfg/../../a.zdl` reads `../../../a.zdl`; leading `..` are kept. */
+internal fun collapseDots(path: String): String {
+    val out = ArrayList<String>()
+    for (part in path.split('/')) {
+        if (part == ".." && out.isNotEmpty() && out.last() != "..") out.removeAt(out.size - 1) else out.add(part)
+    }
+    return out.joinToString("/")
 }
 
 private fun comma(items: List<String>) = items.joinToString(", ")
