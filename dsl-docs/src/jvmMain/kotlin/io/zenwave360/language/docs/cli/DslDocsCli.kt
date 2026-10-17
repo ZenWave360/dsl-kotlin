@@ -93,7 +93,7 @@ class DslDocsCli(private val out: PrintStream, private val err: PrintStream) {
             ?.forEach { it.delete() }
         for (file in output.files) {
             // Bytes, not text: the output always uses \n, whatever the platform's line separator.
-            File(out, file.path).writeBytes(file.content.encodeToByteArray())
+            File(out, file.path).also { it.parentFile.mkdirs() }.writeBytes(file.content.encodeToByteArray())
         }
         return output
     }
