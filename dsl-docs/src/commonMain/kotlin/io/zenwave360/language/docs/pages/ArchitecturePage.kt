@@ -90,9 +90,13 @@ internal object ArchitecturePage {
         return "${count(modules, "module")}, ${count(events, "event")}"
     }
 
-    fun render(context: ArchitectureContext, problems: MutableList<String>): String = buildString {
+    /**
+     * Sections in order: Overview, Modules, Dependencies, Direct calls, Events and, when there are ZFL files,
+     * Sequence diagrams (the happy path of each flow, linking to its page).
+     */
+    fun render(context: ArchitectureContext, problems: MutableList<String>, flows: List<FlowsPage.FlowSummary> = emptyList()): String = buildString {
         val a = context.architecture
-        append(Markdown.header(context.documents.map { it.source }))
+        append(Markdown.header(context.documents.map { it.source } + flows.map { it.source }))
         append("# ").append(TITLE).append("\n\n")
         append(intro(context)).append("\n\n")
 
@@ -104,6 +108,8 @@ internal object ArchitecturePage {
             append(Markdown.mermaid(overview)).append('\n')
             append(ZdlArchitectureToEventStormingTransformer.LEGEND).append("\n\n")
         }
+
+        append(modulesSection(context))
 
         val scaled = context.diagrams.scaled
         append("## Dependencies\n\n")
@@ -119,9 +125,9 @@ internal object ArchitecturePage {
             append(diagramBlock(diagram, context.diagrams.legend))
         }
 
-        append(eventsSection(context))
-        append(modulesSection(context))
         append(callsSection(context))
+        append(eventsSection(context))
+        append(flowsSection(flows))
 
         val known = context.documents.flatMap { it.problems }
         // Syntax problems are reported by the ZDL pages as well: show each one once.
@@ -223,6 +229,22 @@ internal object ArchitecturePage {
     }
 
     // ---- calls ------------------------------------------------------------------------------
+
+    private fun flowsSection(flows: List<FlowsPage.FlowSummary>): String = buildString {
+        if (flows.isEmpty()) return@buildString
+        append("## Sequence diagrams\n\n")
+        append("The happy path of each event flow (ZFL). The page of a flow has its flowchart and every alternative path.\n\n")
+        for (flow in flows) {
+            append("### ").append(Markdown.inline(flow.name)).append("\n\n")
+            val happy = flow.happy
+            if (happy != null) {
+                append("Starts with ").append(Markdown.code(happy.startLabel)).append(" and ends with the outcome ")
+                append(Markdown.code(happy.endOutcome)).append(". ")
+            }
+            append(link("All ${count(flow.paths, "path")}", flow.path)).append(".\n\n")
+            happy?.let { append(Markdown.mermaid(it.mermaid)).append('\n') }
+        }
+    }
 
     private fun callsSection(context: ArchitectureContext): String = buildString {
         val a = context.architecture

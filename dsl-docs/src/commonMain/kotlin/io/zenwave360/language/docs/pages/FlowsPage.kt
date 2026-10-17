@@ -21,6 +21,9 @@ import io.zenwave360.language.zfl.semantic.ZflSemanticModel
  */
 internal object FlowsPage {
 
+    /** A flow for other pages: [path] is its page relative to the output folder, [paths] its number of sequence diagrams. */
+    class FlowSummary(val source: DocsSource, val name: String, val path: String, val happy: MermaidSequenceDiagram?, val paths: Int)
+
     const val PATH = "flows.md"
     const val TITLE = "Event flows"
     const val DIR = "flows"
@@ -30,6 +33,21 @@ internal object FlowsPage {
 
     /** The index and one page per flow. [context] is null when there are no ZDL files, so no module links. */
     fun render(sources: List<DocsSource>, context: ArchitectureContext?, problems: MutableList<String>): List<DocsFile> {
+        val (rendered, failed) = prepare(sources, problems)
+        val files = mutableListOf(DocsFile(PATH, index(sources, rendered, failed)))
+        for (r in rendered) {
+            val semantic = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(r.source.content))
+            files += DocsFile("$DIR/${r.slug}.md", page(r, semantic, context))
+        }
+        return files
+    }
+
+    /** The flows that render, with their page and happy path, for the Sequence diagrams of `architecture.md`. */
+    fun summaries(sources: List<DocsSource>): List<FlowSummary> = prepare(sources, mutableListOf()).first.map { r ->
+        FlowSummary(r.source, r.view.flowName.ifBlank { r.source.path }, "$DIR/${r.slug}.md", r.view.sequences.firstOrNull { it.happy }, r.view.sequences.size)
+    }
+
+    private fun prepare(sources: List<DocsSource>, problems: MutableList<String>): Pair<List<Rendered>, List<Pair<DocsSource, List<String>>>> {
         val failed = mutableListOf<Pair<DocsSource, List<String>>>()
         val rendered = mutableListOf<Rendered>()
         val slugs = mutableSetOf<String>()
@@ -50,12 +68,7 @@ internal object FlowsPage {
                 failed += source to (sourceProblems + reason)
             }
         }
-        val files = mutableListOf(DocsFile(PATH, index(sources, rendered, failed)))
-        for (r in rendered) {
-            val semantic = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(r.source.content))
-            files += DocsFile("$DIR/${r.slug}.md", page(r, semantic, context))
-        }
-        return files
+        return rendered to failed
     }
 
     // ---- index ------------------------------------------------------------------------------

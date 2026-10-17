@@ -43,7 +43,7 @@ class DslDocs {
             val diagrams = ZdlArchitectureToMermaidTransformer().transform(architecture)
             val context = ArchitectureContext(architecture, diagrams, zdl, input.sourcesHref)
             architectureContext = context
-            files += DocsFile(ArchitecturePage.PATH, ArchitecturePage.render(context, problems))
+            files += DocsFile(ArchitecturePage.PATH, ArchitecturePage.render(context, problems, FlowsPage.summaries(zfl)))
             pages += PageEntry(ArchitecturePage.PATH, ArchitecturePage.TITLE, ArchitecturePage.summary(context))
             if (context.modulePages) {
                 for (module in architecture.modules.filter { !it.referenced && context.document(it) != null }) {
