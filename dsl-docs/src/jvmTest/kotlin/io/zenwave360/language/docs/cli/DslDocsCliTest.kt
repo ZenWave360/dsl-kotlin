@@ -110,7 +110,122 @@ class DslDocsCliTest {
         assertEquals(2, run("serve"))
         assertEquals(2, run("build", "--config", config.path))
         assertEquals(2, run("build", "--config", config.path, "--out", temp.path, "--watch"))
-        assertTrue(err.toString().contains("Usage: dsl-docs build --config <dsl-docs.yml> --out <dir>"))
+        assertTrue(err.toString().contains("Usage: dsl-docs build --config <dsl-docs.yml> --out <dir> [--check]"))
+    }
+
+    private val modulith = File(fixtures.parentFile, "arcadia-editions-modulith/dsl-docs.yml")
+
+    private fun generated(body: String) = "$GENERATED_MARKER\n$body"
+
+    @Test
+    fun buildsTheModulithIntoPagesPerModule() {
+        val docs = File(temp, "docs")
+
+        assertEquals(0, run("build", "--config", modulith.path, "--out", docs.path), err.toString())
+
+        assertTrue(out.toString().startsWith("Wrote 8 files to"), out.toString())
+        assertEquals(listOf("README.md", "architecture.md", "modules"), docs.list()!!.sorted())
+        assertEquals(
+            listOf("catalog-inventory.md", "catalog-products.md", "fulfillment-shipping.md", "notifications-consumer.md", "orders-checkout.md", "payments-processing.md"),
+            File(docs, "modules").list()!!.sorted(),
+        )
+        assertTrue(File(docs, "architecture.md").readText().contains("[`orders-checkout-domain-model.zdl`]("))
+    }
+
+    @Test
+    fun keepsHandWrittenFilesNextToGeneratedOnesAtAnyDepth() {
+        val docs = File(temp, "docs")
+        File(docs, "adr").mkdirs()
+        val notes = File(docs, "reading-zdl.md").also { it.writeText("# Reading ZDL") }
+        val adr = File(docs, "adr/0001.md").also { it.writeText("# ADR 1") }
+        val modules = File(docs, "modules").also { it.mkdirs() }
+        val moduleNotes = File(modules, "notes.md").also { it.writeText("# By hand") }
+        val stale = File(modules, "old-module.md").also { it.writeText(generated("old")) }
+
+        assertEquals(0, run("build", "--config", modulith.path, "--out", docs.path), err.toString())
+
+        assertEquals("# Reading ZDL", notes.readText())
+        assertEquals("# ADR 1", adr.readText())
+        assertEquals("# By hand", moduleNotes.readText())
+        assertFalse(stale.exists())
+        assertTrue(File(modules, "orders-checkout.md").isFile)
+    }
+
+    @Test
+    fun deletesStaleGeneratedFilesInSubfoldersAndTheEmptyFolder() {
+        val docs = File(temp, "docs")
+        val old = File(docs, "modules/old.md").also { it.parentFile.mkdirs(); it.writeText(generated("old")) }
+
+        assertEquals(0, run("build", "--config", config.path, "--out", docs.path), err.toString())
+
+        assertFalse(old.exists())
+        assertFalse(File(docs, "modules").exists())
+    }
+
+    @Test
+    fun refusesToOverwriteAModulePageWrittenByHandAndWritesNothing() {
+        val docs = File(temp, "docs")
+        val page = File(docs, "modules/orders-checkout.md").also { it.parentFile.mkdirs(); it.writeText("# Mine") }
+
+        assertEquals(1, run("build", "--config", modulith.path, "--out", docs.path))
+
+        assertEquals("# Mine", page.readText())
+        assertTrue(err.toString().contains("Not overwriting files that dsl-docs did not generate: modules/orders-checkout.md"), err.toString())
+        assertEquals(listOf("modules"), docs.list()!!.toList())
+        assertEquals(listOf("orders-checkout.md"), File(docs, "modules").list()!!.toList())
+    }
+
+    @Test
+    fun checkPassesWhenTheFolderIsUpToDate() {
+        val docs = File(temp, "docs")
+        run("build", "--config", modulith.path, "--out", docs.path)
+        out.reset()
+
+        assertEquals(0, run("build", "--config", modulith.path, "--out", docs.path, "--check"), err.toString())
+
+        assertTrue(out.toString().startsWith("Up to date: 8 files"), out.toString())
+        // Line endings do not count: a checkout with CRLF is still up to date.
+        val page = File(docs, "architecture.md")
+        page.writeText(page.readText().replace("\n", "\r\n"))
+        assertEquals(0, run("build", "--config", modulith.path, "--out", docs.path, "--check"), err.toString())
+    }
+
+    @Test
+    fun checkFailsWithExit3ListsTheDifferencesAndWritesNothing() {
+        val docs = File(temp, "docs")
+        run("build", "--config", modulith.path, "--out", docs.path)
+        val changed = File(docs, "architecture.md").also { it.appendText("edited\n") }
+        val missing = File(docs, "modules/payments-processing.md").also { it.delete() }
+        val stale = File(docs, "modules/gone.md").also { it.writeText(generated("old")) }
+        val manual = File(docs, "notes.md").also { it.writeText("# Mine") }
+        val before = changed.readText()
+        err.reset()
+
+        assertEquals(3, run("build", "--config", modulith.path, "--out", docs.path, "--check"))
+
+        val message = err.toString()
+        assertTrue(message.contains("OUT OF DATE architecture.md (changed)"), message)
+        assertTrue(message.contains("OUT OF DATE modules/payments-processing.md (missing)"), message)
+        assertTrue(message.contains("OUT OF DATE modules/gone.md (stale"), message)
+        assertFalse(message.contains("notes.md"), message)
+        assertEquals(before, changed.readText())
+        assertFalse(missing.exists())
+        assertTrue(stale.exists())
+        assertEquals("# Mine", manual.readText())
+    }
+
+    @Test
+    fun checkOnAnEmptyFolderIsOutOfDateAndCreatesNothing() {
+        assertEquals(3, run("build", "--config", config.path, "--out", File(temp, "docs").path, "--check"))
+        assertFalse(File(temp, "docs").exists())
+    }
+
+    @Test
+    fun checkStillStopsOnACollisionWithAHandWrittenFile() {
+        val docs = File(temp, "docs").also { it.mkdirs() }
+        File(docs, "README.md").writeText("# My project")
+
+        assertEquals(1, run("build", "--config", config.path, "--out", docs.path, "--check"))
     }
 
     private fun relativeSummary(docs: File): String =

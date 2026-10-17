@@ -14,11 +14,33 @@ Markdown documentation for one service or monolith, generated from its ZDL, ZFL,
 # JBang reads the main class from the jar manifest and the dependencies from its POM:
 jbang io.zenwave360.dsl:dsl-docs-jvm:<version> build --config dsl-docs.yml --out docs/zenwave
 # from this repository:
-./gradlew :dsl-docs:dslDocs -Pargs="build --config path/to/dsl-docs.yml --out docs/zenwave"
+./gradlew :dsl-docs:dslDocs -Pargs="build --config path/to/dsl-docs.yml --out docs"
 ```
 
-Exit codes: `0` done (problems found in the inputs are printed as `WARNING` lines), `1` the config or a file it
-names cannot be read, or the output folder holds a file dsl-docs did not generate, `2` wrong arguments.
+Flags: `--config <file>` and `--out <dir>` are required; `--check` writes nothing and tells whether the folder is up to date.
+
+| Exit | Meaning |
+| --- | --- |
+| `0` | Done, or with `--check` the folder is up to date. Problems found in the inputs are printed as `WARNING` lines. |
+| `1` | The config or a file it names cannot be read, or a page to generate has the path of a hand-written file. |
+| `2` | Wrong arguments. |
+| `3` | `--check` only: the folder is out of date. |
+
+### Ownership and `--check`
+
+dsl-docs owns files by marker, not by folder. A `.md` file, at any depth (`modules/` too), whose first line is the
+generated-file marker is dsl-docs's: it is overwritten, and deleted when a run no longer produces it. Every other
+file in the output folder is hand-written and never touched. So `architecture.md` can live in `docs/` next to
+`reading-zdl.md`, `development.md` or `adr/`. The only error is a page dsl-docs would generate at the path of a
+hand-written file: the run stops with exit 1 and writes nothing.
+
+`--check` generates the pages in memory and compares them with the folder (line endings are ignored). It lists
+every missing, changed and stale generated file as `OUT OF DATE <path> (<reason>)` on stderr, writes nothing and
+exits 3. Use it in CI so the committed docs cannot go stale:
+
+```bash
+jbang io.zenwave360.dsl:dsl-docs-jvm:<version> build --config docs/dsl-docs.yml --out docs --check
+```
 
 ### Config
 
@@ -43,7 +65,9 @@ JSON works too: it is valid YAML.
 | File | Content | Written when |
 | --- | --- | --- |
 | `README.md` | Title, version, date, links to the pages and to `pages`, the sources with their SHA-256, problems | Always |
-| `domain.md` | Per ZDL file: class diagram, glossary, commands, events | There are ZDL files |
+| `architecture.md` | Diagram of the modules (one per ZDL file) with their events and direct calls, event table, module table, direct calls | There are ZDL files |
+| `domain.md` | Per ZDL file: class diagram, glossary, commands, events | There is one ZDL file |
+| `modules/<module>.md` | The same for one module, plus the events it consumes and the calls it makes | There are several ZDL files (replaces `domain.md`) |
 | `flows.md` | Per ZFL file: flowchart and one sequence diagram per outcome | There are ZFL files |
 | `apis.md` | Per OpenAPI file: operations and schemas | There are OpenAPI files |
 | `events.md` | Per AsyncAPI file (v2 or v3): operations with channel and address, messages and payload schemas | There are AsyncAPI files |
@@ -51,9 +75,7 @@ JSON works too: it is valid YAML.
 Every page starts with a marker comment and one `<!-- Source: <path> sha256:<hash> -->` line per source, so a
 change in the sources is visible in the diff of the generated pages.
 
-The output folder belongs to dsl-docs. Keep hand-written pages elsewhere and link to them with `pages`.
-The tool deletes generated pages that a run no longer produces, and stops without writing anything when a
-file it would overwrite does not start with the generated-file marker.
+Hand-written pages may sit in the same folder (see Ownership above); link them from the index with `pages`.
 
 ## Library
 
