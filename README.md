@@ -99,7 +99,7 @@ The repository builds three modules:
 | Module | Maven artifact | Content |
 | --- | --- | --- |
 | `dsl-kotlin` | `io.zenwave360.dsl:dsl-kotlin` | ZDL and ZFL parsers, semantic models, event flow view models; npm `@zenwave360/dsl` |
-| `dsl-views` | `io.zenwave360.dsl:dsl-views` | Mermaid diagrams from ZDL and ZFL models |
+| `dsl-views` | `io.zenwave360.dsl:dsl-views` | Mermaid diagrams from ZDL and ZFL models: class diagram, flows, and the architecture of several ZDL modules; see [dsl-views/README.md](dsl-views/README.md) |
 | `dsl-docs` | `io.zenwave360.dsl:dsl-docs` | Markdown documentation with those diagrams, from ZDL, ZFL, OpenAPI and AsyncAPI files; see [dsl-docs/README.md](dsl-docs/README.md) |
 
 ZDL class diagrams and ZFL flowcharts and sequence diagrams are Mermaid text from `dsl-views`:
