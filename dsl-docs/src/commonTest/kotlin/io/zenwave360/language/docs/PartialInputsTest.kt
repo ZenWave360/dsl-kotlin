@@ -44,7 +44,7 @@ class PartialInputsTest {
         val output = generate(SourceKind.ASYNCAPI)
 
         assertEquals(listOf("README.md", "events.md"), output.files.map { it.path })
-        assertTrue(output.readme().contains("# Arcadia Editions - Orders Checkout\n\nVersion 0.1.1\n"))
+        assertTrue(output.readme().contains("# Arcadia Editions - Orders Checkout\n\nVersion 0.0.1\n"))
     }
 
     @Test

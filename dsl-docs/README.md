@@ -6,7 +6,9 @@ Markdown documentation for one service or monolith, generated from its ZDL, ZFL,
 - The output is deterministic: the same inputs give byte-identical files on every platform. There is no
   timestamp unless you pass a date, sources are normalized to `\n` line endings before they are read, and the
   pages always use `\n`.
-- Nothing is read from the network. `$ref`s to other files or URLs are shown as references, never loaded.
+- Nothing is read from the network: `http(s)` `$ref`s are never loaded and show as external classes. Relative `$ref`s to files
+  next to the spec (Avro `.avsc`, shared schemas) are read by the command line tool; the files that were read are listed,
+  with their hashes, in the header of the page, so `--check` notices when they change. In JS (no file reader) they stay external.
 
 ## Command line
 
@@ -69,8 +71,8 @@ JSON works too: it is valid YAML.
 | `domain.md` | Per ZDL file: class diagram, glossary, commands, events | There is one ZDL file |
 | `modules/<module>.md` | The same for one module, plus the events it consumes and the calls it makes | There are several ZDL files (replaces `domain.md`) |
 | `flows.md`, `flows/<flow>.md` | Index of the flows, and one page per flow: happy path, flowchart, outcomes, systems (linked to module pages) and every other path as a sequence diagram | There are ZFL files |
-| `apis.md` | Per OpenAPI file: operations and schemas | There are OpenAPI files |
-| `events.md` | Per AsyncAPI file (v2 or v3): operations with channel and address, messages and payload schemas | There are AsyncAPI files |
+| `apis.md` | Per OpenAPI file: operations table, then schemas grouped by response with a class diagram and field tables | There are OpenAPI files |
+| `events.md` | Per AsyncAPI file (v2 or v3): channels and operations defined in the file (Provided, with a class diagram and field tables per message), then the channels defined in other files through `$ref` (Client of) | There are AsyncAPI files |
 
 Every page starts with a marker comment and one `<!-- Source: <path> sha256:<hash> -->` line per source, so a
 change in the sources is visible in the diff of the generated pages.

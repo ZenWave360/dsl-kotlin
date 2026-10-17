@@ -18,6 +18,15 @@ data class DocsSource(
     val content: String,
 )
 
+/**
+ * Reads a file that a specification refers to with a relative `$ref` (an Avro schema, a shared schema file).
+ * [path] is relative to the same folder as [DocsSource.path], with `/` separators and no `.` or inner `..` segments.
+ * Returns null when there is no such file. It is never asked for `http(s)` references.
+ */
+fun interface DocsFileReader {
+    fun read(path: String): String?
+}
+
 /** A link to a page written by hand, listed on the index page. [href] is relative to the output folder. */
 data class DocsLink(
     val title: String,
@@ -34,6 +43,10 @@ data class DocsLink(
  *
  * [sourcesHref] is the relative path from the output folder to the folder the source paths are relative to,
  * for example `../`. Pages use it to link to the ZDL files; when null they name the files without a link.
+ *
+ * [fileReader] loads the files that OpenAPI and AsyncAPI files refer to (`$ref: avro/Order.avsc`). Without it
+ * such references are shown as external classes. The files that were read are listed, with their hashes,
+ * in the header of the page that used them.
  */
 data class DocsInput(
     val sources: List<DocsSource>,
@@ -42,6 +55,7 @@ data class DocsInput(
     val date: String? = null,
     val links: List<DocsLink> = emptyList(),
     val sourcesHref: String? = null,
+    val fileReader: DocsFileReader? = null,
 )
 
 /** One generated file. [path] is relative to the output folder and always uses `/`. */

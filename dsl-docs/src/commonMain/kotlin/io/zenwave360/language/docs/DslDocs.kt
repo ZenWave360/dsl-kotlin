@@ -34,8 +34,8 @@ class DslDocs {
 
         val zdl = sources.filter { it.kind == SourceKind.ZDL }.map { ZdlDocument(it) }
         val zfl = sources.filter { it.kind == SourceKind.ZFL }
-        val openapi = sources.filter { it.kind == SourceKind.OPENAPI }.map { SpecDocument(it) }
-        val asyncapi = sources.filter { it.kind == SourceKind.ASYNCAPI }.map { SpecDocument(it) }
+        val openapi = sources.filter { it.kind == SourceKind.OPENAPI }.map { SpecDocument(it, input.fileReader) }
+        val asyncapi = sources.filter { it.kind == SourceKind.ASYNCAPI }.map { SpecDocument(it, input.fileReader) }
 
         var architectureContext: ArchitectureContext? = null
         if (zdl.isNotEmpty()) {

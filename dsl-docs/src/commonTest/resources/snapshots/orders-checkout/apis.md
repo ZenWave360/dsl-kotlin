@@ -3,6 +3,12 @@
 
 # HTTP APIs
 
+## Contents
+
+- [Arcadia Editions - Orders Checkout 0.1.0](#arcadia-editions---orders-checkout-010)
+  - [Operations](#operations)
+  - [Schemas](#schemas)
+
 ## Arcadia Editions - Orders Checkout 0.1.0
 
 Source: `openapi.yml` · OpenAPI 3.0.1
@@ -11,15 +17,97 @@ Arcadia Editions - Orders Checkout
 
 ### Operations
 
-| Method | Path | Operation | Tags | Summary |
-| --- | --- | --- | --- | --- |
-| POST | `/orders` | startOrderCheckout | OrdersCheckout | startOrderCheckout |
+| Method | Path | Operation | Request | Response | Summary |
+| --- | --- | --- | --- | --- | --- |
+| POST | `/orders` | startOrderCheckout | [`StartOrderCheckoutInput`](#startordercheckoutinput) | [`Order`](#order) | startOrderCheckout |
 
 ### Schemas
 
-| Schema | Type | Properties | Description |
+Schemas are grouped by the response that returns them. A diagram shows the response and everything it reaches; the tables list the fields.
+
+#### Order
+
+Returned by `POST /orders`.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
+classDiagram
+    class Order {
+        <<response>>
+        integer/int64? id
+        integer? version
+        string orderId
+        OrderStatus status
+        string[] items
+        string/date-time? createdAt
+        string/date-time? confirmedAt
+        string/date-time? cancelledAt
+    }
+    class OrderStatus {
+        <<enumeration>>
+        CREATED
+        CONFIRMED
+        CANCELLED
+    }
+    Order --> OrderStatus : status
+    style Order fill:#fbd3ee,stroke:#333333,color:#111111
+    style OrderStatus fill:#f2f2f2,stroke:#333333,color:#111111
+```
+
+**Order**
+
+| Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| StartOrderCheckoutInput | object | items |  |
-| Order | object | id, version, orderId, status, items, createdAt, confirmedAt, cancelledAt |  |
-| OrderStatus | string |  |  |
+| `id` | `integer(int64)` | no |  |
+| `version` | `integer` | no | Version of the document (required in PUT for concurrency control, should be null in POSTs). |
+| `orderId` | `string` | yes |  |
+| `status` | `OrderStatus` | yes |  |
+| `items` | `string[]` | yes |  |
+| `createdAt` | `string(date-time)` | no |  |
+| `confirmedAt` | `string(date-time)` | no |  |
+| `cancelledAt` | `string(date-time)` | no |  |
+
+**OrderStatus** (enumeration)
+
+| Value |
+| --- |
+| `CREATED` |
+| `CONFIRMED` |
+| `CANCELLED` |
+
+#### Other schemas
+
+Schemas no response returns, such as request bodies.
+
+##### StartOrderCheckoutInput
+
+Sent to `POST /orders`.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
+classDiagram
+    class StartOrderCheckoutInput {
+        <<request>>
+        string[]? items
+    }
+    style StartOrderCheckoutInput fill:#ffffff,stroke:#333333,color:#111111
+```
+
+**StartOrderCheckoutInput**
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `items` | `string[]` | no |  |
 

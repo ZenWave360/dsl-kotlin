@@ -1,6 +1,7 @@
 package io.zenwave360.language.docs.cli
 
 import io.zenwave360.language.docs.DocsConfig
+import io.zenwave360.language.docs.DocsFileReader
 import io.zenwave360.language.docs.DocsInput
 import io.zenwave360.language.docs.DocsLink
 import io.zenwave360.language.docs.DocsOutput
@@ -103,6 +104,7 @@ class DslDocsCli(private val out: PrintStream, private val err: PrintStream) {
             DocsInput(
                 sources = sources, title = config.title, version = config.version, date = config.date, links = links,
                 sourcesHref = sourcesHref(base, out),
+                fileReader = DocsFileReader { path -> File(base, path).takeIf { it.isFile }?.readText() },
             ),
         )
 

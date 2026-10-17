@@ -21,6 +21,13 @@ internal object Yaml {
         return value(node) as? Map<String, Any?> ?: emptyMap()
     }
 
+    /** Like [read] but the root may be a list or a string (an Avro union, for example). Null when the text is empty. */
+    fun readAny(text: String): Any? {
+        @Suppress("DEPRECATION")
+        val node = Compose(LoadSettings()).composeString(text) ?: return null
+        return value(node)
+    }
+
     private fun value(node: Node): Any? = when (node) {
         is MappingNode -> linkedMapOf<String, Any?>().also { map ->
             node.value.forEach { tuple ->

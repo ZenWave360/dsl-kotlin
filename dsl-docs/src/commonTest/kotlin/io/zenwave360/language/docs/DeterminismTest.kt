@@ -9,8 +9,8 @@ class DeterminismTest {
 
     @Test
     fun sameInputGivesTheSameFiles() {
-        val first = DslDocs().generate(DocsInput(arcadiaOrdersCheckout()))
-        val second = DslDocs().generate(DocsInput(arcadiaOrdersCheckout()))
+        val first = DslDocs().generate(DocsInput(arcadiaOrdersCheckout(), fileReader = arcadiaFileReader))
+        val second = DslDocs().generate(DocsInput(arcadiaOrdersCheckout(), fileReader = arcadiaFileReader))
 
         assertEquals(first, second)
     }
@@ -20,7 +20,7 @@ class DeterminismTest {
         val lf = arcadiaOrdersCheckout()
         val crlf = lf.map { it.copy(content = it.content.replace("\n", "\r\n")) }
 
-        assertEquals(DslDocs().generate(DocsInput(lf)), DslDocs().generate(DocsInput(crlf)))
+        assertEquals(DslDocs().generate(DocsInput(lf, fileReader = arcadiaFileReader)), DslDocs().generate(DocsInput(crlf, fileReader = arcadiaFileReader)))
     }
 
     @Test

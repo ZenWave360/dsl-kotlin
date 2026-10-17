@@ -21,3 +21,12 @@ val arcadiaModulithFiles = listOf(
 
 fun arcadiaModulith(): List<DocsSource> =
     arcadiaModulithFiles.map { DocsSource(SourceKind.ZDL, it, readTestFile("arcadia-editions-modulith/$it")) }
+
+/** Reads the files the orders-checkout specs refer to (Avro schemas), relative to the service folder, from the test resources. */
+val arcadiaFileReader = DocsFileReader { path ->
+    try {
+        readTestFile("arcadia-editions/orders-checkout-api/$path")
+    } catch (e: Throwable) {
+        null
+    }
+}

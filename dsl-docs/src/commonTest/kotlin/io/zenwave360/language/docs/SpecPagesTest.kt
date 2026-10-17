@@ -33,12 +33,13 @@ class SpecPagesTest {
         )
 
         assertTrue(page.contains("## Pets 1.0.0\n\nSource: `spec.yml` · OpenAPI 3.1.0\n\nPets and owners\n"), page)
-        assertTrue(page.contains("| GET | `/pets` | listPets | pets, read | All \\| pets |"), page)
-        assertTrue(page.contains("|  | /owners |  |  | Defined in `other.yml#/paths/owners` |"), page)
-        assertTrue(page.contains("| Pet | allOf: Base, object |  | A pet |"), page)
-        assertTrue(page.contains("| Pets | array of Pet |  |  |"), page)
-        assertTrue(page.contains("| Anything | array of any |  |  |"), page)
-        assertTrue(page.contains("| Untyped |  |  |  |"), page)
+        assertTrue(page.contains("| GET | `/pets` | listPets |  |  | All \\| pets |"), page)
+        assertTrue(page.contains("|  | `/owners` |  |  |  | Defined in `other.yml#/paths/owners` |"), page)
+        assertTrue(page.contains("#### Other schemas\n"), page)
+        assertTrue(page.contains("##### Pet\n"), page)
+        assertTrue(page.contains("A pet\n"), page)
+        assertTrue(page.contains("##### Anything\n"), page)
+        assertFalse(page.contains("Untyped"), page)
     }
 
     @Test
@@ -69,12 +70,14 @@ class SpecPagesTest {
             """.trimIndent(),
         )
 
-        assertTrue(page.contains("| onOrderPlaced | publish | orders.placed | orders.placed | OrderPlaced |"), page)
-        assertTrue(page.contains("| onOrderCancelled | subscribe | orders.cancelled | orders.cancelled | OrderCancelled, OrderVoided |"), page)
-        assertTrue(page.contains("| OrderPlaced | inline | application/schema+json | Placed |"), page)
-        assertTrue(page.contains("| OrderCancelled | `schemas/cancelled.json` |  | Cancelled |"), page)
-        assertTrue(page.contains("| Shared |  |  | Defined in `common.yml#/components/messages/Shared` |"), page)
-        assertTrue(page.contains("| Empty |  |  |  |"), page)
+        assertTrue(page.contains("| `onOrderPlaced` | publish | `orders.placed` | [`OrderPlaced`](#orderplaced) |  |"), page)
+        assertTrue(page.contains("| `onOrderCancelled` | subscribe | `orders.cancelled` | [`OrderCancelled`](#ordercancelled), [`OrderVoided`](#ordervoided) |  |"), page)
+        assertTrue(page.contains("##### OrderPlaced\n\nPlaced\n\nPayload `OrderPlacedPayload` · `application/schema+json`\n"), page)
+        // Without a file reader the referenced schema is an external class.
+        assertTrue(page.contains("##### OrderCancelled\n\nCancelled\n\nPayload `cancelled`\n"), page)
+        assertTrue(page.contains("<<external>>"), page)
+        assertTrue(page.contains("##### Shared\n\nDefined in common.yml#/components/messages/Shared\n"), page)
+        assertTrue(page.contains("##### Empty\n\nNo payload.\n"), page)
     }
 
     @Test
@@ -91,12 +94,12 @@ class SpecPagesTest {
             """.trimIndent(),
         )
         assertTrue(withMessages.contains("## Orders\n"), withMessages)
-        assertTrue(withMessages.contains("| send | send | placed | orders.placed | B |"), withMessages)
+        assertTrue(withMessages.contains("| `send` | send | `placed` | [`B`](#b) |  |"), withMessages)
 
         val empty = page(SourceKind.ASYNCAPI, "asyncapi: 3.0.0")
         assertTrue(empty.contains("## spec.yml\n"), empty)
-        assertTrue(empty.contains("No operations."), empty)
-        assertFalse(empty.contains("### Messages"))
+        assertTrue(empty.contains("No channels or operations."), empty)
+        assertFalse(empty.contains("Messages"))
     }
 
     @Test

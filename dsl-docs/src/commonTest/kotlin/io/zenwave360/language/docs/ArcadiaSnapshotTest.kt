@@ -14,7 +14,7 @@ class ArcadiaSnapshotTest {
 
     @Test
     fun matchesTheSnapshots() {
-        val output = DslDocs().generate(DocsInput(arcadiaOrdersCheckout(), links = listOf(DocsLink("Service summary", "../SUMMARY.md")), sourcesHref = "../"))
+        val output = DslDocs().generate(DocsInput(arcadiaOrdersCheckout(), links = listOf(DocsLink("Service summary", "../SUMMARY.md")), sourcesHref = "../", fileReader = arcadiaFileReader))
 
         assertEquals(emptyList(), output.problems)
         assertEquals(listOf("README.md", "apis.md", "architecture.md", "domain.md", "events.md", "flows.md", "flows/place-order-flow.md"), output.files.map { it.path })

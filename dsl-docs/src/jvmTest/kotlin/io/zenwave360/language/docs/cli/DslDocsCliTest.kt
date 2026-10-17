@@ -229,6 +229,34 @@ class DslDocsCliTest {
         assertEquals(1, run("build", "--config", config.path, "--out", docs.path, "--check"))
     }
 
+    @Test
+    fun checkNoticesAChangeInAReferencedFile() {
+        val project = File(temp, "project").also { it.mkdirs() }
+        File(project, "avro").mkdirs()
+        File(project, "asyncapi.yml").writeText(
+            """
+            asyncapi: 3.0.0
+            info: { title: Events }
+            channels:
+              created: { address: orders.created, messages: { Created: { payload: { schemaFormat: application/vnd.apache.avro+json, schema: { ${'$'}ref: avro/Created.avsc } } } } }
+            """.trimIndent(),
+        )
+        val avro = File(project, "avro/Created.avsc").also { it.writeText("""{ "type": "record", "name": "Created", "fields": [ { "name": "id", "type": "string" } ] }""") }
+        File(project, "dsl-docs.yml").writeText("asyncapi: [asyncapi.yml]\n")
+        val docs = File(temp, "docs")
+        val args = arrayOf("--config", File(project, "dsl-docs.yml").path, "--out", docs.path)
+
+        assertEquals(0, run("build", *args), err.toString())
+        val page = File(docs, "events.md").readText()
+        assertTrue(page.contains("<!-- Source: avro/Created.avsc sha256:"), page)
+        assertTrue(page.contains("| `id` | `string` |"), page)
+        assertEquals(0, run("build", *args, "--check"), err.toString())
+
+        avro.writeText("""{ "type": "record", "name": "Created", "fields": [ { "name": "id", "type": "string" }, { "name": "extra", "type": "int" } ] }""")
+        assertEquals(3, run("build", *args, "--check"))
+        assertTrue(err.toString().contains("OUT OF DATE events.md (changed)"), err.toString())
+    }
+
     private fun relativeSummary(docs: File): String =
         File(fixtures, "orders-checkout-api/SUMMARY.md").canonicalFile.relativeTo(docs.canonicalFile).invariantSeparatorsPath
 
