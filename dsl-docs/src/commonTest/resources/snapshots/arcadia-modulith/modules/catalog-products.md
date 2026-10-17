@@ -9,6 +9,23 @@ Source: `catalog-products-domain-model.zdl`
 
 Back to the [architecture](../architecture.md).
 
+## Contents
+
+- [Architecture](#architecture)
+- [Services](#services)
+  - [ProductCatalogService](#productcatalogservice)
+- [Aggregates](#aggregates)
+  - [Product](#product)
+- [Domain events](#domain-events)
+  - [ProductCatalogService](#productcatalogservice-1)
+- [Commands](#commands)
+- [Glossary](#glossary)
+  - [Aggregates](#aggregates-1)
+  - [Enums](#enums)
+  - [Inputs](#inputs)
+  - [Outputs](#outputs)
+  - [Domain events](#domain-events-1)
+
 ## Architecture
 
 This module's commands and events, and the commands and events of other modules that connect to them.
@@ -141,46 +158,57 @@ stateDiagram-v2
 
 Field `status`, initial `DRAFT`.
 
+## Domain events
+
+The events each service emits, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
+
+### ProductCatalogService
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
+classDiagram
+    class ProductPublished {
+        <<event>>
+        String productId
+        String sku
+        String name
+        BigDecimal price
+        String currency
+        Integer editionSize
+        InventoryTrackingMode trackingMode
+        Instant launchAt
+        Instant publishedAt
+    }
+    class ProductRetired {
+        <<event>>
+        String productId
+        String sku
+        Instant retiredAt
+    }
+    style ProductPublished fill:#ffe0bf,stroke:#333333,color:#111111
+    style ProductRetired fill:#ffe0bf,stroke:#333333,color:#111111
+```
+
 ## Commands
 
-The methods of the module's services and the events each one emits.
+The methods of the module's services, the events each one emits and what triggers it.
 
-| Service | Command | Input | Returns | Events | Description |
+| Command | Input | Returns | Events | Triggered by | Description |
 | --- | --- | --- | --- | --- | --- |
-| ProductCatalogService | createProduct | [CreateProductInput](#createproductinput) | [Product](#product-1) |  |  |
-| ProductCatalogService | updateProduct | id, [UpdateProductInput](#updateproductinput) | [Product](#product-1) |  |  |
-| ProductCatalogService | publishProduct | id | [Product](#product-1) | [ProductPublished](#productpublished) |  |
-| ProductCatalogService | retireProduct | id | [Product](#product-1) | [ProductRetired](#productretired) |  |
-
-## Events
-
-Events declared by this module, with their fields. Fields copied with `@copy` are included.
-
-### ProductPublished
-
-| Field | Type | Description |
-| --- | --- | --- |
-| productId | String |  |
-| sku | String |  |
-| name | String |  |
-| price | BigDecimal |  |
-| currency | String |  |
-| editionSize | Integer |  |
-| trackingMode | [InventoryTrackingMode](#inventorytrackingmode) |  |
-| launchAt | Instant |  |
-| publishedAt | Instant |  |
-
-### ProductRetired
-
-| Field | Type | Description |
-| --- | --- | --- |
-| productId | String |  |
-| sku | String |  |
-| retiredAt | Instant |  |
+| createProduct | [CreateProductInput](#createproductinput) | [Product](#product-1) |  | `POST /products` |  |
+| updateProduct | id, [UpdateProductInput](#updateproductinput) | [Product](#product-1) |  | `PUT /products/{id}` |  |
+| publishProduct | id | [Product](#product-1) | [ProductPublished](#productpublished) | `POST /products/{id}/publish` |  |
+| retireProduct | id | [Product](#product-1) | [ProductRetired](#productretired) | `POST /products/{id}/retire` |  |
 
 ## Glossary
 
-Every named type of this module, by kind. Events are described under Events.
+Every named type of this module, by kind.
 
 ### Aggregates
 
@@ -251,4 +279,28 @@ Aggregate root
 | productId | String |  |
 | sku | String |  |
 | publishedAt | Instant |  |
+
+### Domain events
+
+#### ProductPublished
+
+| Field | Type | Description |
+| --- | --- | --- |
+| productId | String |  |
+| sku | String |  |
+| name | String |  |
+| price | BigDecimal |  |
+| currency | String |  |
+| editionSize | Integer |  |
+| trackingMode | [InventoryTrackingMode](#inventorytrackingmode) |  |
+| launchAt | Instant |  |
+| publishedAt | Instant |  |
+
+#### ProductRetired
+
+| Field | Type | Description |
+| --- | --- | --- |
+| productId | String |  |
+| sku | String |  |
+| retiredAt | Instant |  |
 

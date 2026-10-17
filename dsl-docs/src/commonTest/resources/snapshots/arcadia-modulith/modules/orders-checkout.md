@@ -9,6 +9,22 @@ Source: `orders-checkout-domain-model.zdl`
 
 Back to the [architecture](../architecture.md).
 
+## Contents
+
+- [Architecture](#architecture)
+- [Services](#services)
+  - [OrdersCheckoutService](#orderscheckoutservice)
+- [Aggregates](#aggregates)
+  - [Order](#order)
+- [Domain events](#domain-events)
+  - [OrdersCheckoutService](#orderscheckoutservice-1)
+- [Commands](#commands)
+- [Glossary](#glossary)
+  - [Aggregates](#aggregates-1)
+  - [Enums](#enums)
+  - [Inputs](#inputs)
+  - [Domain events](#domain-events-1)
+
 ## Architecture
 
 This module's commands and events, and the commands and events of other modules that connect to them.
@@ -206,89 +222,98 @@ stateDiagram-v2
 
 Field `status`, initial `CREATED`.
 
+## Domain events
+
+The events each service emits, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
+
+### OrdersCheckoutService
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
+classDiagram
+    class OrderCreated {
+        <<event>>
+        String orderId
+        Integer version
+        String customerId
+        String customerEmail
+        String paymentMethodId
+        BigDecimal amount
+        String currency
+    }
+    class StockUnavailable {
+        <<event>>
+        String orderId
+        String customerId
+        String customerEmail
+        StockUnavailableItem[] unavailableItems
+    }
+    class StockUnavailableItem {
+        <<embedded>>
+        String sku
+        Integer requestedQuantity
+        Integer availableQuantity
+    }
+    class OrderConfirmed {
+        <<event>>
+        String orderId
+        Integer version
+        String customerId
+        Instant confirmedAt
+        OrderConfirmedItem[] items
+        OrderConfirmedShippingAddress shippingAddress
+    }
+    class OrderConfirmedItem {
+        <<embedded>>
+        String sku
+        Integer quantity
+    }
+    class OrderConfirmedShippingAddress {
+        <<embedded>>
+        String name
+        String line1
+        String line2
+        String city
+        String region
+        String postalCode
+        String country
+    }
+    class OrderCancelled {
+        <<event>>
+        String orderId
+        Integer version
+        String customerId
+        String customerEmail
+        String reason
+        Instant cancelledAt
+    }
+    StockUnavailable *-- "*" StockUnavailableItem : unavailableItems
+    OrderConfirmed *-- "*" OrderConfirmedItem : items
+    OrderConfirmed *-- OrderConfirmedShippingAddress : shippingAddress
+    style OrderCreated fill:#ffe0bf,stroke:#333333,color:#111111
+    style StockUnavailable fill:#ffe0bf,stroke:#333333,color:#111111
+    style StockUnavailableItem fill:#ffffff,stroke:#333333,color:#111111
+    style OrderConfirmed fill:#ffe0bf,stroke:#333333,color:#111111
+    style OrderConfirmedItem fill:#ffffff,stroke:#333333,color:#111111
+    style OrderConfirmedShippingAddress fill:#ffffff,stroke:#333333,color:#111111
+    style OrderCancelled fill:#ffe0bf,stroke:#333333,color:#111111
+```
+
 ## Commands
 
-The methods of the module's services and the events each one emits.
+The methods of the module's services, the events each one emits and what triggers it.
 
-| Service | Command | Input | Returns | Events | Description |
+| Command | Input | Returns | Events | Triggered by | Description |
 | --- | --- | --- | --- | --- | --- |
-| OrdersCheckoutService | startOrderCheckout | [StartOrderCheckoutInput](#startordercheckoutinput) | [Order](#order-1) | [OrderCreated](#ordercreated) \| [StockUnavailable](#stockunavailable) |  |
-| OrdersCheckoutService | confirmOrder | id | [Order](#order-1) | [OrderConfirmed](#orderconfirmed) |  |
-| OrdersCheckoutService | cancelOrder | id, [CancelOrderInput](#cancelorderinput) | [Order](#order-1) | [OrderCancelled](#ordercancelled) |  |
-
-## Events
-
-Events declared by this module, with their fields. Fields copied with `@copy` are included.
-
-### OrderCreated
-
-| Field | Type | Description |
-| --- | --- | --- |
-| orderId | String |  |
-| version | Integer |  |
-| customerId | String |  |
-| customerEmail | String |  |
-| paymentMethodId | String |  |
-| amount | BigDecimal | Order total (Order.totalAmount), named to match AuthorizePaymentInput. |
-| currency | String |  |
-
-### StockUnavailable
-
-| Field | Type | Description |
-| --- | --- | --- |
-| orderId | String |  |
-| customerId | String |  |
-| customerEmail | String |  |
-| unavailableItems | [StockUnavailableItem](#stockunavailableitem)[] |  |
-
-#### StockUnavailableItem
-
-| Field | Type | Description |
-| --- | --- | --- |
-| sku | String |  |
-| requestedQuantity | Integer |  |
-| availableQuantity | Integer |  |
-
-### OrderConfirmed
-
-| Field | Type | Description |
-| --- | --- | --- |
-| orderId | String |  |
-| version | Integer |  |
-| customerId | String |  |
-| confirmedAt | Instant |  |
-| items | [OrderConfirmedItem](#orderconfirmeditem)[] |  |
-| shippingAddress | [OrderConfirmedShippingAddress](#orderconfirmedshippingaddress) |  |
-
-#### OrderConfirmedItem
-
-| Field | Type | Description |
-| --- | --- | --- |
-| sku | String |  |
-| quantity | Integer |  |
-
-#### OrderConfirmedShippingAddress
-
-| Field | Type | Description |
-| --- | --- | --- |
-| name | String |  |
-| line1 | String |  |
-| line2 | String |  |
-| city | String |  |
-| region | String |  |
-| postalCode | String |  |
-| country | String |  |
-
-### OrderCancelled
-
-| Field | Type | Description |
-| --- | --- | --- |
-| orderId | String |  |
-| version | Integer |  |
-| customerId | String |  |
-| customerEmail | String |  |
-| reason | String | Order.cancellationReason |
-| cancelledAt | Instant |  |
+| startOrderCheckout | [StartOrderCheckoutInput](#startordercheckoutinput) | [Order](#order-1) | [OrderCreated](#ordercreated) \| [StockUnavailable](#stockunavailable) | `POST /orders/start-checkout` |  |
+| confirmOrder | id | [Order](#order-1) | [OrderConfirmed](#orderconfirmed) | listener [PaymentAuthorized](payments-processing.md) |  |
+| cancelOrder | id, [CancelOrderInput](#cancelorderinput) | [Order](#order-1) | [OrderCancelled](#ordercancelled) | listener [StockReleased](catalog-inventory.md) |  |
 
 ## Consumes
 
@@ -321,7 +346,7 @@ Direct calls this module makes to commands of other modules.
 
 ## Glossary
 
-Every named type of this module, by kind. Events are described under Events.
+Every named type of this module, by kind.
 
 ### Aggregates
 
@@ -417,4 +442,76 @@ Embedded entity of `Order`
 | Field | Type | Description |
 | --- | --- | --- |
 | reason | String | From StockReleased.reason (StockReleaseReason name). |
+
+### Domain events
+
+#### OrderCreated
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| version | Integer |  |
+| customerId | String |  |
+| customerEmail | String |  |
+| paymentMethodId | String |  |
+| amount | BigDecimal | Order total (Order.totalAmount), named to match AuthorizePaymentInput. |
+| currency | String |  |
+
+#### StockUnavailable
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| customerId | String |  |
+| customerEmail | String |  |
+| unavailableItems | [StockUnavailableItem](#stockunavailableitem)[] |  |
+
+#### StockUnavailableItem
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| requestedQuantity | Integer |  |
+| availableQuantity | Integer |  |
+
+#### OrderConfirmed
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| version | Integer |  |
+| customerId | String |  |
+| confirmedAt | Instant |  |
+| items | [OrderConfirmedItem](#orderconfirmeditem)[] |  |
+| shippingAddress | [OrderConfirmedShippingAddress](#orderconfirmedshippingaddress) |  |
+
+#### OrderConfirmedItem
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| quantity | Integer |  |
+
+#### OrderConfirmedShippingAddress
+
+| Field | Type | Description |
+| --- | --- | --- |
+| name | String |  |
+| line1 | String |  |
+| line2 | String |  |
+| city | String |  |
+| region | String |  |
+| postalCode | String |  |
+| country | String |  |
+
+#### OrderCancelled
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| version | Integer |  |
+| customerId | String |  |
+| customerEmail | String |  |
+| reason | String | Order.cancellationReason |
+| cancelledAt | Instant |  |
 

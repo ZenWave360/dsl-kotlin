@@ -9,6 +9,22 @@ Source: `domain-model.zdl`
 
 Back to the [architecture](architecture.md).
 
+## Contents
+
+- [Architecture](#architecture)
+- [Services](#services)
+  - [OrdersCheckoutService](#orderscheckoutservice)
+- [Aggregates](#aggregates)
+  - [Order](#order)
+- [Domain events](#domain-events)
+  - [OrdersCheckoutService](#orderscheckoutservice-1)
+- [Commands](#commands)
+- [Glossary](#glossary)
+  - [Aggregates](#aggregates-1)
+  - [Enums](#enums)
+  - [Inputs](#inputs)
+  - [Domain events](#domain-events-1)
+
 ## Architecture
 
 This module's commands and events, and the commands and events of other modules that connect to them.
@@ -144,57 +160,58 @@ stateDiagram-v2
 
 Field `status`, initial `CREATED`.
 
+## Domain events
+
+The events each service emits, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
+
+### OrdersCheckoutService
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
+classDiagram
+    class OrderCreated {
+        <<event>>
+        String orderId
+        Integer version
+    }
+    class StockUnavailable {
+        <<event>>
+        String productId
+        Integer requestedQuantity
+    }
+    class OrderConfirmed {
+        <<event>>
+        String orderId
+        Integer version
+        Instant confirmedAt
+    }
+    class OrderCancelled {
+        <<event>>
+        String orderId
+        Integer version
+        Instant cancelledAt
+    }
+    style OrderCreated fill:#ffe0bf,stroke:#333333,color:#111111
+    style StockUnavailable fill:#ffe0bf,stroke:#333333,color:#111111
+    style OrderConfirmed fill:#ffe0bf,stroke:#333333,color:#111111
+    style OrderCancelled fill:#ffe0bf,stroke:#333333,color:#111111
+```
+
 ## Commands
 
-The methods of the module's services and the events each one emits.
+The methods of the module's services, the events each one emits and what triggers it.
 
-| Service | Command | Input | Returns | Events | Description |
+| Command | Input | Returns | Events | Triggered by | Description |
 | --- | --- | --- | --- | --- | --- |
-| OrdersCheckoutService | startOrderCheckout | [StartOrderCheckoutInput](#startordercheckoutinput) | [Order](#order-1) | [OrderCreated](#ordercreated) \| [StockUnavailable](#stockunavailable) |  |
-| OrdersCheckoutService | confirmOrder | [ConfirmOrderInput](#confirmorderinput) | [Order](#order-1) | [OrderConfirmed](#orderconfirmed) |  |
-| OrdersCheckoutService | cancelOrder | [CancelOrderInput](#cancelorderinput) | [Order](#order-1) | [OrderCancelled](#ordercancelled) |  |
-
-## Events
-
-Events declared by this module, with their fields. Fields copied with `@copy` are included.
-
-### OrderCreated
-
-Channel: `order-created-event-v1`. Topic: `orders-checkout.order-created.event.avro.v1`.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| orderId | String |  |
-| version | Integer |  |
-
-### StockUnavailable
-
-Channel: `stock-unavailable-event-v1`. Topic: `orders-checkout.stock-unavailable.event.avro.v1`.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| productId | String |  |
-| requestedQuantity | Integer |  |
-
-### OrderConfirmed
-
-Channel: `order-confirmed-event-v1`. Topic: `orders-checkout.order-confirmed.event.avro.v1`.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| orderId | String |  |
-| version | Integer |  |
-| confirmedAt | Instant |  |
-
-### OrderCancelled
-
-Channel: `order-cancelled-event-v1`. Topic: `orders-checkout.order-cancelled.event.avro.v1`.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| orderId | String |  |
-| version | Integer |  |
-| cancelledAt | Instant |  |
+| startOrderCheckout | [StartOrderCheckoutInput](#startordercheckoutinput) | [Order](#order-1) | [OrderCreated](#ordercreated) \| [StockUnavailable](#stockunavailable) | `POST /orders` |  |
+| confirmOrder | [ConfirmOrderInput](#confirmorderinput) | [Order](#order-1) | [OrderConfirmed](#orderconfirmed) | asyncapi `payment-authorized-event-v1` (PaymentsProcessingApi) |  |
+| cancelOrder | [CancelOrderInput](#cancelorderinput) | [Order](#order-1) | [OrderCancelled](#ordercancelled) | asyncapi `stock-released-event-v1` (CatalogInventoryApi) |  |
 
 ## Consumes
 
@@ -216,7 +233,7 @@ Direct calls this module makes to commands of other modules.
 
 ## Glossary
 
-Every named type of this module, by kind. Events are described under Events.
+Every named type of this module, by kind.
 
 ### Aggregates
 
@@ -262,4 +279,44 @@ Aggregate root
 | Field | Type | Description |
 | --- | --- | --- |
 | orderId | String |  |
+
+### Domain events
+
+#### OrderCreated
+
+Channel: `order-created-event-v1`. Topic: `orders-checkout.order-created.event.avro.v1`.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| version | Integer |  |
+
+#### StockUnavailable
+
+Channel: `stock-unavailable-event-v1`. Topic: `orders-checkout.stock-unavailable.event.avro.v1`.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| productId | String |  |
+| requestedQuantity | Integer |  |
+
+#### OrderConfirmed
+
+Channel: `order-confirmed-event-v1`. Topic: `orders-checkout.order-confirmed.event.avro.v1`.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| version | Integer |  |
+| confirmedAt | Instant |  |
+
+#### OrderCancelled
+
+Channel: `order-cancelled-event-v1`. Topic: `orders-checkout.order-cancelled.event.avro.v1`.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| version | Integer |  |
+| cancelledAt | Instant |  |
 

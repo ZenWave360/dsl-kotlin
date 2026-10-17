@@ -238,7 +238,7 @@ internal object ArchitecturePage {
 
 /**
  * `modules/<slug>.md`: one module (several ZDL files) or `domain.md` (one ZDL file). Sections in this
- * order: Architecture, Services, Aggregates, Commands, Events, Consumes, Consumed by, Calls, Called by, Glossary.
+ * order: Contents, Architecture, Services, Aggregates, Domain events, Commands, Consumes, Consumed by, Calls, Called by, Glossary (which ends with the domain events).
  */
 internal object ModulePage {
 
@@ -266,12 +266,19 @@ internal object ModulePage {
         append(Markdown.problems(document.problems))
         append("Back to the [architecture](${if (single) "" else "../"}${ArchitecturePage.PATH}).\n\n")
 
-        val content = ModuleContent(domain, anchors)
+        val content = ModuleContent(
+            domain, anchors, module?.id,
+            resolvedAdapters = { service, method ->
+                module?.let { m -> context.architecture.commandsOf(m.id).firstOrNull { it.service == service && it.method == method }?.adapters }
+            },
+            modulePage = { id -> context.architecture.module(id)?.let { page(context, it) } },
+        )
+        append(anchors.toc())
         if (module != null) append(content.architecture(context.architecture, module.id))
         append(content.services())
         append(content.aggregates())
+        append(content.domainEvents())
         append(content.commands())
-        append(content.events())
         if (module != null) {
             append(consumes(context, module))
             append(consumedBy(context, module))

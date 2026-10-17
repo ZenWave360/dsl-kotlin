@@ -9,6 +9,22 @@ Source: `fulfillment-shipping-domain-model.zdl`
 
 Back to the [architecture](../architecture.md).
 
+## Contents
+
+- [Architecture](#architecture)
+- [Services](#services)
+  - [FulfillmentShippingService](#fulfillmentshippingservice)
+- [Aggregates](#aggregates)
+  - [Fulfillment](#fulfillment)
+- [Domain events](#domain-events)
+  - [FulfillmentShippingService](#fulfillmentshippingservice-1)
+- [Commands](#commands)
+- [Glossary](#glossary)
+  - [Aggregates](#aggregates-1)
+  - [Enums](#enums)
+  - [Inputs](#inputs)
+  - [Domain events](#domain-events-1)
+
 ## Architecture
 
 This module's commands and events, and the commands and events of other modules that connect to them.
@@ -171,48 +187,58 @@ stateDiagram-v2
 
 Field `status`, initial `SCHEDULED`.
 
+## Domain events
+
+The events each service emits, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
+
+### FulfillmentShippingService
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
+classDiagram
+    class FulfillmentScheduled {
+        <<event>>
+        String fulfillmentId
+        String orderId
+        String customerId
+        Instant scheduledAt
+    }
+    class FulfillmentFailed {
+        <<event>>
+        String fulfillmentId
+        String orderId
+        String customerId
+        String reason
+        Instant failedAt
+    }
+    class FulfillmentReadyToShip {
+        <<event>>
+        String fulfillmentId
+        String orderId
+        String customerId
+        String carrierCode
+        String trackingNumber
+        Instant readyAt
+    }
+    style FulfillmentScheduled fill:#ffe0bf,stroke:#333333,color:#111111
+    style FulfillmentFailed fill:#ffe0bf,stroke:#333333,color:#111111
+    style FulfillmentReadyToShip fill:#ffe0bf,stroke:#333333,color:#111111
+```
+
 ## Commands
 
-The methods of the module's services and the events each one emits.
+The methods of the module's services, the events each one emits and what triggers it.
 
-| Service | Command | Input | Returns | Events | Description |
+| Command | Input | Returns | Events | Triggered by | Description |
 | --- | --- | --- | --- | --- | --- |
-| FulfillmentShippingService | scheduleFulfillment | [ScheduleFulfillmentInput](#schedulefulfillmentinput) | [Fulfillment](#fulfillment-1) | [FulfillmentScheduled](#fulfillmentscheduled) \| [FulfillmentFailed](#fulfillmentfailed) |  |
-| FulfillmentShippingService | markReadyToShip | id | [Fulfillment](#fulfillment-1) | [FulfillmentReadyToShip](#fulfillmentreadytoship) |  |
-
-## Events
-
-Events declared by this module, with their fields. Fields copied with `@copy` are included.
-
-### FulfillmentScheduled
-
-| Field | Type | Description |
-| --- | --- | --- |
-| fulfillmentId | String |  |
-| orderId | String |  |
-| customerId | String |  |
-| scheduledAt | Instant |  |
-
-### FulfillmentFailed
-
-| Field | Type | Description |
-| --- | --- | --- |
-| fulfillmentId | String |  |
-| orderId | String |  |
-| customerId | String |  |
-| reason | String |  |
-| failedAt | Instant |  |
-
-### FulfillmentReadyToShip
-
-| Field | Type | Description |
-| --- | --- | --- |
-| fulfillmentId | String |  |
-| orderId | String |  |
-| customerId | String |  |
-| carrierCode | String |  |
-| trackingNumber | String |  |
-| readyAt | Instant |  |
+| scheduleFulfillment | [ScheduleFulfillmentInput](#schedulefulfillmentinput) | [Fulfillment](#fulfillment-1) | [FulfillmentScheduled](#fulfillmentscheduled) \| [FulfillmentFailed](#fulfillmentfailed) | listener [OrderConfirmed](orders-checkout.md) |  |
+| markReadyToShip | id | [Fulfillment](#fulfillment-1) | [FulfillmentReadyToShip](#fulfillmentreadytoship) |  |  |
 
 ## Consumes
 
@@ -233,7 +259,7 @@ Who reacts to the events this module owns.
 
 ## Glossary
 
-Every named type of this module, by kind. Events are described under Events.
+Every named type of this module, by kind.
 
 ### Aggregates
 
@@ -318,4 +344,36 @@ Embedded entity of `Fulfillment`
 | --- | --- | --- |
 | sku | String |  |
 | quantity | Integer |  |
+
+### Domain events
+
+#### FulfillmentScheduled
+
+| Field | Type | Description |
+| --- | --- | --- |
+| fulfillmentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| scheduledAt | Instant |  |
+
+#### FulfillmentFailed
+
+| Field | Type | Description |
+| --- | --- | --- |
+| fulfillmentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| reason | String |  |
+| failedAt | Instant |  |
+
+#### FulfillmentReadyToShip
+
+| Field | Type | Description |
+| --- | --- | --- |
+| fulfillmentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| carrierCode | String |  |
+| trackingNumber | String |  |
+| readyAt | Instant |  |
 

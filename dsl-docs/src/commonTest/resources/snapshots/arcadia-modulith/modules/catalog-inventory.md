@@ -9,6 +9,29 @@ Source: `catalog-inventory-domain-model.zdl`
 
 Back to the [architecture](../architecture.md).
 
+## Contents
+
+- [Architecture](#architecture)
+- [Services](#services)
+  - [InventoryService](#inventoryservice)
+  - [InventoryBackofficeService](#inventorybackofficeservice)
+- [Aggregates](#aggregates)
+  - [StockReservation](#stockreservation)
+  - [InventoryPosition](#inventoryposition)
+  - [Other entities](#other-entities)
+- [Domain events](#domain-events)
+  - [InventoryService](#inventoryservice-1)
+  - [InventoryBackofficeService](#inventorybackofficeservice-1)
+- [Commands](#commands)
+  - [InventoryService](#inventoryservice-2)
+  - [InventoryBackofficeService](#inventorybackofficeservice-2)
+- [Glossary](#glossary)
+  - [Aggregates](#aggregates-1)
+  - [Enums](#enums)
+  - [Inputs](#inputs)
+  - [Outputs](#outputs)
+  - [Domain events](#domain-events-1)
+
 ## Architecture
 
 This module's commands and events, and the commands and events of other modules that connect to them.
@@ -250,81 +273,110 @@ classDiagram
     style StockAdjustmentReason fill:#f2f2f2,stroke:#333333,color:#111111
 ```
 
+## Domain events
+
+The events each service emits, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
+
+### InventoryService
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
+classDiagram
+    class StockReleased {
+        <<event>>
+        String orderId
+        StockReleaseReason reason
+        Instant releasedAt
+        StockReleasedItem[] items
+    }
+    class StockReleasedItem {
+        <<embedded>>
+        String reservationId
+        String sku
+        Integer quantity
+    }
+    class StockReservationConfirmed {
+        <<event>>
+        String orderId
+        Instant confirmedAt
+        StockReservationConfirmedItem[] items
+    }
+    class StockReservationConfirmedItem {
+        <<embedded>>
+        String reservationId
+        String sku
+        Integer quantity
+    }
+    StockReleased *-- "*" StockReleasedItem : items
+    StockReservationConfirmed *-- "*" StockReservationConfirmedItem : items
+    style StockReleased fill:#ffe0bf,stroke:#333333,color:#111111
+    style StockReleasedItem fill:#ffffff,stroke:#333333,color:#111111
+    style StockReservationConfirmed fill:#ffe0bf,stroke:#333333,color:#111111
+    style StockReservationConfirmedItem fill:#ffffff,stroke:#333333,color:#111111
+```
+
+### InventoryBackofficeService
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
+classDiagram
+    class StockReceived {
+        <<event>>
+        String sku
+        Integer quantity
+        Integer availableQuantity
+        Integer reservedQuantity
+        Integer soldQuantity
+        String reason
+        String reference
+        Instant receivedAt
+    }
+    class StockAdjusted {
+        <<event>>
+        String sku
+        Integer quantityDelta
+        Integer availableQuantity
+        Integer reservedQuantity
+        Integer soldQuantity
+        StockAdjustmentReason reason
+        String reference
+        Instant adjustedAt
+    }
+    style StockReceived fill:#ffe0bf,stroke:#333333,color:#111111
+    style StockAdjusted fill:#ffe0bf,stroke:#333333,color:#111111
+```
+
 ## Commands
 
-The methods of the module's services and the events each one emits.
+The methods of the module's services, the events each one emits and what triggers it.
 
-| Service | Command | Input | Returns | Events | Description |
+### InventoryService
+
+| Command | Input | Returns | Events | Triggered by | Description |
 | --- | --- | --- | --- | --- | --- |
-| InventoryService | reserveStock | [ReserveStockInput](#reservestockinput) | [ReserveStockResult](#reservestockresult) |  |  |
-| InventoryService | releaseStock | [ReleaseStockInput](#releasestockinput) | [StockReservation](#stockreservation-1)[] | [StockReleased](#stockreleased) |  |
-| InventoryService | confirmStockReservation | id | [StockReservation](#stockreservation-1)[] | [StockReservationConfirmed](#stockreservationconfirmed) |  |
-| InventoryBackofficeService | createInventoryPosition | [CreateInventoryPositionInput](#createinventorypositioninput) | [InventoryPosition](#inventoryposition-1) |  |  |
-| InventoryBackofficeService | receiveStock | [ReceiveStockInput](#receivestockinput) | [InventoryPosition](#inventoryposition-1) | [StockReceived](#stockreceived) |  |
-| InventoryBackofficeService | adjustStock | [AdjustStockInput](#adjuststockinput) | [InventoryPosition](#inventoryposition-1) | [StockAdjusted](#stockadjusted) |  |
+| reserveStock | [ReserveStockInput](#reservestockinput) | [ReserveStockResult](#reservestockresult) |  |  |  |
+| releaseStock | [ReleaseStockInput](#releasestockinput) | [StockReservation](#stockreservation-1)[] | [StockReleased](#stockreleased) | listener [PaymentDeclined](payments-processing.md)<br>listener [PaymentRetryExhausted](payments-processing.md)<br>listener [PaymentVoided](payments-processing.md) |  |
+| confirmStockReservation | id | [StockReservation](#stockreservation-1)[] | [StockReservationConfirmed](#stockreservationconfirmed) |  |  |
 
-## Events
+### InventoryBackofficeService
 
-Events declared by this module, with their fields. Fields copied with `@copy` are included.
-
-### StockReleased
-
-| Field | Type | Description |
-| --- | --- | --- |
-| orderId | String |  |
-| reason | [StockReleaseReason](#stockreleasereason) |  |
-| releasedAt | Instant |  |
-| items | [StockReleasedItem](#stockreleaseditem)[] |  |
-
-#### StockReleasedItem
-
-| Field | Type | Description |
-| --- | --- | --- |
-| reservationId | String |  |
-| sku | String |  |
-| quantity | Integer |  |
-
-### StockReservationConfirmed
-
-| Field | Type | Description |
-| --- | --- | --- |
-| orderId | String |  |
-| confirmedAt | Instant |  |
-| items | [StockReservationConfirmedItem](#stockreservationconfirmeditem)[] |  |
-
-#### StockReservationConfirmedItem
-
-| Field | Type | Description |
-| --- | --- | --- |
-| reservationId | String |  |
-| sku | String |  |
-| quantity | Integer |  |
-
-### StockReceived
-
-| Field | Type | Description |
-| --- | --- | --- |
-| sku | String |  |
-| quantity | Integer |  |
-| availableQuantity | Integer |  |
-| reservedQuantity | Integer |  |
-| soldQuantity | Integer |  |
-| reason | String |  |
-| reference | String |  |
-| receivedAt | Instant |  |
-
-### StockAdjusted
-
-| Field | Type | Description |
-| --- | --- | --- |
-| sku | String |  |
-| quantityDelta | Integer |  |
-| availableQuantity | Integer |  |
-| reservedQuantity | Integer |  |
-| soldQuantity | Integer |  |
-| reason | [StockAdjustmentReason](#stockadjustmentreason) |  |
-| reference | String |  |
-| adjustedAt | Instant |  |
+| Command | Input | Returns | Events | Triggered by | Description |
+| --- | --- | --- | --- | --- | --- |
+| createInventoryPosition | [CreateInventoryPositionInput](#createinventorypositioninput) | [InventoryPosition](#inventoryposition-1) |  | `POST /inventory/positions` |  |
+| receiveStock | [ReceiveStockInput](#receivestockinput) | [InventoryPosition](#inventoryposition-1) | [StockReceived](#stockreceived) | `POST /inventory/{sku}/stock-intakes` |  |
+| adjustStock | [AdjustStockInput](#adjuststockinput) | [InventoryPosition](#inventoryposition-1) | [StockAdjusted](#stockadjusted) | `POST /inventory/{sku}/adjustments` |  |
 
 ## Consumes
 
@@ -355,7 +407,7 @@ Other modules that call commands of this module directly.
 
 ## Glossary
 
-Every named type of this module, by kind. Events are described under Events.
+Every named type of this module, by kind.
 
 ### Aggregates
 
@@ -516,4 +568,65 @@ Wrapper for the two ZFL responses of reserveStock (ZDL has no union return type)
 | sku | String |  |
 | requestedQuantity | Integer |  |
 | availableQuantity | Integer |  |
+
+### Domain events
+
+#### StockReleased
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| reason | [StockReleaseReason](#stockreleasereason) |  |
+| releasedAt | Instant |  |
+| items | [StockReleasedItem](#stockreleaseditem)[] |  |
+
+#### StockReleasedItem
+
+| Field | Type | Description |
+| --- | --- | --- |
+| reservationId | String |  |
+| sku | String |  |
+| quantity | Integer |  |
+
+#### StockReservationConfirmed
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| confirmedAt | Instant |  |
+| items | [StockReservationConfirmedItem](#stockreservationconfirmeditem)[] |  |
+
+#### StockReservationConfirmedItem
+
+| Field | Type | Description |
+| --- | --- | --- |
+| reservationId | String |  |
+| sku | String |  |
+| quantity | Integer |  |
+
+#### StockReceived
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| quantity | Integer |  |
+| availableQuantity | Integer |  |
+| reservedQuantity | Integer |  |
+| soldQuantity | Integer |  |
+| reason | String |  |
+| reference | String |  |
+| receivedAt | Instant |  |
+
+#### StockAdjusted
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| quantityDelta | Integer |  |
+| availableQuantity | Integer |  |
+| reservedQuantity | Integer |  |
+| soldQuantity | Integer |  |
+| reason | [StockAdjustmentReason](#stockadjustmentreason) |  |
+| reference | String |  |
+| adjustedAt | Instant |  |
 

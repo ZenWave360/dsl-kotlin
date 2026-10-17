@@ -9,6 +9,22 @@ Source: `notifications-consumer-domain-model.zdl`
 
 Back to the [architecture](../architecture.md).
 
+## Contents
+
+- [Architecture](#architecture)
+- [Services](#services)
+  - [NotificationsConsumerService](#notificationsconsumerservice)
+- [Aggregates](#aggregates)
+  - [Notification](#notification)
+- [Domain events](#domain-events)
+  - [NotificationsConsumerService](#notificationsconsumerservice-1)
+- [Commands](#commands)
+- [Glossary](#glossary)
+  - [Aggregates](#aggregates-1)
+  - [Enums](#enums)
+  - [Inputs](#inputs)
+  - [Domain events](#domain-events-1)
+
 ## Architecture
 
 This module's commands and events, and the commands and events of other modules that connect to them.
@@ -191,68 +207,77 @@ stateDiagram-v2
 
 Field `status`, initial `PENDING`.
 
+## Domain events
+
+The events each service emits, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
+
+### NotificationsConsumerService
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
+classDiagram
+    class OrderConfirmationSent {
+        <<event>>
+        String notificationId
+        String orderId
+        String customerId
+        NotificationChannel channel
+        String recipient
+        Instant sentAt
+    }
+    class NotificationDeliveryFailed {
+        <<event>>
+        String notificationId
+        String orderId
+        String customerId
+        String[] skus
+        NotificationType type
+        NotificationChannel channel
+        String recipient
+        String reason
+        Instant failedAt
+    }
+    class StockUnavailableNotificationSent {
+        <<event>>
+        String notificationId
+        String orderId
+        String customerId
+        String[] skus
+        NotificationChannel channel
+        String recipient
+        Instant sentAt
+    }
+    class OrderCancelledNotificationSent {
+        <<event>>
+        String notificationId
+        String orderId
+        String customerId
+        String reason
+        NotificationChannel channel
+        String recipient
+        Instant sentAt
+    }
+    style OrderConfirmationSent fill:#ffe0bf,stroke:#333333,color:#111111
+    style NotificationDeliveryFailed fill:#ffe0bf,stroke:#333333,color:#111111
+    style StockUnavailableNotificationSent fill:#ffe0bf,stroke:#333333,color:#111111
+    style OrderCancelledNotificationSent fill:#ffe0bf,stroke:#333333,color:#111111
+```
+
 ## Commands
 
-The methods of the module's services and the events each one emits.
+The methods of the module's services, the events each one emits and what triggers it.
 
-| Service | Command | Input | Returns | Events | Description |
+| Command | Input | Returns | Events | Triggered by | Description |
 | --- | --- | --- | --- | --- | --- |
-| NotificationsConsumerService | sendOrderConfirmation | [SendOrderConfirmationInput](#sendorderconfirmationinput) | [Notification](#notification-1) | [OrderConfirmationSent](#orderconfirmationsent) \| [NotificationDeliveryFailed](#notificationdeliveryfailed) |  |
-| NotificationsConsumerService | sendStockUnavailableNotification | [SendStockUnavailableNotificationInput](#sendstockunavailablenotificationinput) | [Notification](#notification-1) | [StockUnavailableNotificationSent](#stockunavailablenotificationsent) \| [NotificationDeliveryFailed](#notificationdeliveryfailed) |  |
-| NotificationsConsumerService | sendOrderCancelledNotification | [SendOrderCancelledNotificationInput](#sendordercancellednotificationinput) | [Notification](#notification-1) | [OrderCancelledNotificationSent](#ordercancellednotificationsent) \| [NotificationDeliveryFailed](#notificationdeliveryfailed) |  |
-
-## Events
-
-Events declared by this module, with their fields. Fields copied with `@copy` are included.
-
-### OrderConfirmationSent
-
-| Field | Type | Description |
-| --- | --- | --- |
-| notificationId | String |  |
-| orderId | String |  |
-| customerId | String |  |
-| channel | [NotificationChannel](#notificationchannel) |  |
-| recipient | String |  |
-| sentAt | Instant |  |
-
-### StockUnavailableNotificationSent
-
-| Field | Type | Description |
-| --- | --- | --- |
-| notificationId | String |  |
-| orderId | String |  |
-| customerId | String |  |
-| skus | String[] |  |
-| channel | [NotificationChannel](#notificationchannel) |  |
-| recipient | String |  |
-| sentAt | Instant |  |
-
-### OrderCancelledNotificationSent
-
-| Field | Type | Description |
-| --- | --- | --- |
-| notificationId | String |  |
-| orderId | String |  |
-| customerId | String |  |
-| reason | String |  |
-| channel | [NotificationChannel](#notificationchannel) |  |
-| recipient | String |  |
-| sentAt | Instant |  |
-
-### NotificationDeliveryFailed
-
-| Field | Type | Description |
-| --- | --- | --- |
-| notificationId | String |  |
-| orderId | String |  |
-| customerId | String |  |
-| skus | String[] |  |
-| type | [NotificationType](#notificationtype) |  |
-| channel | [NotificationChannel](#notificationchannel) |  |
-| recipient | String |  |
-| reason | String |  |
-| failedAt | Instant |  |
+| sendOrderConfirmation | [SendOrderConfirmationInput](#sendorderconfirmationinput) | [Notification](#notification-1) | [OrderConfirmationSent](#orderconfirmationsent) \| [NotificationDeliveryFailed](#notificationdeliveryfailed) | listener [PaymentCaptured](payments-processing.md) |  |
+| sendStockUnavailableNotification | [SendStockUnavailableNotificationInput](#sendstockunavailablenotificationinput) | [Notification](#notification-1) | [StockUnavailableNotificationSent](#stockunavailablenotificationsent) \| [NotificationDeliveryFailed](#notificationdeliveryfailed) | listener [StockUnavailable](orders-checkout.md) |  |
+| sendOrderCancelledNotification | [SendOrderCancelledNotificationInput](#sendordercancellednotificationinput) | [Notification](#notification-1) | [OrderCancelledNotificationSent](#ordercancellednotificationsent) \| [NotificationDeliveryFailed](#notificationdeliveryfailed) | listener [OrderCancelled](orders-checkout.md) |  |
 
 ## Consumes
 
@@ -266,7 +291,7 @@ Events from other modules or systems that this module reacts to, and the method 
 
 ## Glossary
 
-Every named type of this module, by kind. Events are described under Events.
+Every named type of this module, by kind.
 
 ### Aggregates
 
@@ -352,4 +377,55 @@ Aggregate root
 | customerId | String |  |
 | reason | String |  |
 | customerEmail | String |  |
+
+### Domain events
+
+#### OrderConfirmationSent
+
+| Field | Type | Description |
+| --- | --- | --- |
+| notificationId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| channel | [NotificationChannel](#notificationchannel) |  |
+| recipient | String |  |
+| sentAt | Instant |  |
+
+#### StockUnavailableNotificationSent
+
+| Field | Type | Description |
+| --- | --- | --- |
+| notificationId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| skus | String[] |  |
+| channel | [NotificationChannel](#notificationchannel) |  |
+| recipient | String |  |
+| sentAt | Instant |  |
+
+#### OrderCancelledNotificationSent
+
+| Field | Type | Description |
+| --- | --- | --- |
+| notificationId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| reason | String |  |
+| channel | [NotificationChannel](#notificationchannel) |  |
+| recipient | String |  |
+| sentAt | Instant |  |
+
+#### NotificationDeliveryFailed
+
+| Field | Type | Description |
+| --- | --- | --- |
+| notificationId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| skus | String[] |  |
+| type | [NotificationType](#notificationtype) |  |
+| channel | [NotificationChannel](#notificationchannel) |  |
+| recipient | String |  |
+| reason | String |  |
+| failedAt | Instant |  |
 
