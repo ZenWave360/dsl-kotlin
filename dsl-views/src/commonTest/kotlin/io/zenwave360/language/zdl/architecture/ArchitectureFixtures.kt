@@ -69,6 +69,7 @@ object ArchitectureFixtures {
             }
 
             service OrdersService for (Order) {
+                placeOrder(id) Order withEvents OrderPlaced
                 markPaid(id) Order
                 closeOrder(id) Order
 

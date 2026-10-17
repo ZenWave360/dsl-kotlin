@@ -71,6 +71,19 @@ data class ArchCall(
     val declaredOn: String,
 )
 
+/**
+ * A service method or aggregate command of [module] (a module id). [service] is the service name, or the
+ * aggregate name for a command declared inside an `aggregate` block. [events] are the events it emits
+ * (`withEvents`, alternatives flattened, in order). A [query] changes nothing (see `ZdlCommand.query`).
+ */
+data class ArchCommand(
+    val module: String,
+    val service: String,
+    val method: String,
+    val events: List<String>,
+    val query: Boolean,
+)
+
 /** Immutable architecture of a set of ZDL modules. Lists are sorted: modules by id, events by module and name. */
 data class ZdlArchitecture(
     val modules: List<ArchModule>,
@@ -80,10 +93,14 @@ data class ZdlArchitecture(
     val calls: List<ArchCall>,
     /** `file: message`; the reader never throws. */
     val problems: List<String>,
+    /** Commands of the non-referenced modules, in declaration order within each module (modules by id). */
+    val commands: List<ArchCommand> = emptyList(),
 ) {
     fun module(id: String): ArchModule? = modules.firstOrNull { it.id == id }
 
     fun event(ref: EventRef): ArchEvent? = events.firstOrNull { it.module == ref.module && it.name == ref.name }
+
+    fun commandsOf(moduleId: String): List<ArchCommand> = commands.filter { it.module == moduleId }
 
     fun eventsOf(moduleId: String): List<ArchEvent> = events.filter { it.module == moduleId }
 

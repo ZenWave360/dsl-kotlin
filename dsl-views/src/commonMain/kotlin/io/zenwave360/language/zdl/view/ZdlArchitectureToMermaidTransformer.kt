@@ -191,6 +191,106 @@ class ZdlArchitectureToMermaidTransformer(
         return out.toString().trimEnd() + "\n"
     }
 
+    // ---- module flowchart (commands and events) ---------------------------------------------
+
+    private data class CmdKey(val module: String, val service: String, val method: String) {
+        val id: String get() = "${module}__${sanitizeId(service)}__${sanitizeId(method)}"
+    }
+
+    /**
+     * The flowchart of one module with its commands and events. Boxes are modules. The focus module shows
+     * all its commands (not queries) and events; other modules only what connects to it: commands that
+     * consume a focus event or call / are called by a focus command, the events the focus module consumes
+     * and the commands that emit them. Solid `-->`: emits. Dashed `-.->`: consumed by. Thick `==>`: direct call.
+     * External events are pipes outside the boxes; foreign events only have dashed edges.
+     * Node ids: `<ModuleId>__<Service>__<method>` and `<ModuleId>__<Event>`.
+     */
+    fun moduleDiagram(a: ZdlArchitecture, moduleId: String): String {
+        val out = StringBuilder(header()).append('\n')
+        val focus = a.module(moduleId) ?: return out.toString()
+
+        val cmds = linkedSetOf<CmdKey>()
+        val events = linkedSetOf<EventRef>()
+        val foreign = linkedSetOf<String>()
+        a.commandsOf(focus.id).filter { !it.query }.forEach { cmds += CmdKey(it.module, it.service, it.method) }
+        a.eventsOf(focus.id).forEach { events += EventRef(it.module, it.name) }
+
+        val consumed = mutableListOf<Pair<EventRef, CmdKey>>()
+        for (c in a.consumptions) {
+            if (c.consumer != focus.id && c.event.module != focus.id) continue
+            val key = CmdKey(c.consumer, c.method.substringBeforeLast('.', ""), c.method.substringAfterLast('.'))
+            cmds += key
+            if (c.event.module == null) foreign += c.event.name else events += c.event
+            consumed += c.event to key
+        }
+        val calls = mutableListOf<Pair<CmdKey, CmdKey>>()
+        for (call in a.calls) {
+            if (call.caller != focus.id && call.callee != focus.id) continue
+            val from = CmdKey(call.caller, call.declaredOn.substringBeforeLast('.', ""), call.declaredOn.substringAfterLast('.'))
+            val to = CmdKey(call.callee, call.target.substringBeforeLast('.', ""), call.command)
+            cmds += from
+            cmds += to
+            calls += from to to
+        }
+        // the commands that emit the events shown (so `emit --> Event -.-> consumer` is visible)
+        for (command in a.commands) {
+            if (command.events.any { EventRef(command.module, it) in events }) {
+                cmds += CmdKey(command.module, command.service, command.method)
+            }
+        }
+
+        val shownEvents = a.events.filter { EventRef(it.module, it.name) in events }
+        val shownForeign = a.foreignEvents.filter { it.channel in foreign }
+        val known = a.commands.map { CmdKey(it.module, it.service, it.method) }
+        val orderedCmds = known.filter { it in cmds } + cmds.filter { it !in known }.sortedBy { it.id }
+        fun eventId(e: ArchEvent) = "${e.module}__${sanitizeId(e.name)}"
+        fun foreignId(channel: String) = "ext_${sanitizeId(channel)}"
+
+        out.append("  classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111\n")
+        out.append("  classDef command ").append(ZdlServiceToEventStormingTransformer.COMMAND_STYLE).append('\n')
+        out.append("  classDef event ").append(ZdlServiceToEventStormingTransformer.EVENT_STYLE).append('\n')
+        val boxes = a.modules.filter { m ->
+            orderedCmds.any { it.module == m.id } || shownEvents.any { it.module == m.id && it.kind == EventKind.INTERNAL }
+        }
+        if (shownForeign.isNotEmpty() || boxes.any { it.referenced }) {
+            out.append("  classDef foreign fill:#f3f3f3,stroke:#888,stroke-dasharray:5 5,color:#111\n")
+        }
+        out.append('\n')
+        for (m in boxes) {
+            out.append("  subgraph sg_${m.id}[\"${esc(m.name)}\"]\n")
+            for (c in orderedCmds.filter { it.module == m.id }) out.append("    ${c.id}[\"${esc(c.method)}\"]\n")
+            for (e in shownEvents.filter { it.module == m.id && it.kind == EventKind.INTERNAL }) {
+                out.append("    ${eventId(e)}[\"${esc(e.name)}\"]\n")
+            }
+            out.append("  end\n\n")
+        }
+        val pipes = shownEvents.filter { it.kind == EventKind.EXTERNAL }
+        for (e in pipes) out.append("  ${pipe(eventId(e), e.name)}\n")
+        for (f in shownForeign) out.append("  ${pipe(foreignId(f.channel), f.channel)}\n")
+        if (pipes.isNotEmpty() || shownForeign.isNotEmpty()) out.append('\n')
+
+        classLine(out, "module", boxes.filter { !it.referenced }.map { "sg_${it.id}" })
+        classLine(out, "foreign", boxes.filter { it.referenced }.map { "sg_${it.id}" } + shownForeign.map { foreignId(it.channel) })
+        classLine(out, "command", orderedCmds.map { it.id })
+        classLine(out, "event", shownEvents.map { eventId(it) })
+        out.append('\n')
+
+        val nodeOf = shownEvents.associate { EventRef(it.module, it.name) to eventId(it) }
+        val emits = orderedCmds.flatMap { c ->
+            a.commands.filter { it.module == c.module && it.service == c.service && it.method == c.method }
+                .flatMap { it.events }.distinct()
+                .mapNotNull { nodeOf[EventRef(c.module, it)] }.map { "  ${c.id} --> $it" }
+        }
+        val consumedEdges = consumed.mapNotNull { (event, cmd) ->
+            val from = if (event.module == null) foreignId(event.name) else nodeOf[event] ?: return@mapNotNull null
+            "  $from -.-> ${cmd.id}"
+        }
+        val callEdges = calls.map { (from, to) -> "  ${from.id} ==> ${to.id}" }
+        (emits.distinct().sorted() + consumedEdges.distinct().sorted() + callEdges.distinct().sorted())
+            .forEach { out.append(it).append('\n') }
+        return out.toString().trimEnd() + "\n"
+    }
+
     // ---- ids and text -----------------------------------------------------------------------
 
     /** Unique, valid Mermaid node ids. */
@@ -215,6 +315,13 @@ class ZdlArchitectureToMermaidTransformer(
     private fun esc(s: String) = s.replace("\"", "#quot;")
 
     companion object {
+        /** Legend printed under every [moduleDiagram]. */
+        const val MODULE_LEGEND: String = "Box = module. Blue = command. Orange = event; a pipe outside the boxes is an " +
+            "external event (has a topic). Solid = emits. Dashed = consumed by. Thick = direct call."
+
+        private fun sanitizeId(s: String) =
+            s.map { if ((it.isLetterOrDigit() && it.code < 128) || it == '_') it else '_' }.joinToString("")
+
         const val LEGEND: String = "Hexagon = module. Rectangle inside a box = internal event owned by that module. " +
             "Pipe outside boxes = external event (has a topic). Solid = published by. Dashed = consumed by. Thick = direct call."
     }

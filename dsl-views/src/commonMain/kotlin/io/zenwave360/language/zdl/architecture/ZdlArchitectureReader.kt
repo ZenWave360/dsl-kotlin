@@ -2,6 +2,8 @@ package io.zenwave360.language.zdl.architecture
 
 import io.zenwave360.language.zdl.ZdlModel
 import io.zenwave360.language.zdl.ZdlParser
+import io.zenwave360.language.zdl.view.ZdlCommand
+import io.zenwave360.language.zdl.view.ZdlDomain
 
 /**
  * Reads a set of ZDL files and extracts their architecture: modules (one per file), events
@@ -52,6 +54,7 @@ private class Reading(private val parser: ZdlParser) {
                 }
             }
         }
+        val commands = parsed.flatMap { commandsOf(it) }.sortedBy { it.module }
         return ZdlArchitecture(
             modules = modules.values.sortedBy { it.id },
             events = events.values.sortedWith(compareBy({ it.module }, { it.name })),
@@ -61,7 +64,16 @@ private class Reading(private val parser: ZdlParser) {
             ),
             calls = calls.sortedWith(compareBy({ it.caller }, { it.callee }, { it.command }, { it.declaredOn })),
             problems = problems.toList(),
+            commands = commands,
         )
+    }
+
+    /** Service methods, then aggregate commands, as read by [ZdlDomain] (the single command/query rule). */
+    private fun commandsOf(p: Parsed): List<ArchCommand> {
+        val domain = ZdlDomain(p.model)
+        fun of(owner: String, c: ZdlCommand) = ArchCommand(p.module.id, owner, c.name, c.eventNames, c.query)
+        return domain.services.flatMap { s -> s.methods.map { of(s.name, it) } } +
+            domain.aggregates.flatMap { a -> a.commands.map { of(a.name, it) } }
     }
 
     // ---- modules ----------------------------------------------------------------------------
