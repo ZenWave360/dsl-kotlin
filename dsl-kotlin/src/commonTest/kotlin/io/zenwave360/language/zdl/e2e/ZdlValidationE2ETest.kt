@@ -37,7 +37,7 @@ class ZdlValidationE2ETest {
     }
 
     @Test
-    fun serviceTransitionsMayDeclareOnlyFromOrOnlyTo() {
+    fun transitionsMayDeclareOnlyOneSideOrMultipleTargetStates() {
         val model = ZdlParser().parseModel(
             """
                 @aggregate
@@ -46,7 +46,7 @@ class ZdlValidationE2ETest {
                     status OrderStatus required
                 }
 
-                enum OrderStatus { DRAFT, PLACED }
+                enum OrderStatus { DRAFT, PLACED, CANCELLED }
                 input ChangeInput { note String }
 
                 service OrderService for (Order) {
@@ -55,11 +55,19 @@ class ZdlValidationE2ETest {
 
                     @transition(from: PLACED)
                     deleteOrder(id) Order
+
+                    @transition(from: PLACED, to: [PLACED, CANCELLED])
+                    retryOrder(ChangeInput) Order
+                }
+
+                aggregate OrderAggregate(Order) {
+                    @transition(from: PLACED, to: [PLACED, CANCELLED])
+                    retryOrder(ChangeInput)
                 }
             """.trimIndent()
         )
 
-        assertTrue(model.getProblems().isEmpty(), "Expected one-sided transitions to be valid: ${model.getProblems()}")
+        assertTrue(model.getProblems().isEmpty(), "Expected valid transitions to be accepted: ${model.getProblems()}")
     }
 
     @Test

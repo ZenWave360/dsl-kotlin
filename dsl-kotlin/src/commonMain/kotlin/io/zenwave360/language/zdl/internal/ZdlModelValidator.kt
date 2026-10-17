@@ -224,7 +224,7 @@ class ZdlModelValidator {
         enumValues: Set<String>
     ) {
         val fromStates = JSONPath.get<List<String>>(method, "transition.from")
-        val toState = JSONPath.get<String>(method, "transition.to")
+        val toStates = transitionStates(method, "transition.to")
 
         fromStates?.forEachIndexed { i, state ->
             if (!enumValues.contains(state)) {
@@ -236,12 +236,14 @@ class ZdlModelValidator {
             }
         }
 
-        if (toState != null && !enumValues.contains(toState)) {
-            model.addProblem(
-                path("aggregates", aggregateKey, "commands", methodName ?: "", "transition", "to"),
-                toState,
-                "%s is not a valid state value"
-            )
+        toStates?.forEachIndexed { i, state ->
+            if (!enumValues.contains(state)) {
+                model.addProblem(
+                    path("aggregates", aggregateKey, "commands", methodName ?: "", "transition", "to", "$i"),
+                    state,
+                    "%s is not a valid state value"
+                )
+            }
         }
     }
 
@@ -432,7 +434,7 @@ class ZdlModelValidator {
     ) {
         val mPath = path("services", serviceKey, "methods", methodName ?: "")
         val fromStates = JSONPath.get<List<String>>(method, "transition.from")
-        val toState = JSONPath.get<String>(method, "transition.to")
+        val toStates = transitionStates(method, "transition.to")
 
         // Rule 1: resolve target entity
         val targetEntity: String? = when {
@@ -478,16 +480,25 @@ class ZdlModelValidator {
                 )
             }
         }
-        if (toState != null && !enumValues.contains(toState)) {
-            model.addProblem(
-                path("services", serviceKey, "methods", methodName ?: "", "options", "transition", "value", "to"),
-                toState, 
-                "%s is not a valid state value"
-            )
+        toStates?.forEachIndexed { i, state ->
+            if (!enumValues.contains(state)) {
+                model.addProblem(
+                    path("services", serviceKey, "methods", methodName ?: "", "options", "transition", "value", "to", "$i"),
+                    state,
+                    "%s is not a valid state value"
+                )
+            }
         }
     }
 
     private fun path(vararg path: String): String = path.joinToString(".")
+
+    private fun transitionStates(method: Map<String, Any?>, property: String): List<String>? =
+        when (val value = JSONPath.get<Any>(method, property)) {
+            is List<*> -> value.filterIsInstance<String>()
+            is String -> listOf(value)
+            else -> null
+        }
 
     private fun isStandardFieldType(fieldType: String?): Boolean =
         fieldType != null && (standardFieldTypes.contains(fieldType) || extraFieldTypes.contains(fieldType))

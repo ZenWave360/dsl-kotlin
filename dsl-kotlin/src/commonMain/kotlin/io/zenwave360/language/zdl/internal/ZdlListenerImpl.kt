@@ -627,8 +627,11 @@ class ZdlListenerImpl : ZdlBaseListener() {
                 is String -> listOf(fromValue)
                 else -> null
             }
-            val toState = transitionOption["to"]?.toString()
-            currentStack.last()["transition"] = buildMap().with("from", fromStates).with("to", toState)
+            val toStates = when (val toValue = transitionOption["to"]) {
+                is List<*> -> toValue.map { it.toString() }
+                else -> toValue?.toString()
+            }
+            currentStack.last()["transition"] = buildMap().with("from", fromStates).with("to", toStates)
         }
         currentStack.removeLast()
         val aggregateName = getText((ctx.getParent() as ZdlParser.AggregateContext).aggregate_name())!!
@@ -715,8 +718,11 @@ class ZdlListenerImpl : ZdlBaseListener() {
                 is String -> listOf(fromValue)
                 else -> null
             }
-            val toState = transitionOption["to"]?.toString()
-            currentStack.last()["transition"] = buildMap().with("from", fromStates).with("to", toState)
+            val toStates = when (val toValue = transitionOption["to"]) {
+                is List<*> -> toValue.map { it.toString() }
+                else -> toValue?.toString()
+            }
+            currentStack.last()["transition"] = buildMap().with("from", fromStates).with("to", toStates)
         }
         currentStack.removeLast()
         val serviceName = getText((ctx.getParent() as ZdlParser.ServiceContext).service_name())!!
