@@ -169,22 +169,6 @@ class ZdlToMermaidClassDiagramTransformer {
         "${id(source)} $arrow $cardinality${id(target)} : ${memberText(field["name"] as? String ?: "")}"
     }
 
-    private fun classBlock(name: String, stereotype: String?, members: List<String>): String = buildString {
-        val identifier = id(name)
-        val label = labelText(name)
-        if (identifier != name) {
-            append("    class ").append(identifier).append("[\"").append(label).append("\"]\n")
-        }
-        if (stereotype == null && members.isEmpty()) {
-            if (identifier == name) append("    class ").append(identifier).append('\n')
-            return@buildString
-        }
-        append("    class ").append(identifier).append(" {\n")
-        stereotype?.let { append("        <<").append(it).append(">>\n") }
-        members.filter { it.isNotBlank() }.forEach { append("        ").append(it).append('\n') }
-        append("    }\n")
-    }
-
     private fun method(name: String, params: List<String>, returnType: String?, withEvents: Any?): String {
         val events = renderEvents(withEvents)
         val tail = listOfNotNull(returnType, events?.let { "withEvents $it" }).joinToString(" ")
@@ -214,6 +198,23 @@ class ZdlToMermaidClassDiagramTransformer {
         }
 
     companion object {
+        /** One `class` statement (plus an id/label line when the name is not a safe identifier). */
+        internal fun classBlock(name: String, stereotype: String?, members: List<String>): String = buildString {
+            val identifier = id(name)
+            val label = labelText(name)
+            if (identifier != name) {
+                append("    class ").append(identifier).append("[\"").append(label).append("\"]\n")
+            }
+            if (stereotype == null && members.isEmpty()) {
+                if (identifier == name) append("    class ").append(identifier).append('\n')
+                return@buildString
+            }
+            append("    class ").append(identifier).append(" {\n")
+            stereotype?.let { append("        <<").append(it).append(">>\n") }
+            members.filter { it.isNotBlank() }.forEach { append("        ").append(it).append('\n') }
+            append("    }\n")
+        }
+
         private val RESERVED = setOf(
             "classDiagram", "class", "namespace", "direction", "click", "link", "callback", "call",
             "href", "note", "style", "classDef", "cssClass", "end", "accTitle", "accDescr", "title",
