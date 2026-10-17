@@ -1,6 +1,8 @@
 package io.zenwave360.language.docs.pages
 
+import io.zenwave360.language.docs.internal.Anchors
 import io.zenwave360.language.docs.internal.Markdown
+import io.zenwave360.language.docs.internal.string
 import io.zenwave360.language.zdl.architecture.ArchEvent
 import io.zenwave360.language.zdl.architecture.ArchModule
 import io.zenwave360.language.zdl.architecture.ConsumptionVia
@@ -9,6 +11,7 @@ import io.zenwave360.language.zdl.architecture.EventRef
 import io.zenwave360.language.zdl.architecture.ZdlArchitecture
 import io.zenwave360.language.zdl.view.ArchitectureDiagram
 import io.zenwave360.language.zdl.view.ArchitectureDiagrams
+import io.zenwave360.language.zdl.view.ZdlDomain
 
 /**
  * What the architecture page and the module pages need to know.
@@ -233,29 +236,48 @@ internal object ArchitecturePage {
     fun count(n: Int, noun: String) = if (n == 1) "1 $noun" else "$n ${noun}s"
 }
 
-/** `modules/<slug>.md`: the domain model of one module (as `domain.md` has it) plus its architecture: events it consumes and calls it makes. */
+/**
+ * `modules/<slug>.md`: one module (several ZDL files) or `domain.md` (one ZDL file). Sections in this
+ * order: Architecture, Services, Aggregates, Commands, Events, Consumes, Consumed by, Calls, Called by, Glossary.
+ */
 internal object ModulePage {
 
-    fun render(context: ArchitectureContext, module: ArchModule, problems: MutableList<String>): String = buildString {
-        val document = context.document(module)!!
-        append(Markdown.header(listOf(document.source)))
-        problems += document.problems.map { "${document.source.path}: $it" }
+    fun render(context: ArchitectureContext, module: ArchModule, problems: MutableList<String>): String =
+        render(context, context.document(module)!!, module, problems)
 
-        val diagram = context.diagrams.diagrams.firstOrNull { it.moduleId == module.id }
-        val before = buildString {
-            append("Back to the [architecture](../${ArchitecturePage.PATH}).\n\n")
-            if (diagram != null) {
-                append("## Architecture\n\n")
-                append("This module, the events it owns and consumes, and the modules it talks to.\n\n")
-                append(ArchitecturePage.diagramBlock(diagram, context.diagrams.legend))
-            }
-        }
-        val after = buildString {
+    /** [module] is null only when the architecture has no module for the document (no Architecture, Consumes or Calls sections then). */
+    fun render(context: ArchitectureContext, document: ZdlDocument, module: ArchModule?, problems: MutableList<String>): String {
+        problems += document.problems.map { "${document.source.path}: $it" }
+        val domain = ZdlDomain(document.model)
+        // First pass collects the headings, second pass links to them.
+        val first = Anchors()
+        build(context, document, module, domain, first)
+        return build(context, document, module, domain, first.resolve())
+    }
+
+    private fun build(context: ArchitectureContext, document: ZdlDocument, module: ArchModule?, domain: ZdlDomain, anchors: Anchors): String = buildString {
+        val single = !context.modulePages
+        val title = if (single) DomainPage.TITLE else module?.name ?: document.title ?: document.source.path
+        append(Markdown.header(listOf(document.source)))
+        append("# ").append(Markdown.inline(title)).append("\n\n")
+        if (document.title != null && document.title != title) append(Markdown.inline(document.title)).append("\n\n")
+        append("Source: ").append(Markdown.code(document.source.path)).append("\n\n")
+        document.model.string("javadoc")?.let { append(Markdown.javadoc(it)).append("\n\n") }
+        append(Markdown.problems(document.problems))
+        append("Back to the [architecture](${if (single) "" else "../"}${ArchitecturePage.PATH}).\n\n")
+
+        val content = ModuleContent(domain, anchors)
+        if (module != null) append(content.architecture(context.architecture, module.id))
+        append(content.services())
+        append(content.aggregates())
+        append(content.commands())
+        append(content.events())
+        if (module != null) {
             append(consumes(context, module))
             append(consumedBy(context, module))
             append(calls(context, module))
         }
-        append(DomainPage.section(document, intros = true, heading = module.name, beforeDiagram = before, atEnd = after))
+        append(content.glossary())
     }
 
     private fun page(context: ArchitectureContext, module: ArchModule): String? =

@@ -11,47 +11,119 @@ Back to the [architecture](../architecture.md).
 
 ## Architecture
 
-This module, the events it owns and consumes, and the modules it talks to.
+This module's commands and events, and the commands and events of other modules that connect to them.
 
 ```mermaid
 flowchart LR
-  classDef module fill:#e8f0fe,stroke:#4a6fa5,stroke-width:2px,color:#111
-  classDef event fill:#fff4d6,stroke:#c9a227,color:#111
+  classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
 
   subgraph sg_CatalogInventory["Catalog Inventory"]
-    CatalogInventory{{"Catalog Inventory"}}
-    StockAdjusted["StockAdjusted"]
-    StockReceived["StockReceived"]
-    StockReleased["StockReleased"]
-    StockReservationConfirmed["StockReservationConfirmed"]
+    CatalogInventory__InventoryService__reserveStock["reserveStock"]
+    CatalogInventory__InventoryService__releaseStock["releaseStock"]
+    CatalogInventory__InventoryService__confirmStockReservation["confirmStockReservation"]
+    CatalogInventory__InventoryBackofficeService__receiveStock["receiveStock"]
+    CatalogInventory__InventoryBackofficeService__adjustStock["adjustStock"]
+    CatalogInventory__StockAdjusted["StockAdjusted"]
+    CatalogInventory__StockReceived["StockReceived"]
+    CatalogInventory__StockReleased["StockReleased"]
+    CatalogInventory__StockReservationConfirmed["StockReservationConfirmed"]
   end
 
   subgraph sg_OrdersCheckout["Orders Checkout"]
-    OrdersCheckout{{"Orders Checkout"}}
+    OrdersCheckout__OrdersCheckoutService__startOrderCheckout["startOrderCheckout"]
+    OrdersCheckout__OrdersCheckoutService__confirmOrder["confirmOrder"]
+    OrdersCheckout__OrdersCheckoutService__cancelOrder["cancelOrder"]
   end
 
   subgraph sg_PaymentsProcessing["Payments Processing"]
-    PaymentsProcessing{{"Payments Processing"}}
-    PaymentDeclined["PaymentDeclined"]
-    PaymentRetryExhausted["PaymentRetryExhausted"]
-    PaymentVoided["PaymentVoided"]
+    PaymentsProcessing__PaymentsProcessingService__authorizePayment["authorizePayment"]
+    PaymentsProcessing__PaymentsProcessingService__retryPayment["retryPayment"]
+    PaymentsProcessing__PaymentsProcessingService__voidPayment["voidPayment"]
+    PaymentsProcessing__PaymentDeclined["PaymentDeclined"]
+    PaymentsProcessing__PaymentRetryExhausted["PaymentRetryExhausted"]
+    PaymentsProcessing__PaymentVoided["PaymentVoided"]
   end
 
-  class CatalogInventory,OrdersCheckout,PaymentsProcessing module
-  class PaymentDeclined,PaymentRetryExhausted,PaymentVoided,StockAdjusted,StockReceived,StockReleased,StockReservationConfirmed event
+  class sg_CatalogInventory,sg_OrdersCheckout,sg_PaymentsProcessing module
+  class CatalogInventory__InventoryBackofficeService__adjustStock,CatalogInventory__InventoryBackofficeService__receiveStock,CatalogInventory__InventoryService__confirmStockReservation,CatalogInventory__InventoryService__releaseStock,CatalogInventory__InventoryService__reserveStock,OrdersCheckout__OrdersCheckoutService__cancelOrder,OrdersCheckout__OrdersCheckoutService__confirmOrder,OrdersCheckout__OrdersCheckoutService__startOrderCheckout,PaymentsProcessing__PaymentsProcessingService__authorizePayment,PaymentsProcessing__PaymentsProcessingService__retryPayment,PaymentsProcessing__PaymentsProcessingService__voidPayment command
+  class CatalogInventory__StockAdjusted,CatalogInventory__StockReceived,CatalogInventory__StockReleased,CatalogInventory__StockReservationConfirmed,PaymentsProcessing__PaymentDeclined,PaymentsProcessing__PaymentRetryExhausted,PaymentsProcessing__PaymentVoided event
 
-  PaymentDeclined -.-> CatalogInventory
-  PaymentRetryExhausted -.-> CatalogInventory
-  PaymentVoided -.-> CatalogInventory
-  StockReleased -.-> OrdersCheckout
-  OrdersCheckout ==>|"confirmStockReservation<br/>reserveStock"| CatalogInventory
+  CatalogInventory__InventoryBackofficeService__adjustStock --> CatalogInventory__StockAdjusted
+  CatalogInventory__InventoryBackofficeService__receiveStock --> CatalogInventory__StockReceived
+  CatalogInventory__InventoryService__confirmStockReservation --> CatalogInventory__StockReservationConfirmed
+  CatalogInventory__InventoryService__releaseStock --> CatalogInventory__StockReleased
+  PaymentsProcessing__PaymentsProcessingService__authorizePayment --> PaymentsProcessing__PaymentDeclined
+  PaymentsProcessing__PaymentsProcessingService__retryPayment --> PaymentsProcessing__PaymentRetryExhausted
+  PaymentsProcessing__PaymentsProcessingService__voidPayment --> PaymentsProcessing__PaymentVoided
+  CatalogInventory__StockReleased -.-> OrdersCheckout__OrdersCheckoutService__cancelOrder
+  PaymentsProcessing__PaymentDeclined -.-> CatalogInventory__InventoryService__releaseStock
+  PaymentsProcessing__PaymentRetryExhausted -.-> CatalogInventory__InventoryService__releaseStock
+  PaymentsProcessing__PaymentVoided -.-> CatalogInventory__InventoryService__releaseStock
+  OrdersCheckout__OrdersCheckoutService__confirmOrder ==> CatalogInventory__InventoryService__confirmStockReservation
+  OrdersCheckout__OrdersCheckoutService__startOrderCheckout ==> CatalogInventory__InventoryService__reserveStock
 ```
 
-Hexagon = module. Rectangle inside a box = internal event owned by that module. Pipe outside boxes = external event (has a topic). Solid = published by. Dashed = consumed by. Thick = direct call.
+Box = module. Blue = command. Orange = event; a pipe outside the boxes is an external event (has a topic). Solid = emits. Dashed = consumed by. Thick = direct call.
 
-## Class diagram
+## Services
 
-Aggregates, entities and enums of this module and how they relate.
+Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.
+
+### InventoryService
+
+```mermaid
+flowchart LR
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
+  subgraph agg_StockReservation["StockReservation"]
+    direction LR
+    cmd_reserveStock["reserveStock"]
+    cmd_releaseStock["releaseStock"]
+    cmd_confirmStockReservation["confirmStockReservation"]
+    evt_StockReleased["StockReleased"]
+    evt_StockReservationConfirmed["StockReservationConfirmed"]
+  end
+  style agg_StockReservation fill:#fbd3ee,stroke:#c2569b,color:#111
+  class cmd_reserveStock command
+  class cmd_releaseStock command
+  class cmd_confirmStockReservation command
+  class evt_StockReleased event
+  class evt_StockReservationConfirmed event
+  cmd_releaseStock --> evt_StockReleased
+  cmd_confirmStockReservation --> evt_StockReservationConfirmed
+```
+
+### InventoryBackofficeService
+
+```mermaid
+flowchart LR
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
+  subgraph agg_InventoryPosition["InventoryPosition"]
+    direction LR
+    cmd_receiveStock["receiveStock"]
+    cmd_adjustStock["adjustStock"]
+    evt_StockReceived["StockReceived"]
+    evt_StockAdjusted["StockAdjusted"]
+  end
+  style agg_InventoryPosition fill:#fbd3ee,stroke:#c2569b,color:#111
+  class cmd_receiveStock command
+  class cmd_adjustStock command
+  class evt_StockReceived event
+  class evt_StockAdjusted event
+  cmd_receiveStock --> evt_StockReceived
+  cmd_adjustStock --> evt_StockAdjusted
+```
+
+Queries: `createInventoryPosition`.
+
+## Aggregates
+
+Each aggregate root with the entities and enums it owns, and how they relate.
+
+### StockReservation
 
 ```mermaid
 classDiagram
@@ -68,13 +140,6 @@ classDiagram
         Instant releasedAt
         StockReleaseReason releaseReason
     }
-    class InventoryPosition {
-        <<aggregate>>
-        String sku
-        Integer availableQuantity
-        Integer reservedQuantity
-        Integer soldQuantity
-    }
     class ReservationStatus {
         <<enumeration>>
         RESERVED
@@ -88,6 +153,42 @@ classDiagram
         PAYMENT_VOIDED
         RESERVATION_EXPIRED
     }
+    StockReservation --> ReservationStatus : status
+    StockReservation --> StockReleaseReason : releaseReason
+```
+
+#### Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> RESERVED : reserveStock
+    RESERVED --> RELEASED : releaseStock
+    CONFIRMED --> RELEASED : releaseStock
+    RESERVED --> CONFIRMED : confirmStockReservation
+    RELEASED --> [*]
+```
+
+Field `status`, initial `RESERVED`.
+
+### InventoryPosition
+
+```mermaid
+classDiagram
+    class InventoryPosition {
+        <<aggregate>>
+        String sku
+        Integer availableQuantity
+        Integer reservedQuantity
+        Integer soldQuantity
+    }
+```
+
+### Other entities
+
+Entities and enums that no aggregate reaches.
+
+```mermaid
+classDiagram
     class ReserveStockOutcome {
         <<enumeration>>
         RESERVED
@@ -101,188 +202,7 @@ classDiagram
         MANUAL_CORRECTION
         RETURNED
     }
-    class ReserveStockInput {
-        <<input>>
-        String orderId
-        ReserveStockItemInput[] items
-    }
-    class ReserveStockItemInput {
-        <<input>>
-        String sku
-        Integer quantity
-    }
-    class ReleaseStockInput {
-        <<input>>
-        String orderId
-        StockReleaseReason reason
-    }
-    class CreateInventoryPositionInput {
-        <<input>>
-        String sku
-        Integer initialQuantity
-    }
-    class ReceiveStockInput {
-        <<input>>
-        String sku
-        Integer quantity
-        String reason
-        String reference
-    }
-    class AdjustStockInput {
-        <<input>>
-        String sku
-        Integer quantityDelta
-        StockAdjustmentReason reason
-        String reference
-    }
-    class ReserveStockResult {
-        <<output>>
-        ReserveStockOutcome outcome
-        StockReservedResult reserved
-        StockUnavailableResult unavailable
-    }
-    class StockReservedResult {
-        <<output>>
-        String orderId
-        Instant expiresAt
-        StockReservedLine[] reservations
-    }
-    class StockReservedLine {
-        <<output>>
-        String reservationId
-        String sku
-        Integer quantity
-        Instant reservedAt
-    }
-    class StockUnavailableResult {
-        <<output>>
-        String orderId
-        StockUnavailableLine[] unavailableItems
-    }
-    class StockUnavailableLine {
-        <<output>>
-        String sku
-        Integer requestedQuantity
-        Integer availableQuantity
-    }
-    class StockReleased {
-        <<event>>
-        String orderId
-        StockReleaseReason reason
-        Instant releasedAt
-        StockReleasedItem[] items
-    }
-    class StockReleasedItem {
-        <<event>>
-        String reservationId
-        String sku
-        Integer quantity
-    }
-    class StockReservationConfirmed {
-        <<event>>
-        String orderId
-        Instant confirmedAt
-        StockReservationConfirmedItem[] items
-    }
-    class StockReservationConfirmedItem {
-        <<event>>
-        String reservationId
-        String sku
-        Integer quantity
-    }
-    class StockReceived {
-        <<event>>
-        String sku
-        Integer quantity
-        Integer availableQuantity
-        Integer reservedQuantity
-        Integer soldQuantity
-        String reason
-        String reference
-        Instant receivedAt
-    }
-    class StockAdjusted {
-        <<event>>
-        String sku
-        Integer quantityDelta
-        Integer availableQuantity
-        Integer reservedQuantity
-        Integer soldQuantity
-        StockAdjustmentReason reason
-        String reference
-        Instant adjustedAt
-    }
-    class InventoryService {
-        <<service>>
-        reserveStock(ReserveStockInput) ReserveStockResult
-        releaseStock(ReleaseStockInput) StockReservation[] withEvents StockReleased
-        confirmStockReservation(id) StockReservation[] withEvents StockReservationConfirmed
-    }
-    class InventoryBackofficeService {
-        <<service>>
-        createInventoryPosition(CreateInventoryPositionInput) InventoryPosition
-        receiveStock(ReceiveStockInput) InventoryPosition withEvents StockReceived
-        adjustStock(AdjustStockInput) InventoryPosition withEvents StockAdjusted
-    }
-    StockReservation --> ReservationStatus : status
-    StockReservation --> StockReleaseReason : releaseReason
-    ReserveStockInput *-- "*" ReserveStockItemInput : items
-    ReleaseStockInput --> StockReleaseReason : reason
-    AdjustStockInput --> StockAdjustmentReason : reason
-    ReserveStockResult --> ReserveStockOutcome : outcome
-    ReserveStockResult --> StockReservedResult : reserved
-    ReserveStockResult --> StockUnavailableResult : unavailable
-    StockReservedResult *-- "*" StockReservedLine : reservations
-    StockUnavailableResult *-- "*" StockUnavailableLine : unavailableItems
-    StockReleased --> StockReleaseReason : reason
-    StockReleased *-- "*" StockReleasedItem : items
-    StockReservationConfirmed *-- "*" StockReservationConfirmedItem : items
-    StockAdjusted --> StockAdjustmentReason : reason
-    InventoryService ..> StockReservation
-    InventoryService ..> ReserveStockInput
-    InventoryService ..> ReserveStockResult
-    InventoryService ..> ReleaseStockInput
-    InventoryService ..> StockReleased
-    InventoryService ..> StockReservationConfirmed
-    InventoryBackofficeService ..> InventoryPosition
-    InventoryBackofficeService ..> CreateInventoryPositionInput
-    InventoryBackofficeService ..> ReceiveStockInput
-    InventoryBackofficeService ..> StockReceived
-    InventoryBackofficeService ..> AdjustStockInput
-    InventoryBackofficeService ..> StockAdjusted
 ```
-
-## Glossary
-
-Every named type and service of this module.
-
-| Term | Kind | Description |
-| --- | --- | --- |
-| AdjustStockInput | Input |  |
-| CreateInventoryPositionInput | Input |  |
-| InventoryBackofficeService | Service |  |
-| InventoryPosition | Aggregate root |  |
-| InventoryService | Service |  |
-| ReceiveStockInput | Input |  |
-| ReleaseStockInput | Input | Releases every reservation of the order. |
-| ReservationStatus | Enum |  |
-| ReserveStockInput | Input |  |
-| ReserveStockItemInput | Input |  |
-| ReserveStockOutcome | Enum |  |
-| ReserveStockResult | Output | Wrapper for the two ZFL responses of reserveStock (ZDL has no union return type). Exactly one of `reserved` / `unavailable` is set, according to `outcome`. |
-| StockAdjusted | Event |  |
-| StockAdjustmentReason | Enum |  |
-| StockReceived | Event |  |
-| StockReleased | Event |  |
-| StockReleasedItem | Event |  |
-| StockReleaseReason | Enum |  |
-| StockReservation | Aggregate root |  |
-| StockReservationConfirmed | Event |  |
-| StockReservationConfirmedItem | Event |  |
-| StockReservedLine | Output |  |
-| StockReservedResult | Output |  |
-| StockUnavailableLine | Output |  |
-| StockUnavailableResult | Output |  |
 
 ## Commands
 
@@ -290,25 +210,75 @@ The methods of the module's services and the events each one emits.
 
 | Service | Command | Input | Returns | Events | Description |
 | --- | --- | --- | --- | --- | --- |
-| InventoryService | reserveStock | ReserveStockInput | ReserveStockResult |  |  |
-| InventoryService | releaseStock | ReleaseStockInput | StockReservation[] | StockReleased |  |
-| InventoryService | confirmStockReservation | id | StockReservation[] | StockReservationConfirmed |  |
-| InventoryBackofficeService | createInventoryPosition | CreateInventoryPositionInput | InventoryPosition |  |  |
-| InventoryBackofficeService | receiveStock | ReceiveStockInput | InventoryPosition | StockReceived |  |
-| InventoryBackofficeService | adjustStock | AdjustStockInput | InventoryPosition | StockAdjusted |  |
+| InventoryService | reserveStock | [ReserveStockInput](#reservestockinput) | [ReserveStockResult](#reservestockresult) |  |  |
+| InventoryService | releaseStock | [ReleaseStockInput](#releasestockinput) | [StockReservation](#stockreservation-1)[] | [StockReleased](#stockreleased) |  |
+| InventoryService | confirmStockReservation | id | [StockReservation](#stockreservation-1)[] | [StockReservationConfirmed](#stockreservationconfirmed) |  |
+| InventoryBackofficeService | createInventoryPosition | [CreateInventoryPositionInput](#createinventorypositioninput) | [InventoryPosition](#inventoryposition-1) |  |  |
+| InventoryBackofficeService | receiveStock | [ReceiveStockInput](#receivestockinput) | [InventoryPosition](#inventoryposition-1) | [StockReceived](#stockreceived) |  |
+| InventoryBackofficeService | adjustStock | [AdjustStockInput](#adjuststockinput) | [InventoryPosition](#inventoryposition-1) | [StockAdjusted](#stockadjusted) |  |
 
 ## Events
 
-Events declared by this module and their fields.
+Events declared by this module, with their fields. Fields copied with `@copy` are included.
 
-| Event | Fields | Description |
+### StockReleased
+
+| Field | Type | Description |
 | --- | --- | --- |
-| StockReleased | orderId: String, reason: StockReleaseReason, releasedAt: Instant, items: StockReleasedItem[] |  |
-| StockReleasedItem | reservationId: String, sku: String, quantity: Integer |  |
-| StockReservationConfirmed | orderId: String, confirmedAt: Instant, items: StockReservationConfirmedItem[] |  |
-| StockReservationConfirmedItem | reservationId: String, sku: String, quantity: Integer |  |
-| StockReceived | sku: String, quantity: Integer, availableQuantity: Integer, reservedQuantity: Integer, soldQuantity: Integer, reason: String, reference: String, receivedAt: Instant |  |
-| StockAdjusted | sku: String, quantityDelta: Integer, availableQuantity: Integer, reservedQuantity: Integer, soldQuantity: Integer, reason: StockAdjustmentReason, reference: String, adjustedAt: Instant |  |
+| orderId | String |  |
+| reason | [StockReleaseReason](#stockreleasereason) |  |
+| releasedAt | Instant |  |
+| items | [StockReleasedItem](#stockreleaseditem)[] |  |
+
+#### StockReleasedItem
+
+| Field | Type | Description |
+| --- | --- | --- |
+| reservationId | String |  |
+| sku | String |  |
+| quantity | Integer |  |
+
+### StockReservationConfirmed
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| confirmedAt | Instant |  |
+| items | [StockReservationConfirmedItem](#stockreservationconfirmeditem)[] |  |
+
+#### StockReservationConfirmedItem
+
+| Field | Type | Description |
+| --- | --- | --- |
+| reservationId | String |  |
+| sku | String |  |
+| quantity | Integer |  |
+
+### StockReceived
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| quantity | Integer |  |
+| availableQuantity | Integer |  |
+| reservedQuantity | Integer |  |
+| soldQuantity | Integer |  |
+| reason | String |  |
+| reference | String |  |
+| receivedAt | Instant |  |
+
+### StockAdjusted
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| quantityDelta | Integer |  |
+| availableQuantity | Integer |  |
+| reservedQuantity | Integer |  |
+| soldQuantity | Integer |  |
+| reason | [StockAdjustmentReason](#stockadjustmentreason) |  |
+| reference | String |  |
+| adjustedAt | Instant |  |
 
 ## Consumes
 
@@ -336,4 +306,168 @@ Other modules that call commands of this module directly.
 | --- | --- | --- |
 | [Orders Checkout](orders-checkout.md) | `confirmStockReservation` | `OrdersCheckoutService.confirmOrder` |
 | [Orders Checkout](orders-checkout.md) | `reserveStock` | `OrdersCheckoutService.startOrderCheckout` |
+
+## Glossary
+
+Every named type of this module, by kind. Events are described under Events.
+
+### Aggregates
+
+#### StockReservation
+
+Aggregate root
+
+| Field | Type | Description |
+| --- | --- | --- |
+| reservationId | String |  |
+| orderId | String | One reservation per order line: an order has as many reservations as items. |
+| sku | String |  |
+| quantity | Integer |  |
+| status | [ReservationStatus](#reservationstatus) |  |
+| reservedAt | Instant |  |
+| expiresAt | Instant |  |
+| confirmedAt | Instant |  |
+| releasedAt | Instant |  |
+| releaseReason | [StockReleaseReason](#stockreleasereason) |  |
+
+#### InventoryPosition
+
+Aggregate root
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| availableQuantity | Integer |  |
+| reservedQuantity | Integer |  |
+| soldQuantity | Integer |  |
+
+### Enums
+
+#### ReservationStatus
+
+| Value | Description |
+| --- | --- |
+| RESERVED |  |
+| RELEASED |  |
+| CONFIRMED |  |
+
+#### StockReleaseReason
+
+| Value | Description |
+| --- | --- |
+| PAYMENT_DECLINED |  |
+| PAYMENT_RETRY_EXHAUSTED |  |
+| PAYMENT_VOIDED |  |
+| RESERVATION_EXPIRED |  |
+
+#### ReserveStockOutcome
+
+| Value | Description |
+| --- | --- |
+| RESERVED |  |
+| UNAVAILABLE |  |
+
+#### StockAdjustmentReason
+
+| Value | Description |
+| --- | --- |
+| DAMAGED |  |
+| LOST |  |
+| FOUND |  |
+| MANUAL_CORRECTION |  |
+| RETURNED |  |
+
+### Inputs
+
+#### ReserveStockInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| items | [ReserveStockItemInput](#reservestockiteminput)[] |  |
+
+#### ReserveStockItemInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| quantity | Integer |  |
+
+#### ReleaseStockInput
+
+Releases every reservation of the order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| reason | [StockReleaseReason](#stockreleasereason) |  |
+
+#### CreateInventoryPositionInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| initialQuantity | Integer |  |
+
+#### ReceiveStockInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| quantity | Integer |  |
+| reason | String |  |
+| reference | String |  |
+
+#### AdjustStockInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| quantityDelta | Integer |  |
+| reason | [StockAdjustmentReason](#stockadjustmentreason) |  |
+| reference | String |  |
+
+### Outputs
+
+#### ReserveStockResult
+
+Wrapper for the two ZFL responses of reserveStock (ZDL has no union return type). Exactly one of `reserved` / `unavailable` is set, according to `outcome`.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| outcome | [ReserveStockOutcome](#reservestockoutcome) |  |
+| reserved | [StockReservedResult](#stockreservedresult) |  |
+| unavailable | [StockUnavailableResult](#stockunavailableresult) |  |
+
+#### StockReservedResult
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| expiresAt | Instant |  |
+| reservations | [StockReservedLine](#stockreservedline)[] |  |
+
+#### StockReservedLine
+
+| Field | Type | Description |
+| --- | --- | --- |
+| reservationId | String |  |
+| sku | String |  |
+| quantity | Integer |  |
+| reservedAt | Instant |  |
+
+#### StockUnavailableResult
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| unavailableItems | [StockUnavailableLine](#stockunavailableline)[] |  |
+
+#### StockUnavailableLine
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| requestedQuantity | Integer |  |
+| availableQuantity | Integer |  |
 

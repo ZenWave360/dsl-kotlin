@@ -11,64 +11,131 @@ Back to the [architecture](../architecture.md).
 
 ## Architecture
 
-This module, the events it owns and consumes, and the modules it talks to.
+This module's commands and events, and the commands and events of other modules that connect to them.
 
 ```mermaid
 flowchart LR
-  classDef module fill:#e8f0fe,stroke:#4a6fa5,stroke-width:2px,color:#111
-  classDef event fill:#fff4d6,stroke:#c9a227,color:#111
+  classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
 
   subgraph sg_CatalogInventory["Catalog Inventory"]
-    CatalogInventory{{"Catalog Inventory"}}
+    CatalogInventory__InventoryService__releaseStock["releaseStock"]
   end
 
   subgraph sg_FulfillmentShipping["Fulfillment Shipping"]
-    FulfillmentShipping{{"Fulfillment Shipping"}}
-    FulfillmentFailed["FulfillmentFailed"]
-    FulfillmentScheduled["FulfillmentScheduled"]
+    FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment["scheduleFulfillment"]
+    FulfillmentShipping__FulfillmentFailed["FulfillmentFailed"]
+    FulfillmentShipping__FulfillmentScheduled["FulfillmentScheduled"]
   end
 
   subgraph sg_NotificationsConsumer["Notifications Consumer"]
-    NotificationsConsumer{{"Notifications Consumer"}}
+    NotificationsConsumer__NotificationsConsumerService__sendOrderConfirmation["sendOrderConfirmation"]
   end
 
   subgraph sg_OrdersCheckout["Orders Checkout"]
-    OrdersCheckout{{"Orders Checkout"}}
-    OrderCreated["OrderCreated"]
+    OrdersCheckout__OrdersCheckoutService__startOrderCheckout["startOrderCheckout"]
+    OrdersCheckout__OrdersCheckoutService__confirmOrder["confirmOrder"]
+    OrdersCheckout__OrderCreated["OrderCreated"]
   end
 
   subgraph sg_PaymentsProcessing["Payments Processing"]
-    PaymentsProcessing{{"Payments Processing"}}
-    PaymentAuthorized["PaymentAuthorized"]
-    PaymentCaptureFailed["PaymentCaptureFailed"]
-    PaymentCaptured["PaymentCaptured"]
-    PaymentDeclined["PaymentDeclined"]
-    PaymentFailed["PaymentFailed"]
-    PaymentRetried["PaymentRetried"]
-    PaymentRetryExhausted["PaymentRetryExhausted"]
-    PaymentVoided["PaymentVoided"]
+    PaymentsProcessing__PaymentsProcessingService__authorizePayment["authorizePayment"]
+    PaymentsProcessing__PaymentsProcessingService__retryPayment["retryPayment"]
+    PaymentsProcessing__PaymentsProcessingService__capturePayment["capturePayment"]
+    PaymentsProcessing__PaymentsProcessingService__voidPayment["voidPayment"]
+    PaymentsProcessing__PaymentAuthorized["PaymentAuthorized"]
+    PaymentsProcessing__PaymentCaptureFailed["PaymentCaptureFailed"]
+    PaymentsProcessing__PaymentCaptured["PaymentCaptured"]
+    PaymentsProcessing__PaymentDeclined["PaymentDeclined"]
+    PaymentsProcessing__PaymentFailed["PaymentFailed"]
+    PaymentsProcessing__PaymentRetried["PaymentRetried"]
+    PaymentsProcessing__PaymentRetryExhausted["PaymentRetryExhausted"]
+    PaymentsProcessing__PaymentVoided["PaymentVoided"]
   end
 
-  class CatalogInventory,FulfillmentShipping,NotificationsConsumer,OrdersCheckout,PaymentsProcessing module
-  class FulfillmentFailed,FulfillmentScheduled,OrderCreated,PaymentAuthorized,PaymentCaptureFailed,PaymentCaptured,PaymentDeclined,PaymentFailed,PaymentRetried,PaymentRetryExhausted,PaymentVoided event
+  class sg_CatalogInventory,sg_FulfillmentShipping,sg_NotificationsConsumer,sg_OrdersCheckout,sg_PaymentsProcessing module
+  class CatalogInventory__InventoryService__releaseStock,FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment,NotificationsConsumer__NotificationsConsumerService__sendOrderConfirmation,OrdersCheckout__OrdersCheckoutService__confirmOrder,OrdersCheckout__OrdersCheckoutService__startOrderCheckout,PaymentsProcessing__PaymentsProcessingService__authorizePayment,PaymentsProcessing__PaymentsProcessingService__capturePayment,PaymentsProcessing__PaymentsProcessingService__retryPayment,PaymentsProcessing__PaymentsProcessingService__voidPayment command
+  class FulfillmentShipping__FulfillmentFailed,FulfillmentShipping__FulfillmentScheduled,OrdersCheckout__OrderCreated,PaymentsProcessing__PaymentAuthorized,PaymentsProcessing__PaymentCaptureFailed,PaymentsProcessing__PaymentCaptured,PaymentsProcessing__PaymentDeclined,PaymentsProcessing__PaymentFailed,PaymentsProcessing__PaymentRetried,PaymentsProcessing__PaymentRetryExhausted,PaymentsProcessing__PaymentVoided event
 
-  FulfillmentFailed -.-> PaymentsProcessing
-  FulfillmentScheduled -.-> PaymentsProcessing
-  OrderCreated -.-> PaymentsProcessing
-  PaymentAuthorized -.-> OrdersCheckout
-  PaymentCaptureFailed -.-> PaymentsProcessing
-  PaymentCaptured -.-> NotificationsConsumer
-  PaymentDeclined -.-> CatalogInventory
-  PaymentFailed -.-> PaymentsProcessing
-  PaymentRetryExhausted -.-> CatalogInventory
-  PaymentVoided -.-> CatalogInventory
+  FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment --> FulfillmentShipping__FulfillmentFailed
+  FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment --> FulfillmentShipping__FulfillmentScheduled
+  OrdersCheckout__OrdersCheckoutService__startOrderCheckout --> OrdersCheckout__OrderCreated
+  PaymentsProcessing__PaymentsProcessingService__authorizePayment --> PaymentsProcessing__PaymentAuthorized
+  PaymentsProcessing__PaymentsProcessingService__authorizePayment --> PaymentsProcessing__PaymentDeclined
+  PaymentsProcessing__PaymentsProcessingService__authorizePayment --> PaymentsProcessing__PaymentFailed
+  PaymentsProcessing__PaymentsProcessingService__capturePayment --> PaymentsProcessing__PaymentCaptureFailed
+  PaymentsProcessing__PaymentsProcessingService__capturePayment --> PaymentsProcessing__PaymentCaptured
+  PaymentsProcessing__PaymentsProcessingService__retryPayment --> PaymentsProcessing__PaymentRetried
+  PaymentsProcessing__PaymentsProcessingService__retryPayment --> PaymentsProcessing__PaymentRetryExhausted
+  PaymentsProcessing__PaymentsProcessingService__voidPayment --> PaymentsProcessing__PaymentVoided
+  FulfillmentShipping__FulfillmentFailed -.-> PaymentsProcessing__PaymentsProcessingService__voidPayment
+  FulfillmentShipping__FulfillmentScheduled -.-> PaymentsProcessing__PaymentsProcessingService__capturePayment
+  OrdersCheckout__OrderCreated -.-> PaymentsProcessing__PaymentsProcessingService__authorizePayment
+  PaymentsProcessing__PaymentAuthorized -.-> OrdersCheckout__OrdersCheckoutService__confirmOrder
+  PaymentsProcessing__PaymentCaptureFailed -.-> PaymentsProcessing__PaymentsProcessingService__voidPayment
+  PaymentsProcessing__PaymentCaptured -.-> NotificationsConsumer__NotificationsConsumerService__sendOrderConfirmation
+  PaymentsProcessing__PaymentDeclined -.-> CatalogInventory__InventoryService__releaseStock
+  PaymentsProcessing__PaymentFailed -.-> PaymentsProcessing__PaymentsProcessingService__retryPayment
+  PaymentsProcessing__PaymentRetryExhausted -.-> CatalogInventory__InventoryService__releaseStock
+  PaymentsProcessing__PaymentVoided -.-> CatalogInventory__InventoryService__releaseStock
 ```
 
-Hexagon = module. Rectangle inside a box = internal event owned by that module. Pipe outside boxes = external event (has a topic). Solid = published by. Dashed = consumed by. Thick = direct call.
+Box = module. Blue = command. Orange = event; a pipe outside the boxes is an external event (has a topic). Solid = emits. Dashed = consumed by. Thick = direct call.
 
-## Class diagram
+## Services
 
-Aggregates, entities and enums of this module and how they relate.
+Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.
+
+### PaymentsProcessingService
+
+```mermaid
+flowchart LR
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
+  subgraph agg_Payment["Payment"]
+    direction LR
+    cmd_authorizePayment["authorizePayment"]
+    cmd_retryPayment["retryPayment"]
+    cmd_capturePayment["capturePayment"]
+    cmd_voidPayment["voidPayment"]
+    evt_PaymentAuthorized["PaymentAuthorized"]
+    evt_PaymentDeclined["PaymentDeclined"]
+    evt_PaymentFailed["PaymentFailed"]
+    evt_PaymentRetried["PaymentRetried"]
+    evt_PaymentRetryExhausted["PaymentRetryExhausted"]
+    evt_PaymentCaptured["PaymentCaptured"]
+    evt_PaymentCaptureFailed["PaymentCaptureFailed"]
+    evt_PaymentVoided["PaymentVoided"]
+  end
+  style agg_Payment fill:#fbd3ee,stroke:#c2569b,color:#111
+  class cmd_authorizePayment command
+  class cmd_retryPayment command
+  class cmd_capturePayment command
+  class cmd_voidPayment command
+  class evt_PaymentAuthorized event
+  class evt_PaymentDeclined event
+  class evt_PaymentFailed event
+  class evt_PaymentRetried event
+  class evt_PaymentRetryExhausted event
+  class evt_PaymentCaptured event
+  class evt_PaymentCaptureFailed event
+  class evt_PaymentVoided event
+  cmd_authorizePayment --> evt_PaymentAuthorized
+  cmd_authorizePayment --> evt_PaymentDeclined
+  cmd_authorizePayment --> evt_PaymentFailed
+  cmd_retryPayment --> evt_PaymentRetried
+  cmd_retryPayment --> evt_PaymentRetryExhausted
+  cmd_capturePayment --> evt_PaymentCaptured
+  cmd_capturePayment --> evt_PaymentCaptureFailed
+  cmd_voidPayment --> evt_PaymentVoided
+```
+
+## Aggregates
+
+Each aggregate root with the entities and enums it owns, and how they relate.
+
+### Payment
 
 ```mermaid
 classDiagram
@@ -100,145 +167,24 @@ classDiagram
         CAPTURED
         VOIDED
     }
-    class AuthorizePaymentInput {
-        <<input>>
-        String orderId
-        String customerId
-        String customerEmail
-        BigDecimal amount
-        String currency
-        String paymentMethodId
-    }
-    class RetryPaymentInput {
-        <<input>>
-        String orderId
-    }
-    class CapturePaymentInput {
-        <<input>>
-        String orderId
-    }
-    class VoidPaymentInput {
-        <<input>>
-        String reason
-    }
-    class PaymentAuthorized {
-        <<event>>
-        String paymentId
-        String orderId
-        String customerId
-        BigDecimal amount
-        String currency
-        String providerReference
-        Instant authorizedAt
-    }
-    class PaymentDeclined {
-        <<event>>
-        String paymentId
-        String orderId
-        String customerId
-        BigDecimal amount
-        String currency
-        String reason
-        Instant declinedAt
-    }
-    class PaymentFailed {
-        <<event>>
-        String paymentId
-        String orderId
-        String customerId
-        Integer attemptCount
-        String reason
-        Instant failedAt
-    }
-    class PaymentRetried {
-        <<event>>
-        String paymentId
-        String orderId
-        String customerId
-        Integer attemptCount
-        Instant retriedAt
-    }
-    class PaymentRetryExhausted {
-        <<event>>
-        String paymentId
-        String orderId
-        String customerId
-        Integer attemptCount
-        String reason
-        Instant exhaustedAt
-    }
-    class PaymentCaptured {
-        <<event>>
-        String paymentId
-        String orderId
-        String customerId
-        String customerEmail
-        BigDecimal amount
-        String currency
-        String providerReference
-        Instant capturedAt
-    }
-    class PaymentCaptureFailed {
-        <<event>>
-        String paymentId
-        String orderId
-        String customerId
-        String reason
-        Instant failedAt
-    }
-    class PaymentVoided {
-        <<event>>
-        String paymentId
-        String orderId
-        String customerId
-        String providerReference
-        String reason
-        Instant voidedAt
-    }
-    class PaymentsProcessingService {
-        <<service>>
-        authorizePayment(AuthorizePaymentInput) Payment withEvents PaymentAuthorized PaymentDeclined PaymentFailed
-        retryPayment(id, RetryPaymentInput) Payment withEvents PaymentRetried PaymentRetryExhausted
-        capturePayment(id, CapturePaymentInput) Payment withEvents PaymentCaptured PaymentCaptureFailed
-        voidPayment(id, VoidPaymentInput) Payment withEvents PaymentVoided
-    }
     Payment --> PaymentStatus : status
-    PaymentsProcessingService ..> Payment
-    PaymentsProcessingService ..> AuthorizePaymentInput
-    PaymentsProcessingService ..> PaymentAuthorized
-    PaymentsProcessingService ..> PaymentDeclined
-    PaymentsProcessingService ..> PaymentFailed
-    PaymentsProcessingService ..> RetryPaymentInput
-    PaymentsProcessingService ..> PaymentRetried
-    PaymentsProcessingService ..> PaymentRetryExhausted
-    PaymentsProcessingService ..> CapturePaymentInput
-    PaymentsProcessingService ..> PaymentCaptured
-    PaymentsProcessingService ..> PaymentCaptureFailed
-    PaymentsProcessingService ..> VoidPaymentInput
-    PaymentsProcessingService ..> PaymentVoided
 ```
 
-## Glossary
+#### Lifecycle
 
-Every named type and service of this module.
+```mermaid
+stateDiagram-v2
+    [*] --> AUTHORIZATION_REQUESTED : authorizePayment
+    FAILED --> AUTHORIZATION_REQUESTED : retryPayment
+    AUTHORIZED --> CAPTURED : capturePayment
+    AUTHORIZED --> VOIDED : voidPayment
+    AUTHORIZATION_REQUESTED --> VOIDED : voidPayment
+    FAILED --> VOIDED : voidPayment
+    CAPTURED --> [*]
+    VOIDED --> [*]
+```
 
-| Term | Kind | Description |
-| --- | --- | --- |
-| AuthorizePaymentInput | Input |  |
-| CapturePaymentInput | Input | The payment is resolved by orderId (Payment.orderId is unique); fulfillment events carry no paymentId. |
-| Payment | Aggregate root |  |
-| PaymentAuthorized | Event |  |
-| PaymentCaptured | Event |  |
-| PaymentCaptureFailed | Event |  |
-| PaymentDeclined | Event |  |
-| PaymentFailed | Event |  |
-| PaymentRetried | Event |  |
-| PaymentRetryExhausted | Event |  |
-| PaymentsProcessingService | Service |  |
-| PaymentStatus | Enum |  |
-| PaymentVoided | Event |  |
-| RetryPaymentInput | Input |  |
-| VoidPaymentInput | Input | The payment is resolved by orderId (Payment.orderId is unique); fulfillment events carry no paymentId. |
+Field `status`, initial `AUTHORIZATION_REQUESTED`.
 
 ## Commands
 
@@ -246,25 +192,104 @@ The methods of the module's services and the events each one emits.
 
 | Service | Command | Input | Returns | Events | Description |
 | --- | --- | --- | --- | --- | --- |
-| PaymentsProcessingService | authorizePayment | AuthorizePaymentInput | Payment | PaymentAuthorized, PaymentDeclined, PaymentFailed |  |
-| PaymentsProcessingService | retryPayment | id, RetryPaymentInput | Payment | PaymentRetried, PaymentRetryExhausted |  |
-| PaymentsProcessingService | capturePayment | id, CapturePaymentInput | Payment | PaymentCaptured, PaymentCaptureFailed |  |
-| PaymentsProcessingService | voidPayment | id, VoidPaymentInput | Payment | PaymentVoided |  |
+| PaymentsProcessingService | authorizePayment | [AuthorizePaymentInput](#authorizepaymentinput) | [Payment](#payment-1) | [PaymentAuthorized](#paymentauthorized), [PaymentDeclined](#paymentdeclined), [PaymentFailed](#paymentfailed) |  |
+| PaymentsProcessingService | retryPayment | id, [RetryPaymentInput](#retrypaymentinput) | [Payment](#payment-1) | [PaymentRetried](#paymentretried), [PaymentRetryExhausted](#paymentretryexhausted) |  |
+| PaymentsProcessingService | capturePayment | id, [CapturePaymentInput](#capturepaymentinput) | [Payment](#payment-1) | [PaymentCaptured](#paymentcaptured), [PaymentCaptureFailed](#paymentcapturefailed) |  |
+| PaymentsProcessingService | voidPayment | id, [VoidPaymentInput](#voidpaymentinput) | [Payment](#payment-1) | [PaymentVoided](#paymentvoided) |  |
 
 ## Events
 
-Events declared by this module and their fields.
+Events declared by this module, with their fields. Fields copied with `@copy` are included.
 
-| Event | Fields | Description |
+### PaymentAuthorized
+
+| Field | Type | Description |
 | --- | --- | --- |
-| PaymentAuthorized | paymentId: String, orderId: String, customerId: String, amount: BigDecimal, currency: String, providerReference: String, authorizedAt: Instant |  |
-| PaymentDeclined | paymentId: String, orderId: String, customerId: String, amount: BigDecimal, currency: String, reason: String, declinedAt: Instant |  |
-| PaymentFailed | paymentId: String, orderId: String, customerId: String, attemptCount: Integer, reason: String, failedAt: Instant |  |
-| PaymentRetried | paymentId: String, orderId: String, customerId: String, attemptCount: Integer, retriedAt: Instant |  |
-| PaymentRetryExhausted | paymentId: String, orderId: String, customerId: String, attemptCount: Integer, reason: String, exhaustedAt: Instant |  |
-| PaymentCaptured | paymentId: String, orderId: String, customerId: String, customerEmail: String, amount: BigDecimal, currency: String, providerReference: String, capturedAt: Instant |  |
-| PaymentCaptureFailed | paymentId: String, orderId: String, customerId: String, reason: String, failedAt: Instant |  |
-| PaymentVoided | paymentId: String, orderId: String, customerId: String, providerReference: String, reason: String, voidedAt: Instant |  |
+| paymentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| amount | BigDecimal |  |
+| currency | String |  |
+| providerReference | String |  |
+| authorizedAt | Instant |  |
+
+### PaymentDeclined
+
+| Field | Type | Description |
+| --- | --- | --- |
+| paymentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| amount | BigDecimal |  |
+| currency | String |  |
+| reason | String |  |
+| declinedAt | Instant |  |
+
+### PaymentFailed
+
+| Field | Type | Description |
+| --- | --- | --- |
+| paymentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| attemptCount | Integer |  |
+| reason | String |  |
+| failedAt | Instant |  |
+
+### PaymentRetried
+
+| Field | Type | Description |
+| --- | --- | --- |
+| paymentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| attemptCount | Integer |  |
+| retriedAt | Instant |  |
+
+### PaymentRetryExhausted
+
+| Field | Type | Description |
+| --- | --- | --- |
+| paymentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| attemptCount | Integer |  |
+| reason | String |  |
+| exhaustedAt | Instant |  |
+
+### PaymentCaptured
+
+| Field | Type | Description |
+| --- | --- | --- |
+| paymentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| customerEmail | String |  |
+| amount | BigDecimal |  |
+| currency | String |  |
+| providerReference | String |  |
+| capturedAt | Instant |  |
+
+### PaymentCaptureFailed
+
+| Field | Type | Description |
+| --- | --- | --- |
+| paymentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| reason | String |  |
+| failedAt | Instant |  |
+
+### PaymentVoided
+
+| Field | Type | Description |
+| --- | --- | --- |
+| paymentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| providerReference | String |  |
+| reason | String |  |
+| voidedAt | Instant |  |
 
 ## Consumes
 
@@ -291,4 +316,81 @@ Who reacts to the events this module owns.
 | PaymentFailed | [Payments Processing](payments-processing.md) | `PaymentsProcessingService.retryPayment` | @listener |
 | PaymentRetryExhausted | [Catalog Inventory](catalog-inventory.md) | `InventoryService.releaseStock` | @listener |
 | PaymentVoided | [Catalog Inventory](catalog-inventory.md) | `InventoryService.releaseStock` | @listener |
+
+## Glossary
+
+Every named type of this module, by kind. Events are described under Events.
+
+### Aggregates
+
+#### Payment
+
+Aggregate root
+
+| Field | Type | Description |
+| --- | --- | --- |
+| paymentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| customerEmail | String | Carried so PaymentCaptured can drive the order confirmation e-mail. |
+| amount | BigDecimal |  |
+| currency | String |  |
+| status | [PaymentStatus](#paymentstatus) |  |
+| providerReference | String |  |
+| attemptCount | Integer |  |
+| authorizedAt | Instant |  |
+| declinedAt | Instant |  |
+| failedAt | Instant |  |
+| capturedAt | Instant |  |
+| voidedAt | Instant |  |
+| failureReason | String |  |
+
+### Enums
+
+#### PaymentStatus
+
+| Value | Description |
+| --- | --- |
+| AUTHORIZATION_REQUESTED |  |
+| AUTHORIZED |  |
+| DECLINED |  |
+| FAILED |  |
+| RETRY_EXHAUSTED |  |
+| CAPTURED |  |
+| VOIDED |  |
+
+### Inputs
+
+#### AuthorizePaymentInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| customerId | String |  |
+| customerEmail | String |  |
+| amount | BigDecimal |  |
+| currency | String |  |
+| paymentMethodId | String |  |
+
+#### RetryPaymentInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+
+#### CapturePaymentInput
+
+The payment is resolved by orderId (Payment.orderId is unique); fulfillment events carry no paymentId.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+
+#### VoidPaymentInput
+
+The payment is resolved by orderId (Payment.orderId is unique); fulfillment events carry no paymentId.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| reason | String |  |
 

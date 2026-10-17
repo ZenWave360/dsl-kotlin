@@ -3,11 +3,97 @@
 
 # Domain model
 
-## Arcadia Editions - Orders Checkout
+Arcadia Editions - Orders Checkout
 
 Source: `domain-model.zdl`
 
-### Class diagram
+Back to the [architecture](architecture.md).
+
+## Architecture
+
+This module's commands and events, and the commands and events of other modules that connect to them.
+
+```mermaid
+flowchart LR
+  classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
+  classDef foreign fill:#f3f3f3,stroke:#888,stroke-dasharray:5 5,color:#111
+
+  subgraph sg_CatalogInventory["Catalog Inventory"]
+    CatalogInventory__InventoryService__confirmStockReservation["confirmStockReservation"]
+    CatalogInventory__InventoryService__reserveStock["reserveStock"]
+  end
+
+  subgraph sg_OrdersCheckout["Orders Checkout"]
+    OrdersCheckout__OrdersCheckoutService__startOrderCheckout["startOrderCheckout"]
+    OrdersCheckout__OrdersCheckoutService__confirmOrder["confirmOrder"]
+    OrdersCheckout__OrdersCheckoutService__cancelOrder["cancelOrder"]
+  end
+
+  OrdersCheckout__OrderCancelled@{ shape: h-cyl, label: "OrderCancelled" }
+  OrdersCheckout__OrderConfirmed@{ shape: h-cyl, label: "OrderConfirmed" }
+  OrdersCheckout__OrderCreated@{ shape: h-cyl, label: "OrderCreated" }
+  OrdersCheckout__StockUnavailable@{ shape: h-cyl, label: "StockUnavailable" }
+  ext_payment_authorized_event_v1@{ shape: h-cyl, label: "payment-authorized-event-v1" }
+  ext_stock_released_event_v1@{ shape: h-cyl, label: "stock-released-event-v1" }
+
+  class sg_OrdersCheckout module
+  class ext_payment_authorized_event_v1,ext_stock_released_event_v1,sg_CatalogInventory foreign
+  class CatalogInventory__InventoryService__confirmStockReservation,CatalogInventory__InventoryService__reserveStock,OrdersCheckout__OrdersCheckoutService__cancelOrder,OrdersCheckout__OrdersCheckoutService__confirmOrder,OrdersCheckout__OrdersCheckoutService__startOrderCheckout command
+  class OrdersCheckout__OrderCancelled,OrdersCheckout__OrderConfirmed,OrdersCheckout__OrderCreated,OrdersCheckout__StockUnavailable event
+
+  OrdersCheckout__OrdersCheckoutService__cancelOrder --> OrdersCheckout__OrderCancelled
+  OrdersCheckout__OrdersCheckoutService__confirmOrder --> OrdersCheckout__OrderConfirmed
+  OrdersCheckout__OrdersCheckoutService__startOrderCheckout --> OrdersCheckout__OrderCreated
+  OrdersCheckout__OrdersCheckoutService__startOrderCheckout --> OrdersCheckout__StockUnavailable
+  ext_payment_authorized_event_v1 -.-> OrdersCheckout__OrdersCheckoutService__confirmOrder
+  ext_stock_released_event_v1 -.-> OrdersCheckout__OrdersCheckoutService__cancelOrder
+  OrdersCheckout__OrdersCheckoutService__confirmOrder ==> CatalogInventory__InventoryService__confirmStockReservation
+  OrdersCheckout__OrdersCheckoutService__startOrderCheckout ==> CatalogInventory__InventoryService__reserveStock
+```
+
+Box = module. Blue = command. Orange = event; a pipe outside the boxes is an external event (has a topic). Solid = emits. Dashed = consumed by. Thick = direct call.
+
+## Services
+
+Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.
+
+### OrdersCheckoutService
+
+```mermaid
+flowchart LR
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
+  subgraph agg_Order["Order"]
+    direction LR
+    cmd_startOrderCheckout["startOrderCheckout"]
+    cmd_confirmOrder["confirmOrder"]
+    cmd_cancelOrder["cancelOrder"]
+    evt_OrderCreated["OrderCreated"]
+    evt_StockUnavailable["StockUnavailable"]
+    evt_OrderConfirmed["OrderConfirmed"]
+    evt_OrderCancelled["OrderCancelled"]
+  end
+  style agg_Order fill:#fbd3ee,stroke:#c2569b,color:#111
+  class cmd_startOrderCheckout command
+  class cmd_confirmOrder command
+  class cmd_cancelOrder command
+  class evt_OrderCreated event
+  class evt_StockUnavailable event
+  class evt_OrderConfirmed event
+  class evt_OrderCancelled event
+  cmd_startOrderCheckout --> evt_OrderCreated
+  cmd_startOrderCheckout --> evt_StockUnavailable
+  cmd_confirmOrder --> evt_OrderConfirmed
+  cmd_cancelOrder --> evt_OrderCancelled
+```
+
+## Aggregates
+
+Each aggregate root with the entities and enums it owns, and how they relate.
+
+### Order
 
 ```mermaid
 classDiagram
@@ -26,86 +112,138 @@ classDiagram
         CONFIRMED
         CANCELLED
     }
-    class StartOrderCheckoutInput {
-        <<input>>
-        String[] items
-    }
-    class ConfirmOrderInput {
-        <<input>>
-        String orderId
-    }
-    class CancelOrderInput {
-        <<input>>
-        String orderId
-    }
-    class OrderCreated {
-        <<event>>
-        String orderId
-        Integer version
-    }
-    class StockUnavailable {
-        <<event>>
-        String productId
-        Integer requestedQuantity
-    }
-    class OrderConfirmed {
-        <<event>>
-        String orderId
-        Integer version
-        Instant confirmedAt
-    }
-    class OrderCancelled {
-        <<event>>
-        String orderId
-        Integer version
-        Instant cancelledAt
-    }
-    class OrdersCheckoutService {
-        <<service>>
-        startOrderCheckout(StartOrderCheckoutInput) Order withEvents OrderCreated or StockUnavailable
-        confirmOrder(ConfirmOrderInput) Order withEvents OrderConfirmed
-        cancelOrder(CancelOrderInput) Order withEvents OrderCancelled
-    }
     Order --> OrderStatus : status
-    OrdersCheckoutService ..> Order
-    OrdersCheckoutService ..> StartOrderCheckoutInput
-    OrdersCheckoutService ..> OrderCreated
-    OrdersCheckoutService ..> StockUnavailable
-    OrdersCheckoutService ..> ConfirmOrderInput
-    OrdersCheckoutService ..> OrderConfirmed
-    OrdersCheckoutService ..> CancelOrderInput
-    OrdersCheckoutService ..> OrderCancelled
 ```
 
-### Glossary
+#### Lifecycle
 
-| Term | Kind | Description |
-| --- | --- | --- |
-| CancelOrderInput | Input |  |
-| ConfirmOrderInput | Input |  |
-| Order | Aggregate root |  |
-| OrderCancelled | Event |  |
-| OrderConfirmed | Event |  |
-| OrderCreated | Event |  |
-| OrdersCheckoutService | Service |  |
-| OrderStatus | Enum |  |
-| StartOrderCheckoutInput | Input |  |
-| StockUnavailable | Event |  |
+```mermaid
+stateDiagram-v2
+    [*] --> CREATED : startOrderCheckout
+    CREATED --> CONFIRMED : confirmOrder
+    CREATED --> CANCELLED : cancelOrder
+    CONFIRMED --> CANCELLED : cancelOrder
+    CANCELLED --> [*]
+```
 
-### Commands
+Field `status`, initial `CREATED`.
+
+## Commands
+
+The methods of the module's services and the events each one emits.
 
 | Service | Command | Input | Returns | Events | Description |
 | --- | --- | --- | --- | --- | --- |
-| OrdersCheckoutService | startOrderCheckout | StartOrderCheckoutInput | Order | OrderCreated \| StockUnavailable |  |
-| OrdersCheckoutService | confirmOrder | ConfirmOrderInput | Order | OrderConfirmed |  |
-| OrdersCheckoutService | cancelOrder | CancelOrderInput | Order | OrderCancelled |  |
+| OrdersCheckoutService | startOrderCheckout | [StartOrderCheckoutInput](#startordercheckoutinput) | [Order](#order-1) | [OrderCreated](#ordercreated) \| [StockUnavailable](#stockunavailable) |  |
+| OrdersCheckoutService | confirmOrder | [ConfirmOrderInput](#confirmorderinput) | [Order](#order-1) | [OrderConfirmed](#orderconfirmed) |  |
+| OrdersCheckoutService | cancelOrder | [CancelOrderInput](#cancelorderinput) | [Order](#order-1) | [OrderCancelled](#ordercancelled) |  |
 
-### Events
+## Events
 
-| Event | Fields | Description |
+Events declared by this module, with their fields. Fields copied with `@copy` are included.
+
+### OrderCreated
+
+Channel: `order-created-event-v1`. Topic: `orders-checkout.order-created.event.avro.v1`.
+
+| Field | Type | Description |
 | --- | --- | --- |
-| OrderCreated | orderId: String, version: Integer |  |
-| StockUnavailable | productId: String, requestedQuantity: Integer |  |
-| OrderConfirmed | orderId: String, version: Integer, confirmedAt: Instant |  |
-| OrderCancelled | orderId: String, version: Integer, cancelledAt: Instant |  |
+| orderId | String |  |
+| version | Integer |  |
+
+### StockUnavailable
+
+Channel: `stock-unavailable-event-v1`. Topic: `orders-checkout.stock-unavailable.event.avro.v1`.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| productId | String |  |
+| requestedQuantity | Integer |  |
+
+### OrderConfirmed
+
+Channel: `order-confirmed-event-v1`. Topic: `orders-checkout.order-confirmed.event.avro.v1`.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| version | Integer |  |
+| confirmedAt | Instant |  |
+
+### OrderCancelled
+
+Channel: `order-cancelled-event-v1`. Topic: `orders-checkout.order-cancelled.event.avro.v1`.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| version | Integer |  |
+| cancelledAt | Instant |  |
+
+## Consumes
+
+Events from other modules or systems that this module reacts to, and the method that handles each one.
+
+| Event | Owner | Handled by | Via |
+| --- | --- | --- | --- |
+| payment-authorized-event-v1 (other system) | unknown | `OrdersCheckoutService.confirmOrder` | @asyncapi |
+| stock-released-event-v1 (other system) | unknown | `OrdersCheckoutService.cancelOrder` | @asyncapi |
+
+## Calls
+
+Direct calls this module makes to commands of other modules.
+
+| Callee | Command | Called from |
+| --- | --- | --- |
+| Catalog Inventory | `confirmStockReservation` | `OrdersCheckoutService.confirmOrder` |
+| Catalog Inventory | `reserveStock` | `OrdersCheckoutService.startOrderCheckout` |
+
+## Glossary
+
+Every named type of this module, by kind. Events are described under Events.
+
+### Aggregates
+
+#### Order
+
+Aggregate root
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| status | [OrderStatus](#orderstatus) |  |
+| items | String[] |  |
+| createdAt | Instant |  |
+| confirmedAt | Instant |  |
+| cancelledAt | Instant |  |
+
+### Enums
+
+#### OrderStatus
+
+| Value | Description |
+| --- | --- |
+| CREATED |  |
+| CONFIRMED |  |
+| CANCELLED |  |
+
+### Inputs
+
+#### StartOrderCheckoutInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| items | String[] |  |
+
+#### ConfirmOrderInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+
+#### CancelOrderInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
 

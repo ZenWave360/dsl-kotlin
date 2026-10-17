@@ -11,28 +11,68 @@ Back to the [architecture](../architecture.md).
 
 ## Architecture
 
-This module, the events it owns and consumes, and the modules it talks to.
+This module's commands and events, and the commands and events of other modules that connect to them.
 
 ```mermaid
 flowchart LR
-  classDef module fill:#e8f0fe,stroke:#4a6fa5,stroke-width:2px,color:#111
-  classDef event fill:#fff4d6,stroke:#c9a227,color:#111
+  classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
 
   subgraph sg_CatalogProducts["Product Catalog"]
-    CatalogProducts{{"Product Catalog"}}
-    ProductPublished["ProductPublished"]
-    ProductRetired["ProductRetired"]
+    CatalogProducts__ProductCatalogService__createProduct["createProduct"]
+    CatalogProducts__ProductCatalogService__updateProduct["updateProduct"]
+    CatalogProducts__ProductCatalogService__publishProduct["publishProduct"]
+    CatalogProducts__ProductCatalogService__retireProduct["retireProduct"]
+    CatalogProducts__ProductPublished["ProductPublished"]
+    CatalogProducts__ProductRetired["ProductRetired"]
   end
 
-  class CatalogProducts module
-  class ProductPublished,ProductRetired event
+  class sg_CatalogProducts module
+  class CatalogProducts__ProductCatalogService__createProduct,CatalogProducts__ProductCatalogService__publishProduct,CatalogProducts__ProductCatalogService__retireProduct,CatalogProducts__ProductCatalogService__updateProduct command
+  class CatalogProducts__ProductPublished,CatalogProducts__ProductRetired event
+
+  CatalogProducts__ProductCatalogService__publishProduct --> CatalogProducts__ProductPublished
+  CatalogProducts__ProductCatalogService__retireProduct --> CatalogProducts__ProductRetired
 ```
 
-Hexagon = module. Rectangle inside a box = internal event owned by that module. Pipe outside boxes = external event (has a topic). Solid = published by. Dashed = consumed by. Thick = direct call.
+Box = module. Blue = command. Orange = event; a pipe outside the boxes is an external event (has a topic). Solid = emits. Dashed = consumed by. Thick = direct call.
 
-## Class diagram
+## Services
 
-Aggregates, entities and enums of this module and how they relate.
+Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.
+
+### ProductCatalogService
+
+```mermaid
+flowchart LR
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
+  subgraph agg_Product["Product"]
+    direction LR
+    cmd_createProduct["createProduct"]
+    cmd_updateProduct["updateProduct"]
+    cmd_publishProduct["publishProduct"]
+    cmd_retireProduct["retireProduct"]
+    evt_ProductPublished["ProductPublished"]
+    evt_ProductRetired["ProductRetired"]
+  end
+  style agg_Product fill:#fbd3ee,stroke:#c2569b,color:#111
+  class cmd_createProduct command
+  class cmd_updateProduct command
+  class cmd_publishProduct command
+  class cmd_retireProduct command
+  class evt_ProductPublished event
+  class evt_ProductRetired event
+  cmd_publishProduct --> evt_ProductPublished
+  cmd_retireProduct --> evt_ProductRetired
+```
+
+## Aggregates
+
+Each aggregate root with the entities and enums it owns, and how they relate.
+
+### Product
 
 ```mermaid
 classDiagram
@@ -48,93 +88,35 @@ classDiagram
         Instant launchAt
         ProductStatus status
     }
+    class InventoryTrackingMode {
+        <<enumeration>>
+        QUANTITY
+        SERIALIZED
+    }
     class ProductStatus {
         <<enumeration>>
         DRAFT
         PUBLISHED
         RETIRED
     }
-    class InventoryTrackingMode {
-        <<enumeration>>
-        QUANTITY
-        SERIALIZED
-    }
-    class CreateProductInput {
-        <<input>>
-        String sku
-        String name
-        String description
-        BigDecimal price
-        String currency
-        Integer editionSize
-        InventoryTrackingMode trackingMode
-        Instant launchAt
-    }
-    class UpdateProductInput {
-        <<input>>
-        String name
-        String description
-        BigDecimal price
-        String currency
-        Instant launchAt
-    }
-    class ProductPublishedResponse {
-        <<output>>
-        String productId
-        String sku
-        Instant publishedAt
-    }
-    class ProductPublished {
-        <<event>>
-        String productId
-        String sku
-        String name
-        BigDecimal price
-        String currency
-        Integer editionSize
-        InventoryTrackingMode trackingMode
-        Instant launchAt
-        Instant publishedAt
-    }
-    class ProductRetired {
-        <<event>>
-        String productId
-        String sku
-        Instant retiredAt
-    }
-    class ProductCatalogService {
-        <<service>>
-        createProduct(CreateProductInput) Product
-        updateProduct(id, UpdateProductInput) Product
-        publishProduct(id) Product withEvents ProductPublished
-        retireProduct(id) Product withEvents ProductRetired
-    }
     Product --> InventoryTrackingMode : trackingMode
     Product --> ProductStatus : status
-    CreateProductInput --> InventoryTrackingMode : trackingMode
-    ProductPublished --> InventoryTrackingMode : trackingMode
-    ProductCatalogService ..> Product
-    ProductCatalogService ..> CreateProductInput
-    ProductCatalogService ..> UpdateProductInput
-    ProductCatalogService ..> ProductPublished
-    ProductCatalogService ..> ProductRetired
 ```
 
-## Glossary
+#### Lifecycle
 
-Every named type and service of this module.
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT : createProduct
+    DRAFT --> DRAFT : updateProduct
+    PUBLISHED --> DRAFT : updateProduct
+    DRAFT --> PUBLISHED : publishProduct
+    DRAFT --> RETIRED : retireProduct
+    PUBLISHED --> RETIRED : retireProduct
+    RETIRED --> [*]
+```
 
-| Term | Kind | Description |
-| --- | --- | --- |
-| CreateProductInput | Input |  |
-| InventoryTrackingMode | Enum |  |
-| Product | Aggregate root |  |
-| ProductCatalogService | Service |  |
-| ProductPublished | Event |  |
-| ProductPublishedResponse | Output |  |
-| ProductRetired | Event |  |
-| ProductStatus | Enum |  |
-| UpdateProductInput | Input |  |
+Field `status`, initial `DRAFT`.
 
 ## Commands
 
@@ -142,17 +124,108 @@ The methods of the module's services and the events each one emits.
 
 | Service | Command | Input | Returns | Events | Description |
 | --- | --- | --- | --- | --- | --- |
-| ProductCatalogService | createProduct | CreateProductInput | Product |  |  |
-| ProductCatalogService | updateProduct | id, UpdateProductInput | Product |  |  |
-| ProductCatalogService | publishProduct | id | Product | ProductPublished |  |
-| ProductCatalogService | retireProduct | id | Product | ProductRetired |  |
+| ProductCatalogService | createProduct | [CreateProductInput](#createproductinput) | [Product](#product-1) |  |  |
+| ProductCatalogService | updateProduct | id, [UpdateProductInput](#updateproductinput) | [Product](#product-1) |  |  |
+| ProductCatalogService | publishProduct | id | [Product](#product-1) | [ProductPublished](#productpublished) |  |
+| ProductCatalogService | retireProduct | id | [Product](#product-1) | [ProductRetired](#productretired) |  |
 
 ## Events
 
-Events declared by this module and their fields.
+Events declared by this module, with their fields. Fields copied with `@copy` are included.
 
-| Event | Fields | Description |
+### ProductPublished
+
+| Field | Type | Description |
 | --- | --- | --- |
-| ProductPublished | productId: String, sku: String, name: String, price: BigDecimal, currency: String, editionSize: Integer, trackingMode: InventoryTrackingMode, launchAt: Instant, publishedAt: Instant |  |
-| ProductRetired | productId: String, sku: String, retiredAt: Instant |  |
+| productId | String |  |
+| sku | String |  |
+| name | String |  |
+| price | BigDecimal |  |
+| currency | String |  |
+| editionSize | Integer |  |
+| trackingMode | [InventoryTrackingMode](#inventorytrackingmode) |  |
+| launchAt | Instant |  |
+| publishedAt | Instant |  |
+
+### ProductRetired
+
+| Field | Type | Description |
+| --- | --- | --- |
+| productId | String |  |
+| sku | String |  |
+| retiredAt | Instant |  |
+
+## Glossary
+
+Every named type of this module, by kind. Events are described under Events.
+
+### Aggregates
+
+#### Product
+
+Aggregate root
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| name | String |  |
+| description | String |  |
+| price | BigDecimal |  |
+| currency | String |  |
+| editionSize | Integer |  |
+| trackingMode | [InventoryTrackingMode](#inventorytrackingmode) |  |
+| launchAt | Instant |  |
+| status | [ProductStatus](#productstatus) |  |
+
+### Enums
+
+#### ProductStatus
+
+| Value | Description |
+| --- | --- |
+| DRAFT |  |
+| PUBLISHED |  |
+| RETIRED |  |
+
+#### InventoryTrackingMode
+
+| Value | Description |
+| --- | --- |
+| QUANTITY |  |
+| SERIALIZED |  |
+
+### Inputs
+
+#### CreateProductInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| name | String |  |
+| description | String |  |
+| price | BigDecimal |  |
+| currency | String |  |
+| editionSize | Integer |  |
+| trackingMode | [InventoryTrackingMode](#inventorytrackingmode) |  |
+| launchAt | Instant |  |
+
+#### UpdateProductInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| name | String |  |
+| description | String |  |
+| price | BigDecimal |  |
+| currency | String |  |
+| launchAt | Instant |  |
+
+### Outputs
+
+#### ProductPublishedResponse
+
+| Field | Type | Description |
+| --- | --- | --- |
+| productId | String |  |
+| sku | String |  |
+| publishedAt | Instant |  |
 

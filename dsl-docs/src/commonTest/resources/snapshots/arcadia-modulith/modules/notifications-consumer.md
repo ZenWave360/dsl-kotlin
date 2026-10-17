@@ -11,45 +11,97 @@ Back to the [architecture](../architecture.md).
 
 ## Architecture
 
-This module, the events it owns and consumes, and the modules it talks to.
+This module's commands and events, and the commands and events of other modules that connect to them.
 
 ```mermaid
 flowchart LR
-  classDef module fill:#e8f0fe,stroke:#4a6fa5,stroke-width:2px,color:#111
-  classDef event fill:#fff4d6,stroke:#c9a227,color:#111
+  classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
 
   subgraph sg_NotificationsConsumer["Notifications Consumer"]
-    NotificationsConsumer{{"Notifications Consumer"}}
-    NotificationDeliveryFailed["NotificationDeliveryFailed"]
-    OrderCancelledNotificationSent["OrderCancelledNotificationSent"]
-    OrderConfirmationSent["OrderConfirmationSent"]
-    StockUnavailableNotificationSent["StockUnavailableNotificationSent"]
+    NotificationsConsumer__NotificationsConsumerService__sendOrderConfirmation["sendOrderConfirmation"]
+    NotificationsConsumer__NotificationsConsumerService__sendStockUnavailableNotification["sendStockUnavailableNotification"]
+    NotificationsConsumer__NotificationsConsumerService__sendOrderCancelledNotification["sendOrderCancelledNotification"]
+    NotificationsConsumer__NotificationDeliveryFailed["NotificationDeliveryFailed"]
+    NotificationsConsumer__OrderCancelledNotificationSent["OrderCancelledNotificationSent"]
+    NotificationsConsumer__OrderConfirmationSent["OrderConfirmationSent"]
+    NotificationsConsumer__StockUnavailableNotificationSent["StockUnavailableNotificationSent"]
   end
 
   subgraph sg_OrdersCheckout["Orders Checkout"]
-    OrdersCheckout{{"Orders Checkout"}}
-    OrderCancelled["OrderCancelled"]
-    StockUnavailable["StockUnavailable"]
+    OrdersCheckout__OrdersCheckoutService__startOrderCheckout["startOrderCheckout"]
+    OrdersCheckout__OrdersCheckoutService__cancelOrder["cancelOrder"]
+    OrdersCheckout__OrderCancelled["OrderCancelled"]
+    OrdersCheckout__StockUnavailable["StockUnavailable"]
   end
 
   subgraph sg_PaymentsProcessing["Payments Processing"]
-    PaymentsProcessing{{"Payments Processing"}}
-    PaymentCaptured["PaymentCaptured"]
+    PaymentsProcessing__PaymentsProcessingService__capturePayment["capturePayment"]
+    PaymentsProcessing__PaymentCaptured["PaymentCaptured"]
   end
 
-  class NotificationsConsumer,OrdersCheckout,PaymentsProcessing module
-  class NotificationDeliveryFailed,OrderCancelled,OrderCancelledNotificationSent,OrderConfirmationSent,PaymentCaptured,StockUnavailable,StockUnavailableNotificationSent event
+  class sg_NotificationsConsumer,sg_OrdersCheckout,sg_PaymentsProcessing module
+  class NotificationsConsumer__NotificationsConsumerService__sendOrderCancelledNotification,NotificationsConsumer__NotificationsConsumerService__sendOrderConfirmation,NotificationsConsumer__NotificationsConsumerService__sendStockUnavailableNotification,OrdersCheckout__OrdersCheckoutService__cancelOrder,OrdersCheckout__OrdersCheckoutService__startOrderCheckout,PaymentsProcessing__PaymentsProcessingService__capturePayment command
+  class NotificationsConsumer__NotificationDeliveryFailed,NotificationsConsumer__OrderCancelledNotificationSent,NotificationsConsumer__OrderConfirmationSent,NotificationsConsumer__StockUnavailableNotificationSent,OrdersCheckout__OrderCancelled,OrdersCheckout__StockUnavailable,PaymentsProcessing__PaymentCaptured event
 
-  OrderCancelled -.-> NotificationsConsumer
-  PaymentCaptured -.-> NotificationsConsumer
-  StockUnavailable -.-> NotificationsConsumer
+  NotificationsConsumer__NotificationsConsumerService__sendOrderCancelledNotification --> NotificationsConsumer__NotificationDeliveryFailed
+  NotificationsConsumer__NotificationsConsumerService__sendOrderCancelledNotification --> NotificationsConsumer__OrderCancelledNotificationSent
+  NotificationsConsumer__NotificationsConsumerService__sendOrderConfirmation --> NotificationsConsumer__NotificationDeliveryFailed
+  NotificationsConsumer__NotificationsConsumerService__sendOrderConfirmation --> NotificationsConsumer__OrderConfirmationSent
+  NotificationsConsumer__NotificationsConsumerService__sendStockUnavailableNotification --> NotificationsConsumer__NotificationDeliveryFailed
+  NotificationsConsumer__NotificationsConsumerService__sendStockUnavailableNotification --> NotificationsConsumer__StockUnavailableNotificationSent
+  OrdersCheckout__OrdersCheckoutService__cancelOrder --> OrdersCheckout__OrderCancelled
+  OrdersCheckout__OrdersCheckoutService__startOrderCheckout --> OrdersCheckout__StockUnavailable
+  PaymentsProcessing__PaymentsProcessingService__capturePayment --> PaymentsProcessing__PaymentCaptured
+  OrdersCheckout__OrderCancelled -.-> NotificationsConsumer__NotificationsConsumerService__sendOrderCancelledNotification
+  OrdersCheckout__StockUnavailable -.-> NotificationsConsumer__NotificationsConsumerService__sendStockUnavailableNotification
+  PaymentsProcessing__PaymentCaptured -.-> NotificationsConsumer__NotificationsConsumerService__sendOrderConfirmation
 ```
 
-Hexagon = module. Rectangle inside a box = internal event owned by that module. Pipe outside boxes = external event (has a topic). Solid = published by. Dashed = consumed by. Thick = direct call.
+Box = module. Blue = command. Orange = event; a pipe outside the boxes is an external event (has a topic). Solid = emits. Dashed = consumed by. Thick = direct call.
 
-## Class diagram
+## Services
 
-Aggregates, entities and enums of this module and how they relate.
+Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.
+
+### NotificationsConsumerService
+
+```mermaid
+flowchart LR
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
+  subgraph agg_Notification["Notification"]
+    direction LR
+    cmd_sendOrderConfirmation["sendOrderConfirmation"]
+    cmd_sendStockUnavailableNotification["sendStockUnavailableNotification"]
+    cmd_sendOrderCancelledNotification["sendOrderCancelledNotification"]
+    evt_OrderConfirmationSent["OrderConfirmationSent"]
+    evt_NotificationDeliveryFailed["NotificationDeliveryFailed"]
+    evt_StockUnavailableNotificationSent["StockUnavailableNotificationSent"]
+    evt_OrderCancelledNotificationSent["OrderCancelledNotificationSent"]
+  end
+  style agg_Notification fill:#fbd3ee,stroke:#c2569b,color:#111
+  class cmd_sendOrderConfirmation command
+  class cmd_sendStockUnavailableNotification command
+  class cmd_sendOrderCancelledNotification command
+  class evt_OrderConfirmationSent event
+  class evt_NotificationDeliveryFailed event
+  class evt_StockUnavailableNotificationSent event
+  class evt_OrderCancelledNotificationSent event
+  cmd_sendOrderConfirmation --> evt_OrderConfirmationSent
+  cmd_sendOrderConfirmation --> evt_NotificationDeliveryFailed
+  cmd_sendStockUnavailableNotification --> evt_StockUnavailableNotificationSent
+  cmd_sendStockUnavailableNotification --> evt_NotificationDeliveryFailed
+  cmd_sendOrderCancelledNotification --> evt_OrderCancelledNotificationSent
+  cmd_sendOrderCancelledNotification --> evt_NotificationDeliveryFailed
+```
+
+## Aggregates
+
+Each aggregate root with the entities and enums it owns, and how they relate.
+
+### Notification
 
 ```mermaid
 classDiagram
@@ -88,117 +140,20 @@ classDiagram
         SENT
         FAILED
     }
-    class SendOrderConfirmationInput {
-        <<input>>
-        String orderId
-        String customerId
-        String customerEmail
-    }
-    class SendStockUnavailableNotificationInput {
-        <<input>>
-        String orderId
-        String customerId
-        String customerEmail
-        StockUnavailableItemInput[] unavailableItems
-    }
-    class StockUnavailableItemInput {
-        <<input>>
-        String sku
-        Integer requestedQuantity
-        Integer availableQuantity
-    }
-    class SendOrderCancelledNotificationInput {
-        <<input>>
-        String orderId
-        String customerId
-        String reason
-        String customerEmail
-    }
-    class OrderConfirmationSent {
-        <<event>>
-        String notificationId
-        String orderId
-        String customerId
-        NotificationChannel channel
-        String recipient
-        Instant sentAt
-    }
-    class StockUnavailableNotificationSent {
-        <<event>>
-        String notificationId
-        String orderId
-        String customerId
-        String[] skus
-        NotificationChannel channel
-        String recipient
-        Instant sentAt
-    }
-    class OrderCancelledNotificationSent {
-        <<event>>
-        String notificationId
-        String orderId
-        String customerId
-        String reason
-        NotificationChannel channel
-        String recipient
-        Instant sentAt
-    }
-    class NotificationDeliveryFailed {
-        <<event>>
-        String notificationId
-        String orderId
-        String customerId
-        String[] skus
-        NotificationType type
-        NotificationChannel channel
-        String recipient
-        String reason
-        Instant failedAt
-    }
-    class NotificationsConsumerService {
-        <<service>>
-        sendOrderConfirmation(SendOrderConfirmationInput) Notification withEvents OrderConfirmationSent or NotificationDeliveryFailed
-        sendStockUnavailableNotification(SendStockUnavailableNotificationInput) Notification withEvents StockUnavailableNotificationSent or NotificationDeliveryFailed
-        sendOrderCancelledNotification(SendOrderCancelledNotificationInput) Notification withEvents OrderCancelledNotificationSent or NotificationDeliveryFailed
-    }
     Notification --> NotificationType : type
     Notification --> NotificationChannel : channel
     Notification --> NotificationStatus : status
-    SendStockUnavailableNotificationInput *-- "*" StockUnavailableItemInput : unavailableItems
-    OrderConfirmationSent --> NotificationChannel : channel
-    StockUnavailableNotificationSent --> NotificationChannel : channel
-    OrderCancelledNotificationSent --> NotificationChannel : channel
-    NotificationDeliveryFailed --> NotificationType : type
-    NotificationDeliveryFailed --> NotificationChannel : channel
-    NotificationsConsumerService ..> Notification
-    NotificationsConsumerService ..> SendOrderConfirmationInput
-    NotificationsConsumerService ..> OrderConfirmationSent
-    NotificationsConsumerService ..> NotificationDeliveryFailed
-    NotificationsConsumerService ..> SendStockUnavailableNotificationInput
-    NotificationsConsumerService ..> StockUnavailableNotificationSent
-    NotificationsConsumerService ..> SendOrderCancelledNotificationInput
-    NotificationsConsumerService ..> OrderCancelledNotificationSent
 ```
 
-## Glossary
+#### Lifecycle
 
-Every named type and service of this module.
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING : sendOrderConfirmation, sendStockUnavailableNotification, sendOrderCancelledNotification
+    PENDING --> [*]
+```
 
-| Term | Kind | Description |
-| --- | --- | --- |
-| Notification | Aggregate root |  |
-| NotificationChannel | Enum |  |
-| NotificationDeliveryFailed | Event |  |
-| NotificationsConsumerService | Service |  |
-| NotificationStatus | Enum |  |
-| NotificationType | Enum |  |
-| OrderCancelledNotificationSent | Event |  |
-| OrderConfirmationSent | Event |  |
-| SendOrderCancelledNotificationInput | Input |  |
-| SendOrderConfirmationInput | Input |  |
-| SendStockUnavailableNotificationInput | Input |  |
-| StockUnavailableItemInput | Input |  |
-| StockUnavailableNotificationSent | Event |  |
+Field `status`, initial `PENDING`.
 
 ## Commands
 
@@ -206,20 +161,62 @@ The methods of the module's services and the events each one emits.
 
 | Service | Command | Input | Returns | Events | Description |
 | --- | --- | --- | --- | --- | --- |
-| NotificationsConsumerService | sendOrderConfirmation | SendOrderConfirmationInput | Notification | OrderConfirmationSent \| NotificationDeliveryFailed |  |
-| NotificationsConsumerService | sendStockUnavailableNotification | SendStockUnavailableNotificationInput | Notification | StockUnavailableNotificationSent \| NotificationDeliveryFailed |  |
-| NotificationsConsumerService | sendOrderCancelledNotification | SendOrderCancelledNotificationInput | Notification | OrderCancelledNotificationSent \| NotificationDeliveryFailed |  |
+| NotificationsConsumerService | sendOrderConfirmation | [SendOrderConfirmationInput](#sendorderconfirmationinput) | [Notification](#notification-1) | [OrderConfirmationSent](#orderconfirmationsent) \| [NotificationDeliveryFailed](#notificationdeliveryfailed) |  |
+| NotificationsConsumerService | sendStockUnavailableNotification | [SendStockUnavailableNotificationInput](#sendstockunavailablenotificationinput) | [Notification](#notification-1) | [StockUnavailableNotificationSent](#stockunavailablenotificationsent) \| [NotificationDeliveryFailed](#notificationdeliveryfailed) |  |
+| NotificationsConsumerService | sendOrderCancelledNotification | [SendOrderCancelledNotificationInput](#sendordercancellednotificationinput) | [Notification](#notification-1) | [OrderCancelledNotificationSent](#ordercancellednotificationsent) \| [NotificationDeliveryFailed](#notificationdeliveryfailed) |  |
 
 ## Events
 
-Events declared by this module and their fields.
+Events declared by this module, with their fields. Fields copied with `@copy` are included.
 
-| Event | Fields | Description |
+### OrderConfirmationSent
+
+| Field | Type | Description |
 | --- | --- | --- |
-| OrderConfirmationSent | notificationId: String, orderId: String, customerId: String, channel: NotificationChannel, recipient: String, sentAt: Instant |  |
-| StockUnavailableNotificationSent | notificationId: String, orderId: String, customerId: String, skus: String[], channel: NotificationChannel, recipient: String, sentAt: Instant |  |
-| OrderCancelledNotificationSent | notificationId: String, orderId: String, customerId: String, reason: String, channel: NotificationChannel, recipient: String, sentAt: Instant |  |
-| NotificationDeliveryFailed | notificationId: String, orderId: String, customerId: String, skus: String[], type: NotificationType, channel: NotificationChannel, recipient: String, reason: String, failedAt: Instant |  |
+| notificationId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| channel | [NotificationChannel](#notificationchannel) |  |
+| recipient | String |  |
+| sentAt | Instant |  |
+
+### StockUnavailableNotificationSent
+
+| Field | Type | Description |
+| --- | --- | --- |
+| notificationId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| skus | String[] |  |
+| channel | [NotificationChannel](#notificationchannel) |  |
+| recipient | String |  |
+| sentAt | Instant |  |
+
+### OrderCancelledNotificationSent
+
+| Field | Type | Description |
+| --- | --- | --- |
+| notificationId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| reason | String |  |
+| channel | [NotificationChannel](#notificationchannel) |  |
+| recipient | String |  |
+| sentAt | Instant |  |
+
+### NotificationDeliveryFailed
+
+| Field | Type | Description |
+| --- | --- | --- |
+| notificationId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| skus | String[] |  |
+| type | [NotificationType](#notificationtype) |  |
+| channel | [NotificationChannel](#notificationchannel) |  |
+| recipient | String |  |
+| reason | String |  |
+| failedAt | Instant |  |
 
 ## Consumes
 
@@ -230,4 +227,93 @@ Events from other modules or systems that this module reacts to, and the method 
 | OrderCancelled | [Orders Checkout](orders-checkout.md) | `NotificationsConsumerService.sendOrderCancelledNotification` | @listener |
 | StockUnavailable | [Orders Checkout](orders-checkout.md) | `NotificationsConsumerService.sendStockUnavailableNotification` | @listener |
 | PaymentCaptured | [Payments Processing](payments-processing.md) | `NotificationsConsumerService.sendOrderConfirmation` | @listener |
+
+## Glossary
+
+Every named type of this module, by kind. Events are described under Events.
+
+### Aggregates
+
+#### Notification
+
+Aggregate root
+
+| Field | Type | Description |
+| --- | --- | --- |
+| notificationId | String |  |
+| customerId | String |  |
+| orderId | String |  |
+| skus | String[] |  |
+| type | [NotificationType](#notificationtype) |  |
+| channel | [NotificationChannel](#notificationchannel) |  |
+| status | [NotificationStatus](#notificationstatus) |  |
+| subject | String |  |
+| body | String |  |
+| recipient | String |  |
+| createdAt | Instant |  |
+| sentAt | Instant |  |
+| failedAt | Instant |  |
+| failureReason | String |  |
+
+### Enums
+
+#### NotificationType
+
+| Value | Description |
+| --- | --- |
+| ORDER_CONFIRMATION |  |
+| STOCK_UNAVAILABLE |  |
+| ORDER_CANCELLED |  |
+
+#### NotificationChannel
+
+| Value | Description |
+| --- | --- |
+| EMAIL |  |
+| SMS |  |
+| PUSH |  |
+
+#### NotificationStatus
+
+| Value | Description |
+| --- | --- |
+| PENDING |  |
+| SENT |  |
+| FAILED |  |
+
+### Inputs
+
+#### SendOrderConfirmationInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| customerId | String |  |
+| customerEmail | String |  |
+
+#### SendStockUnavailableNotificationInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| customerId | String |  |
+| customerEmail | String |  |
+| unavailableItems | [StockUnavailableItemInput](#stockunavailableiteminput)[] |  |
+
+#### StockUnavailableItemInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| requestedQuantity | Integer |  |
+| availableQuantity | Integer |  |
+
+#### SendOrderCancelledNotificationInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| customerId | String |  |
+| reason | String |  |
+| customerEmail | String |  |
 

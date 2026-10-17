@@ -50,7 +50,7 @@ class DslDocs {
                     pages += PageEntry(path, module.name, "module, ${context.document(module)!!.source.path.substringAfterLast('/')}")
                 }
             } else {
-                files += DocsFile(DomainPage.PATH, DomainPage.render(zdl, problems))
+                files += DocsFile(DomainPage.PATH, DomainPage.render(context, problems))
                 pages += PageEntry(DomainPage.PATH, DomainPage.TITLE, count(zdl.size, "ZDL file"))
             }
         }

@@ -11,42 +11,81 @@ Back to the [architecture](../architecture.md).
 
 ## Architecture
 
-This module, the events it owns and consumes, and the modules it talks to.
+This module's commands and events, and the commands and events of other modules that connect to them.
 
 ```mermaid
 flowchart LR
-  classDef module fill:#e8f0fe,stroke:#4a6fa5,stroke-width:2px,color:#111
-  classDef event fill:#fff4d6,stroke:#c9a227,color:#111
+  classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
 
   subgraph sg_FulfillmentShipping["Fulfillment Shipping"]
-    FulfillmentShipping{{"Fulfillment Shipping"}}
-    FulfillmentFailed["FulfillmentFailed"]
-    FulfillmentReadyToShip["FulfillmentReadyToShip"]
-    FulfillmentScheduled["FulfillmentScheduled"]
+    FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment["scheduleFulfillment"]
+    FulfillmentShipping__FulfillmentShippingService__markReadyToShip["markReadyToShip"]
+    FulfillmentShipping__FulfillmentFailed["FulfillmentFailed"]
+    FulfillmentShipping__FulfillmentReadyToShip["FulfillmentReadyToShip"]
+    FulfillmentShipping__FulfillmentScheduled["FulfillmentScheduled"]
   end
 
   subgraph sg_OrdersCheckout["Orders Checkout"]
-    OrdersCheckout{{"Orders Checkout"}}
-    OrderConfirmed["OrderConfirmed"]
+    OrdersCheckout__OrdersCheckoutService__confirmOrder["confirmOrder"]
+    OrdersCheckout__OrderConfirmed["OrderConfirmed"]
   end
 
   subgraph sg_PaymentsProcessing["Payments Processing"]
-    PaymentsProcessing{{"Payments Processing"}}
+    PaymentsProcessing__PaymentsProcessingService__capturePayment["capturePayment"]
+    PaymentsProcessing__PaymentsProcessingService__voidPayment["voidPayment"]
   end
 
-  class FulfillmentShipping,OrdersCheckout,PaymentsProcessing module
-  class FulfillmentFailed,FulfillmentReadyToShip,FulfillmentScheduled,OrderConfirmed event
+  class sg_FulfillmentShipping,sg_OrdersCheckout,sg_PaymentsProcessing module
+  class FulfillmentShipping__FulfillmentShippingService__markReadyToShip,FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment,OrdersCheckout__OrdersCheckoutService__confirmOrder,PaymentsProcessing__PaymentsProcessingService__capturePayment,PaymentsProcessing__PaymentsProcessingService__voidPayment command
+  class FulfillmentShipping__FulfillmentFailed,FulfillmentShipping__FulfillmentReadyToShip,FulfillmentShipping__FulfillmentScheduled,OrdersCheckout__OrderConfirmed event
 
-  FulfillmentFailed -.-> PaymentsProcessing
-  FulfillmentScheduled -.-> PaymentsProcessing
-  OrderConfirmed -.-> FulfillmentShipping
+  FulfillmentShipping__FulfillmentShippingService__markReadyToShip --> FulfillmentShipping__FulfillmentReadyToShip
+  FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment --> FulfillmentShipping__FulfillmentFailed
+  FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment --> FulfillmentShipping__FulfillmentScheduled
+  OrdersCheckout__OrdersCheckoutService__confirmOrder --> OrdersCheckout__OrderConfirmed
+  FulfillmentShipping__FulfillmentFailed -.-> PaymentsProcessing__PaymentsProcessingService__voidPayment
+  FulfillmentShipping__FulfillmentScheduled -.-> PaymentsProcessing__PaymentsProcessingService__capturePayment
+  OrdersCheckout__OrderConfirmed -.-> FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment
 ```
 
-Hexagon = module. Rectangle inside a box = internal event owned by that module. Pipe outside boxes = external event (has a topic). Solid = published by. Dashed = consumed by. Thick = direct call.
+Box = module. Blue = command. Orange = event; a pipe outside the boxes is an external event (has a topic). Solid = emits. Dashed = consumed by. Thick = direct call.
 
-## Class diagram
+## Services
 
-Aggregates, entities and enums of this module and how they relate.
+Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.
+
+### FulfillmentShippingService
+
+```mermaid
+flowchart LR
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
+  subgraph agg_Fulfillment["Fulfillment"]
+    direction LR
+    cmd_scheduleFulfillment["scheduleFulfillment"]
+    cmd_markReadyToShip["markReadyToShip"]
+    evt_FulfillmentScheduled["FulfillmentScheduled"]
+    evt_FulfillmentFailed["FulfillmentFailed"]
+    evt_FulfillmentReadyToShip["FulfillmentReadyToShip"]
+  end
+  style agg_Fulfillment fill:#fbd3ee,stroke:#c2569b,color:#111
+  class cmd_scheduleFulfillment command
+  class cmd_markReadyToShip command
+  class evt_FulfillmentScheduled event
+  class evt_FulfillmentFailed event
+  class evt_FulfillmentReadyToShip event
+  cmd_scheduleFulfillment --> evt_FulfillmentScheduled
+  cmd_scheduleFulfillment --> evt_FulfillmentFailed
+  cmd_markReadyToShip --> evt_FulfillmentReadyToShip
+```
+
+## Aggregates
+
+Each aggregate root with the entities and enums it owns, and how they relate.
+
+### Fulfillment
 
 ```mermaid
 classDiagram
@@ -86,86 +125,21 @@ classDiagram
         READY_TO_SHIP
         FAILED
     }
-    class ScheduleFulfillmentInput {
-        <<input>>
-        String orderId
-        String customerId
-        ShippingAddressInput shippingAddress
-        FulfillmentItemInput[] items
-    }
-    class ShippingAddressInput {
-        <<input>>
-        String name
-        String line1
-        String line2
-        String city
-        String region
-        String postalCode
-        String country
-    }
-    class FulfillmentItemInput {
-        <<input>>
-        String sku
-        Integer quantity
-    }
-    class FulfillmentScheduled {
-        <<event>>
-        String fulfillmentId
-        String orderId
-        String customerId
-        Instant scheduledAt
-    }
-    class FulfillmentFailed {
-        <<event>>
-        String fulfillmentId
-        String orderId
-        String customerId
-        String reason
-        Instant failedAt
-    }
-    class FulfillmentReadyToShip {
-        <<event>>
-        String fulfillmentId
-        String orderId
-        String customerId
-        String carrierCode
-        String trackingNumber
-        Instant readyAt
-    }
-    class FulfillmentShippingService {
-        <<service>>
-        scheduleFulfillment(ScheduleFulfillmentInput) Fulfillment withEvents FulfillmentScheduled or FulfillmentFailed
-        markReadyToShip(id) Fulfillment withEvents FulfillmentReadyToShip
-    }
     Fulfillment --> FulfillmentStatus : status
     Fulfillment *-- ShippingAddress : shippingAddress
     Fulfillment *-- "*" FulfillmentItem : items
-    ScheduleFulfillmentInput --> ShippingAddressInput : shippingAddress
-    ScheduleFulfillmentInput --> "*" FulfillmentItemInput : items
-    FulfillmentShippingService ..> Fulfillment
-    FulfillmentShippingService ..> ScheduleFulfillmentInput
-    FulfillmentShippingService ..> FulfillmentScheduled
-    FulfillmentShippingService ..> FulfillmentFailed
-    FulfillmentShippingService ..> FulfillmentReadyToShip
 ```
 
-## Glossary
+#### Lifecycle
 
-Every named type and service of this module.
+```mermaid
+stateDiagram-v2
+    [*] --> SCHEDULED : scheduleFulfillment
+    SCHEDULED --> READY_TO_SHIP : markReadyToShip
+    READY_TO_SHIP --> [*]
+```
 
-| Term | Kind | Description |
-| --- | --- | --- |
-| Fulfillment | Aggregate root |  |
-| FulfillmentFailed | Event |  |
-| FulfillmentItem | Embedded entity |  |
-| FulfillmentItemInput | Input |  |
-| FulfillmentReadyToShip | Event |  |
-| FulfillmentScheduled | Event |  |
-| FulfillmentShippingService | Service |  |
-| FulfillmentStatus | Enum |  |
-| ScheduleFulfillmentInput | Input |  |
-| ShippingAddress | Embedded entity |  |
-| ShippingAddressInput | Input |  |
+Field `status`, initial `SCHEDULED`.
 
 ## Commands
 
@@ -173,18 +147,42 @@ The methods of the module's services and the events each one emits.
 
 | Service | Command | Input | Returns | Events | Description |
 | --- | --- | --- | --- | --- | --- |
-| FulfillmentShippingService | scheduleFulfillment | ScheduleFulfillmentInput | Fulfillment | FulfillmentScheduled \| FulfillmentFailed |  |
-| FulfillmentShippingService | markReadyToShip | id | Fulfillment | FulfillmentReadyToShip |  |
+| FulfillmentShippingService | scheduleFulfillment | [ScheduleFulfillmentInput](#schedulefulfillmentinput) | [Fulfillment](#fulfillment-1) | [FulfillmentScheduled](#fulfillmentscheduled) \| [FulfillmentFailed](#fulfillmentfailed) |  |
+| FulfillmentShippingService | markReadyToShip | id | [Fulfillment](#fulfillment-1) | [FulfillmentReadyToShip](#fulfillmentreadytoship) |  |
 
 ## Events
 
-Events declared by this module and their fields.
+Events declared by this module, with their fields. Fields copied with `@copy` are included.
 
-| Event | Fields | Description |
+### FulfillmentScheduled
+
+| Field | Type | Description |
 | --- | --- | --- |
-| FulfillmentScheduled | fulfillmentId: String, orderId: String, customerId: String, scheduledAt: Instant |  |
-| FulfillmentFailed | fulfillmentId: String, orderId: String, customerId: String, reason: String, failedAt: Instant |  |
-| FulfillmentReadyToShip | fulfillmentId: String, orderId: String, customerId: String, carrierCode: String, trackingNumber: String, readyAt: Instant |  |
+| fulfillmentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| scheduledAt | Instant |  |
+
+### FulfillmentFailed
+
+| Field | Type | Description |
+| --- | --- | --- |
+| fulfillmentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| reason | String |  |
+| failedAt | Instant |  |
+
+### FulfillmentReadyToShip
+
+| Field | Type | Description |
+| --- | --- | --- |
+| fulfillmentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| carrierCode | String |  |
+| trackingNumber | String |  |
+| readyAt | Instant |  |
 
 ## Consumes
 
@@ -202,4 +200,92 @@ Who reacts to the events this module owns.
 | --- | --- | --- | --- |
 | FulfillmentFailed | [Payments Processing](payments-processing.md) | `PaymentsProcessingService.voidPayment` | @listener |
 | FulfillmentScheduled | [Payments Processing](payments-processing.md) | `PaymentsProcessingService.capturePayment` | @listener |
+
+## Glossary
+
+Every named type of this module, by kind. Events are described under Events.
+
+### Aggregates
+
+#### Fulfillment
+
+Aggregate root
+
+| Field | Type | Description |
+| --- | --- | --- |
+| fulfillmentId | String |  |
+| orderId | String |  |
+| customerId | String |  |
+| status | [FulfillmentStatus](#fulfillmentstatus) |  |
+| shippingAddress | [ShippingAddress](#shippingaddress) |  |
+| items | [FulfillmentItem](#fulfillmentitem)[] |  |
+| carrierCode | String |  |
+| trackingNumber | String |  |
+| scheduledAt | Instant |  |
+| readyAt | Instant |  |
+| failedAt | Instant |  |
+| failureReason | String |  |
+
+#### ShippingAddress
+
+Embedded entity of `Fulfillment`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| name | String |  |
+| line1 | String |  |
+| line2 | String |  |
+| city | String |  |
+| region | String |  |
+| postalCode | String |  |
+| country | String |  |
+
+#### FulfillmentItem
+
+Embedded entity of `Fulfillment`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| quantity | Integer |  |
+
+### Enums
+
+#### FulfillmentStatus
+
+| Value | Description |
+| --- | --- |
+| SCHEDULED |  |
+| READY_TO_SHIP |  |
+| FAILED |  |
+
+### Inputs
+
+#### ScheduleFulfillmentInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| orderId | String |  |
+| customerId | String |  |
+| shippingAddress | [ShippingAddressInput](#shippingaddressinput) |  |
+| items | [FulfillmentItemInput](#fulfillmentiteminput)[] |  |
+
+#### ShippingAddressInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| name | String |  |
+| line1 | String |  |
+| line2 | String |  |
+| city | String |  |
+| region | String |  |
+| postalCode | String |  |
+| country | String |  |
+
+#### FulfillmentItemInput
+
+| Field | Type | Description |
+| --- | --- | --- |
+| sku | String |  |
+| quantity | Integer |  |
 

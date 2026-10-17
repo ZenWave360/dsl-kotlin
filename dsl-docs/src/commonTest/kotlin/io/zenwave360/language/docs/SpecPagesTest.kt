@@ -130,13 +130,16 @@ class SpecPagesTest {
             """.trimIndent(),
         )
 
-        assertTrue(page.contains("## Shop\n"), page)
-        assertTrue(page.contains("| Customer | Aggregate root | A customer of the shop. |"), page)
-        assertTrue(page.contains("| Address | Embedded entity |  |"), page)
-        assertTrue(page.contains("| CustomerAggregate | Aggregate |  |"), page)
-        assertTrue(page.contains("| CustomerView | Output |  |"), page)
-        assertTrue(page.contains("| CustomerService | register | Customer | Customer | CustomerRegistered | Registers a customer. |"), page)
-        assertTrue(page.contains("| CustomerService | get | id | Customer[] |  |  |"), page)
-        assertTrue(page.contains("| CustomerRegistered | name: String, tags: String[] |  |"), page)
+        assertTrue(page.contains("# Domain model\n\nShop\n\nSource: `spec.yml`\n\nShop model.\n"), page)
+        assertTrue(page.contains("#### Customer\n\nAggregate root\n\nA customer of the shop.\n"), page)
+        assertTrue(page.contains("| address | [Address](#address) |  |"), page)
+        assertTrue(page.contains("Embedded entity of `Customer`"), page)
+        assertTrue(page.contains("### CustomerAggregate\n"), page)
+        assertTrue(page.contains("#### CustomerView\n"), page)
+        assertTrue(page.contains("| CustomerService | register | [Customer](#customer) | [Customer](#customer) | [CustomerRegistered](#customerregistered) | Registers a customer. |"), page)
+        assertTrue(page.contains("| CustomerService | get | id | [Customer](#customer)[] |  |  |"), page)
+        assertTrue(page.contains("### CustomerRegistered\n"), page)
+        assertTrue(page.contains("| tags | String[] |  |"), page)
+        assertFalse(page.contains("Class diagram"), page)
     }
 }
