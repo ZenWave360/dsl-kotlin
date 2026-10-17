@@ -50,3 +50,16 @@ tasks.withType<org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest>()
             timeout = "10s"
         }
     }
+
+// Developer regeneration of real projects' documentation (test scope, not shipped), for example:
+//   ./gradlew -q :dsl-docs:devDocs -Pargs="--zdl a.zdl,b.zdl --api openapi.yml --out build/docs/x [--title t] [--base dir] [--check]"
+val jvmTestCompilation = kotlin.jvm().compilations.getByName("test")
+tasks.register<JavaExec>("devDocs") {
+    group = "documentation"
+    description = "Regenerates documentation with the test-scope DevDocs tool, arguments in -Pargs"
+    classpath = jvmTestCompilation.output.allOutputs + jvmTestCompilation.runtimeDependencyFiles!!
+    mainClass.set("io.zenwave360.language.docs.DevDocsKt")
+    workingDir = rootProject.projectDir
+    // Words split on spaces; "double quoted" or 'single quoted' text stays one argument.
+    args(Regex("\"[^\"]*\"|'[^']*'|\\S+").findAll(providers.gradleProperty("args").getOrElse("")).map { it.value.removeSurrounding("\"").removeSurrounding("'") }.toList())
+}

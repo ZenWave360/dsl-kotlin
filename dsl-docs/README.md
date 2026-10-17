@@ -108,3 +108,10 @@ After an intended change, regenerate the snapshots and review the diff:
 ```bash
 DSL_DOCS_UPDATE_SNAPSHOTS=true ./gradlew :dsl-docs:jvmTest
 ```
+
+To regenerate documentation of real projects while developing this repository (not shipped), run the test-scope
+`DevDocs` through Gradle:
+
+```bash
+./gradlew -q :dsl-docs:devDocs -Pargs="--zdl a.zdl,b.zdl --zfl x.zfl --api openapi.yml,asyncapi.yml --out build/docs/x [--title T] [--base dir] [--check]"
+```
