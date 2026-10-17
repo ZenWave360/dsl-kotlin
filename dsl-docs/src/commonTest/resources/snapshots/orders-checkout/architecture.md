@@ -73,7 +73,7 @@ One module per ZDL file.
 
 | Module | Package | ZDL | Page |
 | --- | --- | --- | --- |
-| Catalog Inventory |  | `domain-model.zdl` (not in these files) |  |
+| Catalog Inventory |  | [`domain-model.zdl`](https://raw.githubusercontent.com/arcadia-editions/catalog-inventory-api/main/domain-model.zdl) (not in these files) |  |
 | Orders Checkout | `com.arcadiaeditions.orders.checkout` | [`domain-model.zdl`](../domain-model.zdl) | [domain.md](domain.md) |
 
 ## Direct calls

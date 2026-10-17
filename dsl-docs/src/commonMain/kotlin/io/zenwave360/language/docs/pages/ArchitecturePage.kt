@@ -63,6 +63,13 @@ internal fun collapseDots(path: String): String {
     return out.joinToString("/")
 }
 
+/** The ZDL of a module outside these files: linked when the client declares a URL, as written otherwise. */
+private fun referencedSource(module: ArchModule): String {
+    val name = Markdown.code(module.path.substringAfterLast('/'))
+    val text = if (module.path.startsWith("http://") || module.path.startsWith("https://")) link(name, module.path) else name
+    return "$text (not in these files)"
+}
+
 private fun comma(items: List<String>) = items.joinToString(", ")
 
 /** `architecture.md`: how the modules of the system relate, its events and who consumes them, and direct calls. */
@@ -197,7 +204,7 @@ internal object ArchitecturePage {
             listOf(
                 module.name,
                 module.basePackage?.let { Markdown.code(it) },
-                if (module.referenced) "${Markdown.code(module.path.substringAfterLast('/'))} (not in these files)" else sourceLink(context, module, 0),
+                if (module.referenced) referencedSource(module) else sourceLink(context, module, 0),
                 context.pagePath(module)?.let { link(it, it) },
             )
         }
