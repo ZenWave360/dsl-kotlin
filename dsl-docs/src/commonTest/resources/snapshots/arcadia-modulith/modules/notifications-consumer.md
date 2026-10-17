@@ -20,30 +20,48 @@ flowchart LR
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
 
   subgraph sg_NotificationsConsumer["Notifications Consumer"]
-    NotificationsConsumer__NotificationsConsumerService__sendOrderConfirmation["sendOrderConfirmation"]
-    NotificationsConsumer__NotificationsConsumerService__sendStockUnavailableNotification["sendStockUnavailableNotification"]
-    NotificationsConsumer__NotificationsConsumerService__sendOrderCancelledNotification["sendOrderCancelledNotification"]
-    NotificationsConsumer__NotificationDeliveryFailed["NotificationDeliveryFailed"]
-    NotificationsConsumer__OrderCancelledNotificationSent["OrderCancelledNotificationSent"]
-    NotificationsConsumer__OrderConfirmationSent["OrderConfirmationSent"]
-    NotificationsConsumer__StockUnavailableNotificationSent["StockUnavailableNotificationSent"]
+    subgraph sg_NotificationsConsumer_cmd[" "]
+      NotificationsConsumer__NotificationsConsumerService__sendOrderConfirmation["sendOrderConfirmation"]
+      NotificationsConsumer__NotificationsConsumerService__sendStockUnavailableNotification["sendStockUnavailableNotification"]
+      NotificationsConsumer__NotificationsConsumerService__sendOrderCancelledNotification["sendOrderCancelledNotification"]
+    end
+    subgraph sg_NotificationsConsumer_evt[" "]
+      NotificationsConsumer__NotificationDeliveryFailed["NotificationDeliveryFailed"]
+      NotificationsConsumer__OrderCancelledNotificationSent["OrderCancelledNotificationSent"]
+      NotificationsConsumer__OrderConfirmationSent["OrderConfirmationSent"]
+      NotificationsConsumer__StockUnavailableNotificationSent["StockUnavailableNotificationSent"]
+    end
   end
 
   subgraph sg_OrdersCheckout["Orders Checkout"]
-    OrdersCheckout__OrdersCheckoutService__startOrderCheckout["startOrderCheckout"]
-    OrdersCheckout__OrdersCheckoutService__cancelOrder["cancelOrder"]
-    OrdersCheckout__OrderCancelled["OrderCancelled"]
-    OrdersCheckout__StockUnavailable["StockUnavailable"]
+    subgraph sg_OrdersCheckout_cmd[" "]
+      OrdersCheckout__OrdersCheckoutService__startOrderCheckout["startOrderCheckout"]
+      OrdersCheckout__OrdersCheckoutService__cancelOrder["cancelOrder"]
+    end
+    subgraph sg_OrdersCheckout_evt[" "]
+      OrdersCheckout__OrderCancelled["OrderCancelled"]
+      OrdersCheckout__StockUnavailable["StockUnavailable"]
+    end
   end
 
   subgraph sg_PaymentsProcessing["Payments Processing"]
-    PaymentsProcessing__PaymentsProcessingService__capturePayment["capturePayment"]
-    PaymentsProcessing__PaymentCaptured["PaymentCaptured"]
+    subgraph sg_PaymentsProcessing_cmd[" "]
+      PaymentsProcessing__PaymentsProcessingService__capturePayment["capturePayment"]
+    end
+    subgraph sg_PaymentsProcessing_evt[" "]
+      PaymentsProcessing__PaymentCaptured["PaymentCaptured"]
+    end
   end
 
   class sg_NotificationsConsumer,sg_OrdersCheckout,sg_PaymentsProcessing module
   class NotificationsConsumer__NotificationsConsumerService__sendOrderCancelledNotification,NotificationsConsumer__NotificationsConsumerService__sendOrderConfirmation,NotificationsConsumer__NotificationsConsumerService__sendStockUnavailableNotification,OrdersCheckout__OrdersCheckoutService__cancelOrder,OrdersCheckout__OrdersCheckoutService__startOrderCheckout,PaymentsProcessing__PaymentsProcessingService__capturePayment command
   class NotificationsConsumer__NotificationDeliveryFailed,NotificationsConsumer__OrderCancelledNotificationSent,NotificationsConsumer__OrderConfirmationSent,NotificationsConsumer__StockUnavailableNotificationSent,OrdersCheckout__OrderCancelled,OrdersCheckout__StockUnavailable,PaymentsProcessing__PaymentCaptured event
+  style sg_NotificationsConsumer_cmd fill:none,stroke:none
+  style sg_NotificationsConsumer_evt fill:none,stroke:none
+  style sg_OrdersCheckout_cmd fill:none,stroke:none
+  style sg_OrdersCheckout_evt fill:none,stroke:none
+  style sg_PaymentsProcessing_cmd fill:none,stroke:none
+  style sg_PaymentsProcessing_evt fill:none,stroke:none
 
   NotificationsConsumer__NotificationsConsumerService__sendOrderCancelledNotification --> NotificationsConsumer__NotificationDeliveryFailed
   NotificationsConsumer__NotificationsConsumerService__sendOrderCancelledNotification --> NotificationsConsumer__OrderCancelledNotificationSent
@@ -104,6 +122,13 @@ Each aggregate root with the entities and enums it owns, and how they relate.
 ### Notification
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 classDiagram
     class Notification {
         <<aggregate>>
@@ -143,11 +168,22 @@ classDiagram
     Notification --> NotificationType : type
     Notification --> NotificationChannel : channel
     Notification --> NotificationStatus : status
+    style Notification fill:#fbd3ee,stroke:#333333,color:#111111
+    style NotificationType fill:#f2f2f2,stroke:#333333,color:#111111
+    style NotificationChannel fill:#f2f2f2,stroke:#333333,color:#111111
+    style NotificationStatus fill:#f2f2f2,stroke:#333333,color:#111111
 ```
 
 #### Lifecycle
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 stateDiagram-v2
     [*] --> PENDING : sendOrderConfirmation, sendStockUnavailableNotification, sendOrderCancelledNotification
     PENDING --> [*]

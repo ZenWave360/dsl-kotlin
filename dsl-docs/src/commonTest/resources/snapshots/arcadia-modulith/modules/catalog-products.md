@@ -20,17 +20,23 @@ flowchart LR
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
 
   subgraph sg_CatalogProducts["Product Catalog"]
-    CatalogProducts__ProductCatalogService__createProduct["createProduct"]
-    CatalogProducts__ProductCatalogService__updateProduct["updateProduct"]
-    CatalogProducts__ProductCatalogService__publishProduct["publishProduct"]
-    CatalogProducts__ProductCatalogService__retireProduct["retireProduct"]
-    CatalogProducts__ProductPublished["ProductPublished"]
-    CatalogProducts__ProductRetired["ProductRetired"]
+    subgraph sg_CatalogProducts_cmd[" "]
+      CatalogProducts__ProductCatalogService__createProduct["createProduct"]
+      CatalogProducts__ProductCatalogService__updateProduct["updateProduct"]
+      CatalogProducts__ProductCatalogService__publishProduct["publishProduct"]
+      CatalogProducts__ProductCatalogService__retireProduct["retireProduct"]
+    end
+    subgraph sg_CatalogProducts_evt[" "]
+      CatalogProducts__ProductPublished["ProductPublished"]
+      CatalogProducts__ProductRetired["ProductRetired"]
+    end
   end
 
   class sg_CatalogProducts module
   class CatalogProducts__ProductCatalogService__createProduct,CatalogProducts__ProductCatalogService__publishProduct,CatalogProducts__ProductCatalogService__retireProduct,CatalogProducts__ProductCatalogService__updateProduct command
   class CatalogProducts__ProductPublished,CatalogProducts__ProductRetired event
+  style sg_CatalogProducts_cmd fill:none,stroke:none
+  style sg_CatalogProducts_evt fill:none,stroke:none
 
   CatalogProducts__ProductCatalogService__publishProduct --> CatalogProducts__ProductPublished
   CatalogProducts__ProductCatalogService__retireProduct --> CatalogProducts__ProductRetired
@@ -75,6 +81,13 @@ Each aggregate root with the entities and enums it owns, and how they relate.
 ### Product
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 classDiagram
     class Product {
         <<aggregate>>
@@ -101,11 +114,21 @@ classDiagram
     }
     Product --> InventoryTrackingMode : trackingMode
     Product --> ProductStatus : status
+    style Product fill:#fbd3ee,stroke:#333333,color:#111111
+    style InventoryTrackingMode fill:#f2f2f2,stroke:#333333,color:#111111
+    style ProductStatus fill:#f2f2f2,stroke:#333333,color:#111111
 ```
 
 #### Lifecycle
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 stateDiagram-v2
     [*] --> DRAFT : createProduct
     DRAFT --> DRAFT : updateProduct

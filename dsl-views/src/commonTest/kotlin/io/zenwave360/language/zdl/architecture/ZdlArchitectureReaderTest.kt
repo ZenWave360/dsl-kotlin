@@ -1,5 +1,6 @@
 package io.zenwave360.language.zdl.architecture
 
+import io.zenwave360.language.zdl.view.CommandAdapter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -251,6 +252,46 @@ class ZdlArchitectureReaderTest {
         assertEquals(listOf("A", "B"), a.modules.map { it.id })
         assertTrue(a.modules.none { it.referenced })
         assertEquals(listOf("B.Ev -> A (S.m)"), edges(a))
+    }
+
+    @Test
+    fun commandAdaptersCarryTheResolvedOwnerModule() {
+        val a = reader.read(ArchitectureFixtures.small())
+        fun adapters(module: String, method: String) = a.commandsOf(module).first { it.method == method }.adapters
+        assertEquals(
+            listOf(CommandAdapter.Listener("OrderPlaced", "OrdersZdl", "Orders"), CommandAdapter.Listener("InvoiceVoided", null, "Billing")),
+            adapters("Billing", "issueInvoice"),
+        )
+        // foreign event: no owner module
+        assertEquals(listOf(CommandAdapter.AsyncApi("partner-shipped-event-v1", "PartnerApi")), adapters("Billing", "onShipped"))
+        assertEquals(
+            listOf(CommandAdapter.AsyncApi("invoice-issued-event-v1", null, "Billing", "InvoiceIssued")),
+            adapters("Billing", "reissue"),
+        )
+        // listener on a referenced module
+        assertEquals(listOf(CommandAdapter.Listener("EntryPosted", "LedgerZdl", "Ledger")), adapters("Billing", "reconcile"))
+        // unresolved references stay as written, without module
+        assertEquals(
+            listOf(
+                CommandAdapter.Listener("Whatever", "NopeZdl"),
+                CommandAdapter.Listener("Missing", "OrdersZdl"),
+                CommandAdapter.AsyncApi("no-such-channel-v1", null),
+            ),
+            adapters("Billing", "broken"),
+        )
+        assertEquals(
+            listOf(CommandAdapter.AsyncApi("invoice-issued-event-v1", "BillingApi", "Billing", "InvoiceIssued")),
+            adapters("Orders", "onInvoice"),
+        )
+        assertEquals(emptyList(), adapters("Orders", "placeOrder"))
+    }
+
+    @Test
+    fun modulithRestAdaptersUseTheServiceBase() {
+        val a = reader.read(ArchitectureFixtures.modulith())
+        val adapters = a.commandsOf("CatalogProducts").associate { it.method to it.adapters }
+        assertEquals(listOf(CommandAdapter.Rest("POST", "/products")), adapters["createProduct"])
+        assertEquals(listOf(CommandAdapter.Rest("POST", "/products/{id}/publish")), adapters["publishProduct"])
     }
 
     private companion object {

@@ -47,6 +47,7 @@ class ZdlLifecycleToMermaidStateDiagramTransformer {
         val outgoing = edges.keys.mapNotNull { it.first }.toSet()
 
         val mermaid = buildString {
+            append(MermaidLight.FRONT_MATTER)
             append("stateDiagram-v2\n")
             for (s in states) {
                 if (stateId(s) != s) append("    state \"").append(s.replace("\"", "")).append("\" as ").append(stateId(s)).append('\n')

@@ -20,10 +20,14 @@ flowchart LR
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
 
   subgraph sg_CatalogInventory["Catalog Inventory"]
-    CatalogInventory__InventoryService__reserveStock["reserveStock"]
-    CatalogInventory__InventoryService__releaseStock["releaseStock"]
-    CatalogInventory__InventoryService__confirmStockReservation["confirmStockReservation"]
-    CatalogInventory__StockReleased["StockReleased"]
+    subgraph sg_CatalogInventory_cmd[" "]
+      CatalogInventory__InventoryService__reserveStock["reserveStock"]
+      CatalogInventory__InventoryService__releaseStock["releaseStock"]
+      CatalogInventory__InventoryService__confirmStockReservation["confirmStockReservation"]
+    end
+    subgraph sg_CatalogInventory_evt[" "]
+      CatalogInventory__StockReleased["StockReleased"]
+    end
   end
 
   subgraph sg_FulfillmentShipping["Fulfillment Shipping"]
@@ -36,23 +40,37 @@ flowchart LR
   end
 
   subgraph sg_OrdersCheckout["Orders Checkout"]
-    OrdersCheckout__OrdersCheckoutService__startOrderCheckout["startOrderCheckout"]
-    OrdersCheckout__OrdersCheckoutService__confirmOrder["confirmOrder"]
-    OrdersCheckout__OrdersCheckoutService__cancelOrder["cancelOrder"]
-    OrdersCheckout__OrderCancelled["OrderCancelled"]
-    OrdersCheckout__OrderConfirmed["OrderConfirmed"]
-    OrdersCheckout__OrderCreated["OrderCreated"]
-    OrdersCheckout__StockUnavailable["StockUnavailable"]
+    subgraph sg_OrdersCheckout_cmd[" "]
+      OrdersCheckout__OrdersCheckoutService__startOrderCheckout["startOrderCheckout"]
+      OrdersCheckout__OrdersCheckoutService__confirmOrder["confirmOrder"]
+      OrdersCheckout__OrdersCheckoutService__cancelOrder["cancelOrder"]
+    end
+    subgraph sg_OrdersCheckout_evt[" "]
+      OrdersCheckout__OrderCancelled["OrderCancelled"]
+      OrdersCheckout__OrderConfirmed["OrderConfirmed"]
+      OrdersCheckout__OrderCreated["OrderCreated"]
+      OrdersCheckout__StockUnavailable["StockUnavailable"]
+    end
   end
 
   subgraph sg_PaymentsProcessing["Payments Processing"]
-    PaymentsProcessing__PaymentsProcessingService__authorizePayment["authorizePayment"]
-    PaymentsProcessing__PaymentAuthorized["PaymentAuthorized"]
+    subgraph sg_PaymentsProcessing_cmd[" "]
+      PaymentsProcessing__PaymentsProcessingService__authorizePayment["authorizePayment"]
+    end
+    subgraph sg_PaymentsProcessing_evt[" "]
+      PaymentsProcessing__PaymentAuthorized["PaymentAuthorized"]
+    end
   end
 
   class sg_CatalogInventory,sg_FulfillmentShipping,sg_NotificationsConsumer,sg_OrdersCheckout,sg_PaymentsProcessing module
   class CatalogInventory__InventoryService__confirmStockReservation,CatalogInventory__InventoryService__releaseStock,CatalogInventory__InventoryService__reserveStock,FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment,NotificationsConsumer__NotificationsConsumerService__sendOrderCancelledNotification,NotificationsConsumer__NotificationsConsumerService__sendStockUnavailableNotification,OrdersCheckout__OrdersCheckoutService__cancelOrder,OrdersCheckout__OrdersCheckoutService__confirmOrder,OrdersCheckout__OrdersCheckoutService__startOrderCheckout,PaymentsProcessing__PaymentsProcessingService__authorizePayment command
   class CatalogInventory__StockReleased,OrdersCheckout__OrderCancelled,OrdersCheckout__OrderConfirmed,OrdersCheckout__OrderCreated,OrdersCheckout__StockUnavailable,PaymentsProcessing__PaymentAuthorized event
+  style sg_CatalogInventory_cmd fill:none,stroke:none
+  style sg_CatalogInventory_evt fill:none,stroke:none
+  style sg_OrdersCheckout_cmd fill:none,stroke:none
+  style sg_OrdersCheckout_evt fill:none,stroke:none
+  style sg_PaymentsProcessing_cmd fill:none,stroke:none
+  style sg_PaymentsProcessing_evt fill:none,stroke:none
 
   CatalogInventory__InventoryService__releaseStock --> CatalogInventory__StockReleased
   OrdersCheckout__OrdersCheckoutService__cancelOrder --> OrdersCheckout__OrderCancelled
@@ -113,6 +131,13 @@ Each aggregate root with the entities and enums it owns, and how they relate.
 ### Order
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 classDiagram
     class Order {
         <<aggregate>>
@@ -155,11 +180,22 @@ classDiagram
     Order --> OrderStatus : status
     Order *-- "*" OrderItem : items
     Order *-- ShippingAddress : shippingAddress
+    style Order fill:#fbd3ee,stroke:#333333,color:#111111
+    style OrderItem fill:#ffffff,stroke:#333333,color:#111111
+    style ShippingAddress fill:#ffffff,stroke:#333333,color:#111111
+    style OrderStatus fill:#f2f2f2,stroke:#333333,color:#111111
 ```
 
 #### Lifecycle
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 stateDiagram-v2
     [*] --> CREATED : startOrderCheckout
     CREATED --> CONFIRMED : confirmOrder

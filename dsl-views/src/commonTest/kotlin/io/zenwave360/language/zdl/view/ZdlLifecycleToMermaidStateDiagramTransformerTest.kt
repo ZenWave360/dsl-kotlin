@@ -7,6 +7,8 @@ import kotlin.test.assertEquals
 
 class ZdlLifecycleToMermaidStateDiagramTransformerTest {
 
+    private val FM = MermaidLight.FRONT_MATTER
+
     private fun transform(zdl: String) = ZdlLifecycleToMermaidStateDiagramTransformer().transform(ZdlParser().parseModel(zdl))
 
     @Test
@@ -35,7 +37,7 @@ class ZdlLifecycleToMermaidStateDiagramTransformerTest {
             }
         """.trimIndent()
 
-        val expected = """
+        val expected = FM + """
             stateDiagram-v2
                 [*] --> DRAFT : create
                 [*] --> IMPORTED : create
@@ -70,7 +72,7 @@ class ZdlLifecycleToMermaidStateDiagramTransformerTest {
             }
         """.trimIndent()
 
-        val expected = """
+        val expected = FM + """
             stateDiagram-v2
                 [*] --> OPEN
                 OPEN --> CLOSED : close
@@ -116,14 +118,14 @@ class ZdlLifecycleToMermaidStateDiagramTransformerTest {
             }
         """.trimIndent()
         assertEquals(
-            "stateDiagram-v2\n    [*] --> NEW\n    NEW --> DONE : finish\n    DONE --> [*]\n",
+            FM + "stateDiagram-v2\n    [*] --> NEW\n    NEW --> DONE : finish\n    DONE --> [*]\n",
             transform(zdl).single().mermaid,
         )
     }
 
     @Test
     fun modulithPaymentsProcessing() {
-        val expected = """
+        val expected = FM + """
             stateDiagram-v2
                 [*] --> AUTHORIZATION_REQUESTED : authorizePayment
                 FAILED --> AUTHORIZATION_REQUESTED : retryPayment

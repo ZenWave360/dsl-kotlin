@@ -70,7 +70,9 @@ class ZdlAggregateToMermaidClassDiagramTransformer {
             links += "${id(r.from)} \"${r.fromCardinality}\" $arrow \"${r.toCardinality}\" ${id(r.to)}$suffix"
         }
 
+        val styles = StringBuilder()
         return buildString {
+            append(MermaidLight.FRONT_MATTER)
             append("classDiagram\n")
             for (name in full) {
                 val members = when (domain.kindOf(name)) {
@@ -87,9 +89,14 @@ class ZdlAggregateToMermaidClassDiagramTransformer {
                     else -> "entity"
                 }
                 append(classBlock(name, stereotype, members))
+                styles.append(MermaidLight.styleLine(id(name), stereotype))
             }
-            for (name in stubs) append(classBlock(name, "aggregate", emptyList()))
+            for (name in stubs) {
+                append(classBlock(name, "aggregate", emptyList()))
+                styles.append(MermaidLight.styleLine(id(name), "aggregate"))
+            }
             for (link in links) append("    ").append(link).append('\n')
+            append(styles)
         }
     }
 }

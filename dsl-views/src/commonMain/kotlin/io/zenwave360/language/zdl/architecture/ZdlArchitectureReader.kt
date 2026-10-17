@@ -2,6 +2,7 @@ package io.zenwave360.language.zdl.architecture
 
 import io.zenwave360.language.zdl.ZdlModel
 import io.zenwave360.language.zdl.ZdlParser
+import io.zenwave360.language.zdl.view.CommandAdapter
 import io.zenwave360.language.zdl.view.ZdlCommand
 import io.zenwave360.language.zdl.view.ZdlDomain
 
@@ -71,9 +72,31 @@ private class Reading(private val parser: ZdlParser) {
     /** Service methods, then aggregate commands, as read by [ZdlDomain] (the single command/query rule). */
     private fun commandsOf(p: Parsed): List<ArchCommand> {
         val domain = ZdlDomain(p.model)
-        fun of(owner: String, c: ZdlCommand) = ArchCommand(p.module.id, owner, c.name, c.eventNames, c.query)
+        fun of(owner: String, c: ZdlCommand) =
+            ArchCommand(p.module.id, owner, c.name, c.eventNames, c.query, c.adapters.map { resolve(p.module.id, "$owner.${c.name}", it) })
         return domain.services.flatMap { s -> s.methods.map { of(s.name, it) } } +
             domain.aggregates.flatMap { a -> a.commands.map { of(a.name, it) } }
+    }
+
+    /** Fills the owner module of a listener / asyncapi adapter from the consumptions already resolved. */
+    private fun resolve(module: String, label: String, adapter: CommandAdapter): CommandAdapter {
+        val own = consumptions.filter { it.consumer == module && it.method == label }
+        return when (adapter) {
+            is CommandAdapter.Listener -> {
+                val c = own.firstOrNull { it.via == ConsumptionVia.LISTENER && it.event.name == adapter.event }
+                if (c == null) adapter else adapter.copy(module = c.event.module)
+            }
+            is CommandAdapter.AsyncApi -> {
+                val c = own.firstOrNull { c ->
+                    c.via == ConsumptionVia.ASYNCAPI && (
+                        if (c.event.module == null) c.event.name == adapter.channel
+                        else events[c.event.module to c.event.name]?.channel == adapter.channel
+                        )
+                }
+                if (c?.event?.module == null) adapter else adapter.copy(module = c.event.module, event = c.event.name)
+            }
+            else -> adapter
+        }
     }
 
     // ---- modules ----------------------------------------------------------------------------

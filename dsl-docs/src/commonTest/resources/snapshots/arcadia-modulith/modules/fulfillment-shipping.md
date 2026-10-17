@@ -20,16 +20,24 @@ flowchart LR
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
 
   subgraph sg_FulfillmentShipping["Fulfillment Shipping"]
-    FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment["scheduleFulfillment"]
-    FulfillmentShipping__FulfillmentShippingService__markReadyToShip["markReadyToShip"]
-    FulfillmentShipping__FulfillmentFailed["FulfillmentFailed"]
-    FulfillmentShipping__FulfillmentReadyToShip["FulfillmentReadyToShip"]
-    FulfillmentShipping__FulfillmentScheduled["FulfillmentScheduled"]
+    subgraph sg_FulfillmentShipping_cmd[" "]
+      FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment["scheduleFulfillment"]
+      FulfillmentShipping__FulfillmentShippingService__markReadyToShip["markReadyToShip"]
+    end
+    subgraph sg_FulfillmentShipping_evt[" "]
+      FulfillmentShipping__FulfillmentFailed["FulfillmentFailed"]
+      FulfillmentShipping__FulfillmentReadyToShip["FulfillmentReadyToShip"]
+      FulfillmentShipping__FulfillmentScheduled["FulfillmentScheduled"]
+    end
   end
 
   subgraph sg_OrdersCheckout["Orders Checkout"]
-    OrdersCheckout__OrdersCheckoutService__confirmOrder["confirmOrder"]
-    OrdersCheckout__OrderConfirmed["OrderConfirmed"]
+    subgraph sg_OrdersCheckout_cmd[" "]
+      OrdersCheckout__OrdersCheckoutService__confirmOrder["confirmOrder"]
+    end
+    subgraph sg_OrdersCheckout_evt[" "]
+      OrdersCheckout__OrderConfirmed["OrderConfirmed"]
+    end
   end
 
   subgraph sg_PaymentsProcessing["Payments Processing"]
@@ -40,6 +48,10 @@ flowchart LR
   class sg_FulfillmentShipping,sg_OrdersCheckout,sg_PaymentsProcessing module
   class FulfillmentShipping__FulfillmentShippingService__markReadyToShip,FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment,OrdersCheckout__OrdersCheckoutService__confirmOrder,PaymentsProcessing__PaymentsProcessingService__capturePayment,PaymentsProcessing__PaymentsProcessingService__voidPayment command
   class FulfillmentShipping__FulfillmentFailed,FulfillmentShipping__FulfillmentReadyToShip,FulfillmentShipping__FulfillmentScheduled,OrdersCheckout__OrderConfirmed event
+  style sg_FulfillmentShipping_cmd fill:none,stroke:none
+  style sg_FulfillmentShipping_evt fill:none,stroke:none
+  style sg_OrdersCheckout_cmd fill:none,stroke:none
+  style sg_OrdersCheckout_evt fill:none,stroke:none
 
   FulfillmentShipping__FulfillmentShippingService__markReadyToShip --> FulfillmentShipping__FulfillmentReadyToShip
   FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment --> FulfillmentShipping__FulfillmentFailed
@@ -88,6 +100,13 @@ Each aggregate root with the entities and enums it owns, and how they relate.
 ### Fulfillment
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 classDiagram
     class Fulfillment {
         <<aggregate>>
@@ -128,11 +147,22 @@ classDiagram
     Fulfillment --> FulfillmentStatus : status
     Fulfillment *-- ShippingAddress : shippingAddress
     Fulfillment *-- "*" FulfillmentItem : items
+    style Fulfillment fill:#fbd3ee,stroke:#333333,color:#111111
+    style ShippingAddress fill:#ffffff,stroke:#333333,color:#111111
+    style FulfillmentItem fill:#ffffff,stroke:#333333,color:#111111
+    style FulfillmentStatus fill:#f2f2f2,stroke:#333333,color:#111111
 ```
 
 #### Lifecycle
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 stateDiagram-v2
     [*] --> SCHEDULED : scheduleFulfillment
     SCHEDULED --> READY_TO_SHIP : markReadyToShip

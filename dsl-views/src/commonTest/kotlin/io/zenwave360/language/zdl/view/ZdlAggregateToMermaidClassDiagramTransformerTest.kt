@@ -8,6 +8,8 @@ import kotlin.test.assertNull
 
 class ZdlAggregateToMermaidClassDiagramTransformerTest {
 
+    private val FM = MermaidLight.FRONT_MATTER
+
     private fun transform(zdl: String) = ZdlAggregateToMermaidClassDiagramTransformer().transform(ZdlParser().parseModel(zdl))
 
     @Test
@@ -48,7 +50,7 @@ class ZdlAggregateToMermaidClassDiagramTransformerTest {
             }
         """.trimIndent()
 
-        val expectedOrder = """
+        val expectedOrder = FM + """
             classDiagram
                 class Order {
                     <<aggregate>>
@@ -82,17 +84,24 @@ class ZdlAggregateToMermaidClassDiagramTransformerTest {
                 Order --> Customer : customer
                 Order --> Memo : memos
                 Order "1" -- "*" Line : lines / order
+                style Order fill:#fbd3ee,stroke:#333333,color:#111111
+                style OrderItem fill:#ffffff,stroke:#333333,color:#111111
+                style Memo fill:#ffffff,stroke:#333333,color:#111111
+                style Line fill:#ffffff,stroke:#333333,color:#111111
+                style OrderStatus fill:#f2f2f2,stroke:#333333,color:#111111
+                style Customer fill:#fbd3ee,stroke:#333333,color:#111111
 
         """.trimIndent()
-        val expectedCustomer = """
+        val expectedCustomer = FM + """
             classDiagram
                 class Customer {
                     <<aggregate>>
                     String name
                 }
+                style Customer fill:#fbd3ee,stroke:#333333,color:#111111
 
         """.trimIndent()
-        val expectedOthers = """
+        val expectedOthers = FM + """
             classDiagram
                 class Orphan {
                     <<entity>>
@@ -110,6 +119,9 @@ class ZdlAggregateToMermaidClassDiagramTransformerTest {
                 }
                 Orphan --> Kind : kind
                 Orphan --> Customer : owner
+                style Orphan fill:#ffffff,stroke:#333333,color:#111111
+                style Kind fill:#f2f2f2,stroke:#333333,color:#111111
+                style Customer fill:#fbd3ee,stroke:#333333,color:#111111
 
         """.trimIndent()
 
@@ -135,13 +147,17 @@ class ZdlAggregateToMermaidClassDiagramTransformerTest {
         val diagram = result.aggregates.single()
         assertEquals("OrderAggregate", diagram.aggregate)
         assertEquals("CustomerOrder", diagram.root)
-        assertEquals("classDiagram\n    class CustomerOrder {\n        <<aggregate>>\n        BigDecimal total\n    }\n", diagram.mermaid)
+        assertEquals(
+            FM + "classDiagram\n    class CustomerOrder {\n        <<aggregate>>\n        BigDecimal total\n    }\n" +
+                "    style CustomerOrder fill:#fbd3ee,stroke:#333333,color:#111111\n",
+            diagram.mermaid,
+        )
         assertNull(result.others)
     }
 
     @Test
     fun modulithOrdersCheckout() {
-        val expected = """
+        val expected = FM + """
             classDiagram
                 class Order {
                     <<aggregate>>
@@ -184,6 +200,10 @@ class ZdlAggregateToMermaidClassDiagramTransformerTest {
                 Order --> OrderStatus : status
                 Order *-- "*" OrderItem : items
                 Order *-- ShippingAddress : shippingAddress
+                style Order fill:#fbd3ee,stroke:#333333,color:#111111
+                style OrderItem fill:#ffffff,stroke:#333333,color:#111111
+                style ShippingAddress fill:#ffffff,stroke:#333333,color:#111111
+                style OrderStatus fill:#f2f2f2,stroke:#333333,color:#111111
 
         """.trimIndent()
         val result = transform(readViewsTestFile("arcadia-editions-modulith/orders-checkout-domain-model.zdl"))

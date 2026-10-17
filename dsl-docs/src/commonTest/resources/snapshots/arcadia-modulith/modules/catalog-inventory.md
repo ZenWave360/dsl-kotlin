@@ -20,15 +20,19 @@ flowchart LR
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
 
   subgraph sg_CatalogInventory["Catalog Inventory"]
-    CatalogInventory__InventoryService__reserveStock["reserveStock"]
-    CatalogInventory__InventoryService__releaseStock["releaseStock"]
-    CatalogInventory__InventoryService__confirmStockReservation["confirmStockReservation"]
-    CatalogInventory__InventoryBackofficeService__receiveStock["receiveStock"]
-    CatalogInventory__InventoryBackofficeService__adjustStock["adjustStock"]
-    CatalogInventory__StockAdjusted["StockAdjusted"]
-    CatalogInventory__StockReceived["StockReceived"]
-    CatalogInventory__StockReleased["StockReleased"]
-    CatalogInventory__StockReservationConfirmed["StockReservationConfirmed"]
+    subgraph sg_CatalogInventory_cmd[" "]
+      CatalogInventory__InventoryService__reserveStock["reserveStock"]
+      CatalogInventory__InventoryService__releaseStock["releaseStock"]
+      CatalogInventory__InventoryService__confirmStockReservation["confirmStockReservation"]
+      CatalogInventory__InventoryBackofficeService__receiveStock["receiveStock"]
+      CatalogInventory__InventoryBackofficeService__adjustStock["adjustStock"]
+    end
+    subgraph sg_CatalogInventory_evt[" "]
+      CatalogInventory__StockAdjusted["StockAdjusted"]
+      CatalogInventory__StockReceived["StockReceived"]
+      CatalogInventory__StockReleased["StockReleased"]
+      CatalogInventory__StockReservationConfirmed["StockReservationConfirmed"]
+    end
   end
 
   subgraph sg_OrdersCheckout["Orders Checkout"]
@@ -38,17 +42,25 @@ flowchart LR
   end
 
   subgraph sg_PaymentsProcessing["Payments Processing"]
-    PaymentsProcessing__PaymentsProcessingService__authorizePayment["authorizePayment"]
-    PaymentsProcessing__PaymentsProcessingService__retryPayment["retryPayment"]
-    PaymentsProcessing__PaymentsProcessingService__voidPayment["voidPayment"]
-    PaymentsProcessing__PaymentDeclined["PaymentDeclined"]
-    PaymentsProcessing__PaymentRetryExhausted["PaymentRetryExhausted"]
-    PaymentsProcessing__PaymentVoided["PaymentVoided"]
+    subgraph sg_PaymentsProcessing_cmd[" "]
+      PaymentsProcessing__PaymentsProcessingService__authorizePayment["authorizePayment"]
+      PaymentsProcessing__PaymentsProcessingService__retryPayment["retryPayment"]
+      PaymentsProcessing__PaymentsProcessingService__voidPayment["voidPayment"]
+    end
+    subgraph sg_PaymentsProcessing_evt[" "]
+      PaymentsProcessing__PaymentDeclined["PaymentDeclined"]
+      PaymentsProcessing__PaymentRetryExhausted["PaymentRetryExhausted"]
+      PaymentsProcessing__PaymentVoided["PaymentVoided"]
+    end
   end
 
   class sg_CatalogInventory,sg_OrdersCheckout,sg_PaymentsProcessing module
   class CatalogInventory__InventoryBackofficeService__adjustStock,CatalogInventory__InventoryBackofficeService__receiveStock,CatalogInventory__InventoryService__confirmStockReservation,CatalogInventory__InventoryService__releaseStock,CatalogInventory__InventoryService__reserveStock,OrdersCheckout__OrdersCheckoutService__cancelOrder,OrdersCheckout__OrdersCheckoutService__confirmOrder,OrdersCheckout__OrdersCheckoutService__startOrderCheckout,PaymentsProcessing__PaymentsProcessingService__authorizePayment,PaymentsProcessing__PaymentsProcessingService__retryPayment,PaymentsProcessing__PaymentsProcessingService__voidPayment command
   class CatalogInventory__StockAdjusted,CatalogInventory__StockReceived,CatalogInventory__StockReleased,CatalogInventory__StockReservationConfirmed,PaymentsProcessing__PaymentDeclined,PaymentsProcessing__PaymentRetryExhausted,PaymentsProcessing__PaymentVoided event
+  style sg_CatalogInventory_cmd fill:none,stroke:none
+  style sg_CatalogInventory_evt fill:none,stroke:none
+  style sg_PaymentsProcessing_cmd fill:none,stroke:none
+  style sg_PaymentsProcessing_evt fill:none,stroke:none
 
   CatalogInventory__InventoryBackofficeService__adjustStock --> CatalogInventory__StockAdjusted
   CatalogInventory__InventoryBackofficeService__receiveStock --> CatalogInventory__StockReceived
@@ -126,6 +138,13 @@ Each aggregate root with the entities and enums it owns, and how they relate.
 ### StockReservation
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 classDiagram
     class StockReservation {
         <<aggregate>>
@@ -155,11 +174,21 @@ classDiagram
     }
     StockReservation --> ReservationStatus : status
     StockReservation --> StockReleaseReason : releaseReason
+    style StockReservation fill:#fbd3ee,stroke:#333333,color:#111111
+    style ReservationStatus fill:#f2f2f2,stroke:#333333,color:#111111
+    style StockReleaseReason fill:#f2f2f2,stroke:#333333,color:#111111
 ```
 
 #### Lifecycle
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 stateDiagram-v2
     [*] --> RESERVED : reserveStock
     RESERVED --> RELEASED : releaseStock
@@ -173,6 +202,13 @@ Field `status`, initial `RESERVED`.
 ### InventoryPosition
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 classDiagram
     class InventoryPosition {
         <<aggregate>>
@@ -181,6 +217,7 @@ classDiagram
         Integer reservedQuantity
         Integer soldQuantity
     }
+    style InventoryPosition fill:#fbd3ee,stroke:#333333,color:#111111
 ```
 
 ### Other entities
@@ -188,6 +225,13 @@ classDiagram
 Entities and enums that no aggregate reaches.
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 classDiagram
     class ReserveStockOutcome {
         <<enumeration>>
@@ -202,6 +246,8 @@ classDiagram
         MANUAL_CORRECTION
         RETURNED
     }
+    style ReserveStockOutcome fill:#f2f2f2,stroke:#333333,color:#111111
+    style StockAdjustmentReason fill:#f2f2f2,stroke:#333333,color:#111111
 ```
 
 ## Commands

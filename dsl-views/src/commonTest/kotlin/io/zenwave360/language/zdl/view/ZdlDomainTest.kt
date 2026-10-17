@@ -149,4 +149,59 @@ class ZdlDomainTest {
         assertEquals(ZdlTransition(listOf("AUTHORIZED", "AUTHORIZATION_REQUESTED", "FAILED"), listOf("VOIDED")), service.methods.last().transition)
         assertEquals(listOf("PaymentAuthorized", "PaymentDeclined", "PaymentFailed"), service.methods.first().eventNames)
     }
+
+    @Test
+    fun restAdaptersJoinTheServiceBaseAndTheMethodPath() {
+        val d = domain(
+            """
+            @rest("/orders/")
+            service S for (Order) {
+                @post
+                a(In) Order withEvents E
+                @put("/{id}")
+                @patch({ path: "x//{id}/" })
+                @delete
+                b(id, In) Order
+                @get("/{id}")
+                c(id) Order?
+                @listener(event: E)
+                @asyncapi(api: PA, channel: "ch")
+                @listener(zdl: OtherZdl, event: F)
+                d(In) Order
+                e(In) Order withEvents E
+            }
+            @rest
+            service T for (Order) {
+                @get
+                x(id) Order?
+                @post("items")
+                y(In) Order withEvents E
+            }
+            service U for (Order) {
+                @post("/u")
+                z(In) Order withEvents E
+            }
+            """.trimIndent(),
+        )
+        val (a, b, c, dd, e) = d.services[0].methods
+        assertEquals(listOf(CommandAdapter.Rest("POST", "/orders")), a.adapters)
+        assertEquals(
+            listOf(CommandAdapter.Rest("PUT", "/orders/{id}"), CommandAdapter.Rest("PATCH", "/orders/x/{id}"), CommandAdapter.Rest("DELETE", "/orders")),
+            b.adapters,
+        )
+        assertEquals(listOf(CommandAdapter.Rest("GET", "/orders/{id}")), c.adapters)
+        assertTrue(c.query)
+        assertEquals(
+            listOf(
+                CommandAdapter.Listener("E", null),
+                CommandAdapter.AsyncApi("ch", "PA"),
+                CommandAdapter.Listener("F", "OtherZdl"),
+            ),
+            dd.adapters,
+        )
+        assertEquals(emptyList(), e.adapters)
+        assertEquals(listOf(CommandAdapter.Rest("GET", "/")), d.services[1].methods[0].adapters)
+        assertEquals(listOf(CommandAdapter.Rest("POST", "/items")), d.services[1].methods[1].adapters)
+        assertEquals(listOf(CommandAdapter.Rest("POST", "/u")), d.services[2].methods[0].adapters)
+    }
 }

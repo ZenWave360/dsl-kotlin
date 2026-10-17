@@ -1,5 +1,7 @@
 package io.zenwave360.language.zdl.architecture
 
+import io.zenwave360.language.zdl.view.CommandAdapter
+
 /** A ZDL file given to the architecture reader. [path] identifies the file; it is never read from disk. */
 data class ZdlSource(val path: String, val content: String)
 
@@ -82,6 +84,11 @@ data class ArchCommand(
     val method: String,
     val events: List<String>,
     val query: Boolean,
+    /**
+     * What triggers the command (REST endpoints, listeners, AsyncAPI channels), in declaration order. Listener and
+     * AsyncAPI adapters carry the owner module of the event when it could be resolved (same rules as [ArchConsumption]).
+     */
+    val adapters: List<CommandAdapter> = emptyList(),
 )
 
 /** Immutable architecture of a set of ZDL modules. Lists are sorted: modules by id, events by module and name. */

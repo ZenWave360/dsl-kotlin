@@ -24,9 +24,13 @@ flowchart LR
   end
 
   subgraph sg_FulfillmentShipping["Fulfillment Shipping"]
-    FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment["scheduleFulfillment"]
-    FulfillmentShipping__FulfillmentFailed["FulfillmentFailed"]
-    FulfillmentShipping__FulfillmentScheduled["FulfillmentScheduled"]
+    subgraph sg_FulfillmentShipping_cmd[" "]
+      FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment["scheduleFulfillment"]
+    end
+    subgraph sg_FulfillmentShipping_evt[" "]
+      FulfillmentShipping__FulfillmentFailed["FulfillmentFailed"]
+      FulfillmentShipping__FulfillmentScheduled["FulfillmentScheduled"]
+    end
   end
 
   subgraph sg_NotificationsConsumer["Notifications Consumer"]
@@ -34,29 +38,43 @@ flowchart LR
   end
 
   subgraph sg_OrdersCheckout["Orders Checkout"]
-    OrdersCheckout__OrdersCheckoutService__startOrderCheckout["startOrderCheckout"]
-    OrdersCheckout__OrdersCheckoutService__confirmOrder["confirmOrder"]
-    OrdersCheckout__OrderCreated["OrderCreated"]
+    subgraph sg_OrdersCheckout_cmd[" "]
+      OrdersCheckout__OrdersCheckoutService__startOrderCheckout["startOrderCheckout"]
+      OrdersCheckout__OrdersCheckoutService__confirmOrder["confirmOrder"]
+    end
+    subgraph sg_OrdersCheckout_evt[" "]
+      OrdersCheckout__OrderCreated["OrderCreated"]
+    end
   end
 
   subgraph sg_PaymentsProcessing["Payments Processing"]
-    PaymentsProcessing__PaymentsProcessingService__authorizePayment["authorizePayment"]
-    PaymentsProcessing__PaymentsProcessingService__retryPayment["retryPayment"]
-    PaymentsProcessing__PaymentsProcessingService__capturePayment["capturePayment"]
-    PaymentsProcessing__PaymentsProcessingService__voidPayment["voidPayment"]
-    PaymentsProcessing__PaymentAuthorized["PaymentAuthorized"]
-    PaymentsProcessing__PaymentCaptureFailed["PaymentCaptureFailed"]
-    PaymentsProcessing__PaymentCaptured["PaymentCaptured"]
-    PaymentsProcessing__PaymentDeclined["PaymentDeclined"]
-    PaymentsProcessing__PaymentFailed["PaymentFailed"]
-    PaymentsProcessing__PaymentRetried["PaymentRetried"]
-    PaymentsProcessing__PaymentRetryExhausted["PaymentRetryExhausted"]
-    PaymentsProcessing__PaymentVoided["PaymentVoided"]
+    subgraph sg_PaymentsProcessing_cmd[" "]
+      PaymentsProcessing__PaymentsProcessingService__authorizePayment["authorizePayment"]
+      PaymentsProcessing__PaymentsProcessingService__retryPayment["retryPayment"]
+      PaymentsProcessing__PaymentsProcessingService__capturePayment["capturePayment"]
+      PaymentsProcessing__PaymentsProcessingService__voidPayment["voidPayment"]
+    end
+    subgraph sg_PaymentsProcessing_evt[" "]
+      PaymentsProcessing__PaymentAuthorized["PaymentAuthorized"]
+      PaymentsProcessing__PaymentCaptureFailed["PaymentCaptureFailed"]
+      PaymentsProcessing__PaymentCaptured["PaymentCaptured"]
+      PaymentsProcessing__PaymentDeclined["PaymentDeclined"]
+      PaymentsProcessing__PaymentFailed["PaymentFailed"]
+      PaymentsProcessing__PaymentRetried["PaymentRetried"]
+      PaymentsProcessing__PaymentRetryExhausted["PaymentRetryExhausted"]
+      PaymentsProcessing__PaymentVoided["PaymentVoided"]
+    end
   end
 
   class sg_CatalogInventory,sg_FulfillmentShipping,sg_NotificationsConsumer,sg_OrdersCheckout,sg_PaymentsProcessing module
   class CatalogInventory__InventoryService__releaseStock,FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment,NotificationsConsumer__NotificationsConsumerService__sendOrderConfirmation,OrdersCheckout__OrdersCheckoutService__confirmOrder,OrdersCheckout__OrdersCheckoutService__startOrderCheckout,PaymentsProcessing__PaymentsProcessingService__authorizePayment,PaymentsProcessing__PaymentsProcessingService__capturePayment,PaymentsProcessing__PaymentsProcessingService__retryPayment,PaymentsProcessing__PaymentsProcessingService__voidPayment command
   class FulfillmentShipping__FulfillmentFailed,FulfillmentShipping__FulfillmentScheduled,OrdersCheckout__OrderCreated,PaymentsProcessing__PaymentAuthorized,PaymentsProcessing__PaymentCaptureFailed,PaymentsProcessing__PaymentCaptured,PaymentsProcessing__PaymentDeclined,PaymentsProcessing__PaymentFailed,PaymentsProcessing__PaymentRetried,PaymentsProcessing__PaymentRetryExhausted,PaymentsProcessing__PaymentVoided event
+  style sg_FulfillmentShipping_cmd fill:none,stroke:none
+  style sg_FulfillmentShipping_evt fill:none,stroke:none
+  style sg_OrdersCheckout_cmd fill:none,stroke:none
+  style sg_OrdersCheckout_evt fill:none,stroke:none
+  style sg_PaymentsProcessing_cmd fill:none,stroke:none
+  style sg_PaymentsProcessing_evt fill:none,stroke:none
 
   FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment --> FulfillmentShipping__FulfillmentFailed
   FulfillmentShipping__FulfillmentShippingService__scheduleFulfillment --> FulfillmentShipping__FulfillmentScheduled
@@ -138,6 +156,13 @@ Each aggregate root with the entities and enums it owns, and how they relate.
 ### Payment
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 classDiagram
     class Payment {
         <<aggregate>>
@@ -168,11 +193,20 @@ classDiagram
         VOIDED
     }
     Payment --> PaymentStatus : status
+    style Payment fill:#fbd3ee,stroke:#333333,color:#111111
+    style PaymentStatus fill:#f2f2f2,stroke:#333333,color:#111111
 ```
 
 #### Lifecycle
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 stateDiagram-v2
     [*] --> AUTHORIZATION_REQUESTED : authorizePayment
     FAILED --> AUTHORIZATION_REQUESTED : retryPayment

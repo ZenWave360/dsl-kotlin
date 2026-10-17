@@ -96,6 +96,13 @@ Each aggregate root with the entities and enums it owns, and how they relate.
 ### Order
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 classDiagram
     class Order {
         <<aggregate>>
@@ -113,11 +120,20 @@ classDiagram
         CANCELLED
     }
     Order --> OrderStatus : status
+    style Order fill:#fbd3ee,stroke:#333333,color:#111111
+    style OrderStatus fill:#f2f2f2,stroke:#333333,color:#111111
 ```
 
 #### Lifecycle
 
 ```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+---
 stateDiagram-v2
     [*] --> CREATED : startOrderCheckout
     CREATED --> CONFIRMED : confirmOrder

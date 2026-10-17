@@ -28,7 +28,7 @@ class ProblemsTest {
 
         assertTrue(output.problems.isNotEmpty())
         assertTrue(output.problems.all { it.startsWith("broken.zdl: ") }, output.problems.toString())
-        assertTrue(output.files.first { it.path == "domain.md" }.content.contains("```mermaid\nclassDiagram"))
+        assertTrue(output.files.first { it.path == "domain.md" }.content.contains("\nclassDiagram\n"))
     }
 
     @Test

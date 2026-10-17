@@ -256,11 +256,22 @@ class ZdlArchitectureToMermaidTransformer(
             out.append("  classDef foreign fill:#f3f3f3,stroke:#888,stroke-dasharray:5 5,color:#111\n")
         }
         out.append('\n')
+        val invisible = mutableListOf<String>()
         for (m in boxes) {
             out.append("  subgraph sg_${m.id}[\"${esc(m.name)}\"]\n")
-            for (c in orderedCmds.filter { it.module == m.id }) out.append("    ${c.id}[\"${esc(c.method)}\"]\n")
-            for (e in shownEvents.filter { it.module == m.id && it.kind == EventKind.INTERNAL }) {
-                out.append("    ${eventId(e)}[\"${esc(e.name)}\"]\n")
+            val boxCmds = orderedCmds.filter { it.module == m.id }
+            val boxEvents = shownEvents.filter { it.module == m.id && it.kind == EventKind.INTERNAL }
+            // Commands and events in two columns (invisible nested boxes) when the box has both.
+            val columns = boxCmds.isNotEmpty() && boxEvents.isNotEmpty()
+            val pad = if (columns) "      " else "    "
+            if (columns) out.append("    subgraph sg_${m.id}_cmd[\" \"]\n")
+            for (c in boxCmds) out.append("$pad${c.id}[\"${esc(c.method)}\"]\n")
+            if (columns) out.append("    end\n    subgraph sg_${m.id}_evt[\" \"]\n")
+            for (e in boxEvents) out.append("$pad${eventId(e)}[\"${esc(e.name)}\"]\n")
+            if (columns) {
+                out.append("    end\n")
+                invisible += "sg_${m.id}_cmd"
+                invisible += "sg_${m.id}_evt"
             }
             out.append("  end\n\n")
         }
@@ -273,6 +284,7 @@ class ZdlArchitectureToMermaidTransformer(
         classLine(out, "foreign", boxes.filter { it.referenced }.map { "sg_${it.id}" } + shownForeign.map { foreignId(it.channel) })
         classLine(out, "command", orderedCmds.map { it.id })
         classLine(out, "event", shownEvents.map { eventId(it) })
+        for (id in invisible) out.append("  style $id fill:none,stroke:none\n")
         out.append('\n')
 
         val nodeOf = shownEvents.associate { EventRef(it.module, it.name) to eventId(it) }

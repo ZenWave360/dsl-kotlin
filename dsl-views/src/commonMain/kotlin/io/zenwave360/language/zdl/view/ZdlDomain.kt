@@ -37,6 +37,31 @@ data class ZdlTransition(val from: List<String>, val to: List<String>)
 data class ZdlLifecycle(val field: String, val initial: String?)
 
 /**
+ * What triggers a command: a REST endpoint, an event listener or an AsyncAPI channel.
+ * Read from the method annotations by [ZdlDomain]; `ArchCommand.adapters` adds the resolved [module].
+ */
+sealed interface CommandAdapter {
+    /**
+     * `@get/@post/@put/@patch/@delete` with an optional path (`@post`, `@post("/x")`, `@post({ path: "/x" })`).
+     * [method] is upper case; [path] is the service-level `@rest` base joined with the method path,
+     * slashes normalized (leading `/`, no double or trailing `/`; `/` when both are empty).
+     */
+    data class Rest(val method: String, val path: String) : CommandAdapter
+
+    /**
+     * `@listener(event: E)` or `@listener(zdl: X, event: E)`. [zdl] is the client name, null for an own event;
+     * [module] is the id of the module that owns the event, when it could be resolved.
+     */
+    data class Listener(val event: String, val zdl: String?, val module: String? = null) : CommandAdapter
+
+    /**
+     * `@asyncapi(channel: C)` or `@asyncapi(api: A, channel: C)`. [module] and [event] identify the event of
+     * that channel when it belongs to a module in the set (null for a foreign event).
+     */
+    data class AsyncApi(val channel: String, val api: String?, val module: String? = null, val event: String? = null) : CommandAdapter
+}
+
+/**
  * A service method or an aggregate command.
  *
  * [events] holds one list per `withEvents` entry; a list with several names is an alternative
@@ -56,6 +81,8 @@ data class ZdlCommand(
     val query: Boolean,
     val transition: ZdlTransition?,
     val javadoc: String?,
+    /** The adapters that trigger the command, in declaration order. Queries may have a REST adapter too. */
+    val adapters: List<CommandAdapter> = emptyList(),
 ) {
     /** Every event name, in order of appearance, without repeats. */
     val eventNames: List<String>
@@ -167,7 +194,7 @@ class ZdlDomain(private val model: ZdlModel) {
             val s = service.asMap()
             ZdlService(
                 name, (s["aggregates"] as? List<*>).orEmpty().filterIsInstance<String>(), s.text("javadoc"),
-                s.sub("methods").map { (methodName, m) -> command(name, methodName, m.asMap()) },
+                s.sub("methods").map { (methodName, m) -> command(name, methodName, m.asMap(), restBase(s)) },
             )
         }
     }
@@ -329,7 +356,37 @@ class ZdlDomain(private val model: ZdlModel) {
         name, f.text("type") ?: "", f["isArray"] == true, f.sub("validations").containsKey("required"), f.text("javadoc"),
     )
 
-    private fun command(owner: String, name: String, m: Map<String, Any?>): ZdlCommand {
+    /** The service-level `@rest("/base")`: `@rest` alone or `@rest({ path: ... })` are also read. */
+    private fun restBase(service: Map<String, Any?>): String = pathOf(service.sub("options")["rest"]).orEmpty()
+
+    private fun adaptersOf(m: Map<String, Any?>, base: String): List<CommandAdapter> {
+        val result = mutableListOf<CommandAdapter>()
+        for (option in (m["optionsList"] as? List<*>).orEmpty()) {
+            val o = option.asMap()
+            val value = o["value"]
+            val args = value.asMap()
+            when (val optionName = o["name"] as? String) {
+                in REST_METHODS -> result += CommandAdapter.Rest(optionName!!.uppercase(), joinPath(base, pathOf(value)))
+                "listener" -> args.text("event")?.let { result += CommandAdapter.Listener(it, args.text("zdl")) }
+                "asyncapi" -> args.text("channel")?.let { result += CommandAdapter.AsyncApi(it, args.text("api")) }
+            }
+        }
+        return result
+    }
+
+    /** `"/x"` or `{ path: "/x" }`; `true` (annotation without arguments) and anything else is no path. */
+    private fun pathOf(value: Any?): String? = when (value) {
+        is String -> value
+        is Map<*, *> -> value["path"] as? String
+        else -> null
+    }
+
+    private fun joinPath(base: String, path: String?): String {
+        val joined = "/" + (base + "/" + path.orEmpty()).split('/').filter { it.isNotEmpty() }.joinToString("/")
+        return joined
+    }
+
+    private fun command(owner: String, name: String, m: Map<String, Any?>, restBase: String = ""): ZdlCommand {
         val events = (m["withEvents"] as? List<*>).orEmpty().map { e ->
             when (e) {
                 is List<*> -> e.filterIsInstance<String>()
@@ -346,12 +403,13 @@ class ZdlDomain(private val model: ZdlModel) {
         return ZdlCommand(
             owner, name, m["paramId"] != null, m.text("parameter"), m["parameterIsOptional"] == true,
             m.text("returnType"), m["returnTypeIsArray"] == true, m["returnTypeIsOptional"] == true,
-            events, query, parsed, m.text("javadoc"),
+            events, query, parsed, m.text("javadoc"), adaptersOf(m, restBase),
         )
     }
 
     private companion object {
         val TRIGGERS = setOf("transition", "listener", "asyncapi", "calls")
+        val REST_METHODS = setOf("get", "post", "put", "patch", "delete")
 
         fun sectionOf(kind: ZdlTypeKind) = when (kind) {
             ZdlTypeKind.ENTITY -> "entities"
