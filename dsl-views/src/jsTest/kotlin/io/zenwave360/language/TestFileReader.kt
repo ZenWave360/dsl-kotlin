@@ -14,3 +14,8 @@ actual fun readTestFile(fileName: String): String {
     val fullPath = "../../../../dsl-kotlin/src/commonTest/resources/$fileName"
     return nodeFs.readFileSync(fullPath, "utf8") as String
 }
+
+actual fun readViewsTestFile(fileName: String): String {
+    val fullPath = "../../../../dsl-views/src/commonTest/resources/$fileName"
+    return nodeFs.readFileSync(fullPath, "utf8") as String
+}

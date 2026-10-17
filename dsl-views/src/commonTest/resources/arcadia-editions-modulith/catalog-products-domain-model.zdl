@@ -1,0 +1,107 @@
+config {
+    id "urn:com.arcadiaeditions:catalog:products"
+    version "0.1.0"
+    title "Arcadia Editions - Product Catalog"
+    moduleBasePackage "com.arcadiaeditions.catalog.products"
+    persistence jpa
+    layout SimpleDomainProjectLayout
+
+    plugins {
+        /** Generates an OpenAPI 3.0 specification from this ZDL model. */
+        ZDLToOpenAPIPlugin {
+            idType integer
+            idTypeFormat int64
+            targetFile "./catalog-products-openapi.yml"
+        }
+    }
+}
+
+@aggregate
+@lifecycle(field: status, initial: DRAFT)
+entity Product {
+    sku String required unique
+    name String required
+    description String
+    price BigDecimal required
+    currency String required
+    editionSize Integer required
+    trackingMode InventoryTrackingMode required
+    launchAt Instant
+    status ProductStatus required
+}
+
+enum ProductStatus {
+    DRAFT
+    PUBLISHED
+    RETIRED
+}
+
+enum InventoryTrackingMode {
+    QUANTITY
+    SERIALIZED
+}
+
+input CreateProductInput {
+    sku String required
+    name String required
+    description String
+    price BigDecimal required
+    currency String required
+    editionSize Integer required
+    trackingMode InventoryTrackingMode required
+    launchAt Instant
+}
+
+input UpdateProductInput {
+    name String
+    description String
+    price BigDecimal
+    currency String
+    launchAt Instant
+}
+
+output ProductPublishedResponse {
+    productId String
+    sku String
+    publishedAt Instant
+}
+
+@rest("/products")
+service ProductCatalogService for (Product) {
+
+    @post
+    @transition(to: DRAFT)
+    createProduct(CreateProductInput) Product
+
+    @put("/{id}")
+    @transition(from: [DRAFT, PUBLISHED], to: DRAFT)
+    updateProduct(id, UpdateProductInput) Product
+
+    @post("/{id}/publish")
+    @transition(from: DRAFT, to: PUBLISHED)
+    publishProduct(id) Product withEvents ProductPublished
+
+    @post("/{id}/retire")
+    @transition(from: [DRAFT, PUBLISHED], to: RETIRED)
+    retireProduct(id) Product withEvents ProductRetired
+}
+
+// @asyncapi({ channel: "product-published-event-v1", topic: "catalog-products.product-published.event.avro.v1" })
+event ProductPublished {
+    productId String
+    sku String
+    name String
+    price BigDecimal
+    currency String
+    editionSize Integer
+    trackingMode InventoryTrackingMode
+    launchAt Instant
+    publishedAt Instant
+}
+
+// @asyncapi({ channel: "product-retired-event-v1", topic: "catalog-products.product-retired.event.avro.v1" })
+event ProductRetired {
+    productId String
+    sku String
+    retiredAt Instant
+}

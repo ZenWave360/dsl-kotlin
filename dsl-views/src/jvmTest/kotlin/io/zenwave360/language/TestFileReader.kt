@@ -7,3 +7,6 @@ actual fun readTestFile(fileName: String): String {
     val fullPath = "../dsl-kotlin/src/commonTest/resources/$fileName"
     return String(Files.readAllBytes(Paths.get(fullPath)))
 }
+
+actual fun readViewsTestFile(fileName: String): String =
+    String(Files.readAllBytes(Paths.get("src/commonTest/resources/$fileName")))
