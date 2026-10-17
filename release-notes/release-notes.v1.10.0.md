@@ -7,7 +7,7 @@ Unreleased draft for **1.10.0**.
 ### New modules: dsl-views and dsl-docs
 
 - `io.zenwave360.dsl:dsl-views` holds the Mermaid diagrams of ZDL and ZFL models. `dsl-kotlin` no longer contains diagram code.
-- `io.zenwave360.dsl:dsl-docs` generates Markdown documentation for one service or monolith from its ZDL, ZFL, OpenAPI and AsyncAPI files, with the `dsl-views` diagrams as inline Mermaid blocks. It is a library (`DslDocs.generate`) and a command line tool (`dsl-docs build --config <file> --out <dir>`). Output is deterministic and nothing is loaded from the network.
+- `io.zenwave360.dsl:dsl-docs` generates Markdown documentation for one service or monolith from its ZDL, ZFL, OpenAPI and AsyncAPI files, with the `dsl-views` diagrams as inline Mermaid blocks. It is a library (`DslDocs.generate`, with `DocsFiles` and `DocsFolder` to read and write files on the JVM), used from the command line through the zenwave-sdk `DslDocs` plugin. Output is deterministic and nothing is loaded from the network.
 - Neither module is published to npm yet.
 
 ### Mermaid class diagrams for ZDL

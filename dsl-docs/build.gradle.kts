@@ -42,25 +42,6 @@ kotlin {
     }
 }
 
-// The JVM jar is also the command line tool: `java -jar` or `jbang io.zenwave360.dsl:dsl-docs-jvm:<version> build ...`.
-tasks.named<Jar>("jvmJar") {
-    manifest {
-        attributes("Main-Class" to "io.zenwave360.language.docs.cli.DslDocsCliKt")
-    }
-}
-
-// Runs the command line tool from the build, for example:
-//   ./gradlew :dsl-docs:dslDocs -Pargs="build --config path/to/dsl-docs.yml --out docs/zenwave"
-val jvmMainCompilation = kotlin.jvm().compilations.getByName("main")
-tasks.register<JavaExec>("dslDocs") {
-    group = "documentation"
-    description = "Runs the dsl-docs command line tool with -Pargs"
-    classpath = jvmMainCompilation.output.allOutputs + jvmMainCompilation.runtimeDependencyFiles!!
-    mainClass.set("io.zenwave360.language.docs.cli.DslDocsCliKt")
-    workingDir = rootProject.projectDir
-    args(providers.gradleProperty("args").getOrElse("").split(" ").filter { it.isNotBlank() })
-}
-
 // The Arcadia snapshot tests parse six ZDL files and render every page: more than mocha's default 2s on Node.
 tasks.withType<org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest>()
     .matching { it.name == "jsNodeTest" }

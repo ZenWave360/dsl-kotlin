@@ -7,60 +7,58 @@ Markdown documentation for one service or monolith, generated from its ZDL, ZFL,
   timestamp unless you pass a date, sources are normalized to `\n` line endings before they are read, and the
   pages always use `\n`.
 - Nothing is read from the network: `http(s)` `$ref`s are never loaded and show as external classes. Relative `$ref`s to files
-  next to the spec (Avro `.avsc`, shared schemas) are read by the command line tool; the files that were read are listed,
-  with their hashes, in the header of the page, so `--check` notices when they change. In JS (no file reader) they stay external.
+  next to the spec (Avro `.avsc`, shared schemas) are read through the file reader of `DocsFiles` (JVM); the files that were read are listed,
+  with their hashes, in the header of the page, so `check` notices when they change. In JS (no file reader) they stay external.
 
-## Command line
+## Usage
+
+dsl-docs is a library. From the command line use the zenwave-sdk plugin, which reads the files, calls this library
+and writes or checks the folder:
 
 ```bash
-# JBang reads the main class from the jar manifest and the dependencies from its POM:
-jbang io.zenwave360.dsl:dsl-docs-jvm:<version> build --config dsl-docs.yml --out docs/zenwave
-# from this repository:
-./gradlew :dsl-docs:dslDocs -Pargs="build --config path/to/dsl-docs.yml --out docs"
+zw -p DslDocs ...
 ```
 
-Flags: `--config <file>` and `--out <dir>` are required; `--check` writes nothing and tells whether the folder is up to date.
+From JVM code, `DocsFiles` reads the files and `DocsFolder` writes (or checks) the output folder:
 
-| Exit | Meaning |
-| --- | --- |
-| `0` | Done, or with `--check` the folder is up to date. Problems found in the inputs are printed as `WARNING` lines. |
-| `1` | The config or a file it names cannot be read, or a page to generate has the path of a hand-written file. |
-| `2` | Wrong arguments. |
-| `3` | `--check` only: the folder is out of date. |
+```kotlin
+val baseDir = File(".")            // source paths in the pages are relative to it
+val outDir = File("docs/zenwave")
 
-### Ownership and `--check`
+val input = DocsFiles.input(
+    baseDir = baseDir,
+    outDir = outDir,
+    zdlFiles = listOf("domain-model.zdl"),
+    zflFiles = listOf("../business-flows/place-order-flow.zfl"),
+    apiFiles = listOf("openapi.yml", "asyncapi.yml", "asyncapi-client.yml"),   // OpenAPI or AsyncAPI, told by content
+    title = "Orders Checkout",                                                  // optional, like version and date
+    links = listOf(DocsLink("Service summary", "../SUMMARY.md")),               // hand-written pages, relative to outDir
+)
+val output = DslDocs().generate(input)
+output.problems.forEach { println("WARNING $it") }
+
+val folder = DocsFolder(outDir)
+val differences = folder.check(output)   // empty = up to date; nothing is written
+val result = folder.write(output)        // result.written, result.deleted
+```
+
+Paths are relative to `baseDir` or absolute. API files are told apart by `SourceKind.ofApi(content)`: an `openapi` or
+`swagger` top level key is OpenAPI, `asyncapi` is AsyncAPI. A missing file, or an API file that is neither, is an
+`IllegalArgumentException`. Relative `$ref` files (Avro `.avsc`, shared schemas) are read next to the sources; their
+hashes are listed in the page header, so `check` notices when they change.
+
+### Ownership and `check`
 
 dsl-docs owns files by marker, not by folder. A `.md` file, at any depth (`modules/` too), whose first line is the
-generated-file marker is dsl-docs's: it is overwritten, and deleted when a run no longer produces it. Every other
-file in the output folder is hand-written and never touched. So `architecture.md` can live in `docs/` next to
-`reading-zdl.md`, `development.md` or `adr/`. The only error is a page dsl-docs would generate at the path of a
-hand-written file: the run stops with exit 1 and writes nothing.
+generated-file marker is dsl-docs's: it is overwritten, and deleted when a run no longer produces it (together with
+the subfolders that this leaves empty). Every other file in the output folder is hand-written and never touched. So
+`architecture.md` can live in `docs/` next to `reading-zdl.md`, `development.md` or `adr/`. The only error is a page
+dsl-docs would generate at the path of a hand-written file: `check` and `write` throw `IllegalArgumentException`
+and write nothing.
 
-`--check` generates the pages in memory and compares them with the folder (line endings are ignored). It lists
-every missing, changed and stale generated file as `OUT OF DATE <path> (<reason>)` on stderr, writes nothing and
-exits 3. Use it in CI so the committed docs cannot go stale:
-
-```bash
-jbang io.zenwave360.dsl:dsl-docs-jvm:<version> build --config docs/dsl-docs.yml --out docs --check
-```
-
-### Config
-
-Paths are relative to the config file. Every key is optional; a page is written only when it has sources.
-
-```yaml
-title: Orders Checkout        # default: the ZDL config title, then the OpenAPI or AsyncAPI info title
-version: 0.1.0                # default: the ZDL config version, then the OpenAPI or AsyncAPI info version
-date: 2026-10-13              # printed as written; omitted when not set
-zdl: [domain-model.zdl]
-zfl: [../business-flows/place-order-flow.zfl]
-openapi: [openapi.yml]
-asyncapi: [asyncapi.yml, asyncapi-client.yml]
-pages:                        # pages written by hand, linked from the index
-  - { title: Service summary, path: SUMMARY.md }
-```
-
-JSON works too: it is valid YAML.
+`DocsFolder.check` compares the generated pages with the folder (line endings are ignored) and returns every
+`DocsDifference(path, reason)` with reason `missing`, `changed` or `stale, no longer generated`. Use it in CI so the
+committed docs cannot go stale.
 
 ### Output
 
@@ -77,11 +75,11 @@ JSON works too: it is valid YAML.
 Every page starts with a marker comment and one `<!-- Source: <path> sha256:<hash> -->` line per source, so a
 change in the sources is visible in the diff of the generated pages.
 
-Hand-written pages may sit in the same folder (see Ownership above); link them from the index with `pages`.
+Hand-written pages may sit in the same folder (see Ownership above); link them from the index with `links`.
 
-## Library
+## Without the filesystem
 
-The generator is common Kotlin code (JVM and JS). It takes file contents, not paths, and returns the files to
+The generator itself is common Kotlin code (JVM and JS). It takes file contents, not paths, and returns the files to
 write, so a language server or another tool can call it without touching the filesystem:
 
 ```kotlin
@@ -94,8 +92,6 @@ val output = DslDocs().generate(
 output.files.forEach { file -> /* file.path, file.content */ }
 output.problems.forEach { problem -> /* "domain-model.zdl: line 3:7: ..." */ }
 ```
-
-`DocsConfig.parse(text)` reads a config file for callers that want the same config format.
 
 ## Diagrams
 

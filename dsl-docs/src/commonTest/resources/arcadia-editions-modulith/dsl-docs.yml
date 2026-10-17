@@ -1,9 +1,0 @@
-# dsl-docs config used by the tests; not part of the upstream repository.
-title: Arcadia Editions Modulith
-zdl:
-  - catalog-inventory-domain-model.zdl
-  - catalog-products-domain-model.zdl
-  - fulfillment-shipping-domain-model.zdl
-  - notifications-consumer-domain-model.zdl
-  - orders-checkout-domain-model.zdl
-  - payments-processing-domain-model.zdl

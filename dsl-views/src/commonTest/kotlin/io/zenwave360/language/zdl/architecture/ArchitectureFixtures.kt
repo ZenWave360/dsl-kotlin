@@ -10,7 +10,7 @@ object ArchitectureFixtures {
         "notifications-consumer", "orders-checkout", "payments-processing",
     )
 
-    /** The six modulith ZDLs, all events internal. Paths are relative, like `dsl-docs.yml` would give them. */
+    /** The six modulith ZDLs, all events internal. Paths are relative to the project. */
     fun modulith(): List<ZdlSource> = modulithFiles.map {
         val file = "$it-domain-model.zdl"
         ZdlSource(file, readViewsTestFile("arcadia-editions-modulith/$file"))
