@@ -60,3 +60,12 @@ tasks.register<JavaExec>("dslDocs") {
     workingDir = rootProject.projectDir
     args(providers.gradleProperty("args").getOrElse("").split(" ").filter { it.isNotBlank() })
 }
+
+// The Arcadia snapshot tests parse six ZDL files and render every page: more than mocha's default 2s on Node.
+tasks.withType<org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest>()
+    .matching { it.name == "jsNodeTest" }
+    .configureEach {
+        useMocha {
+            timeout = "10s"
+        }
+    }

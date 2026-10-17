@@ -12,7 +12,150 @@
 
 ## Overview
 
-The system has too many modules or events for one diagram, so this overview shows modules only. Each module page has the diagram of that module.
+Each module with its services, the commands they handle and the events they emit.
+
+```mermaid
+flowchart LR
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
+  classDef service fill:#fbd3ee,stroke:#c2569b,color:#111
+  subgraph sg_CatalogInventory["Catalog Inventory"]
+    direction LR
+    CatalogInventory__c_InventoryService_reserveStock["reserveStock"]
+    CatalogInventory__c_InventoryService_releaseStock["releaseStock"]
+    CatalogInventory__c_InventoryService_confirmStockReservation["confirmStockReservation"]
+    CatalogInventory__e_StockReleased["StockReleased"]
+    CatalogInventory__e_StockReservationConfirmed["StockReservationConfirmed"]
+    CatalogInventory__s_InventoryService(["InventoryService"])
+    CatalogInventory__c_InventoryBackofficeService_receiveStock["receiveStock"]
+    CatalogInventory__c_InventoryBackofficeService_adjustStock["adjustStock"]
+    CatalogInventory__e_StockReceived["StockReceived"]
+    CatalogInventory__e_StockAdjusted["StockAdjusted"]
+    CatalogInventory__s_InventoryBackofficeService(["InventoryBackofficeService"])
+  end
+  subgraph sg_CatalogProducts["Product Catalog"]
+    direction LR
+    CatalogProducts__c_ProductCatalogService_createProduct["createProduct"]
+    CatalogProducts__c_ProductCatalogService_updateProduct["updateProduct"]
+    CatalogProducts__c_ProductCatalogService_publishProduct["publishProduct"]
+    CatalogProducts__c_ProductCatalogService_retireProduct["retireProduct"]
+    CatalogProducts__e_ProductPublished["ProductPublished"]
+    CatalogProducts__e_ProductRetired["ProductRetired"]
+    CatalogProducts__s_ProductCatalogService(["ProductCatalogService"])
+  end
+  subgraph sg_FulfillmentShipping["Fulfillment Shipping"]
+    direction LR
+    FulfillmentShipping__c_FulfillmentShippingService_scheduleFulfillment["scheduleFulfillment"]
+    FulfillmentShipping__c_FulfillmentShippingService_markReadyToShip["markReadyToShip"]
+    FulfillmentShipping__e_FulfillmentScheduled["FulfillmentScheduled"]
+    FulfillmentShipping__e_FulfillmentFailed["FulfillmentFailed"]
+    FulfillmentShipping__e_FulfillmentReadyToShip["FulfillmentReadyToShip"]
+    FulfillmentShipping__s_FulfillmentShippingService(["FulfillmentShippingService"])
+  end
+  subgraph sg_NotificationsConsumer["Notifications Consumer"]
+    direction LR
+    NotificationsConsumer__c_NotificationsConsumerService_sendOrderConfirmation["sendOrderConfirmation"]
+    NotificationsConsumer__c_NotificationsConsumerService_sendStockUnavailableNotification["sendStockUnavailableNotification"]
+    NotificationsConsumer__c_NotificationsConsumerService_sendOrderCancelledNotification["sendOrderCancelledNotification"]
+    NotificationsConsumer__e_OrderConfirmationSent["OrderConfirmationSent"]
+    NotificationsConsumer__e_NotificationDeliveryFailed["NotificationDeliveryFailed"]
+    NotificationsConsumer__e_StockUnavailableNotificationSent["StockUnavailableNotificationSent"]
+    NotificationsConsumer__e_OrderCancelledNotificationSent["OrderCancelledNotificationSent"]
+    NotificationsConsumer__s_NotificationsConsumerService(["NotificationsConsumerService"])
+  end
+  subgraph sg_OrdersCheckout["Orders Checkout"]
+    direction LR
+    OrdersCheckout__c_OrdersCheckoutService_startOrderCheckout["startOrderCheckout"]
+    OrdersCheckout__c_OrdersCheckoutService_confirmOrder["confirmOrder"]
+    OrdersCheckout__c_OrdersCheckoutService_cancelOrder["cancelOrder"]
+    OrdersCheckout__e_OrderCreated["OrderCreated"]
+    OrdersCheckout__e_StockUnavailable["StockUnavailable"]
+    OrdersCheckout__e_OrderConfirmed["OrderConfirmed"]
+    OrdersCheckout__e_OrderCancelled["OrderCancelled"]
+    OrdersCheckout__s_OrdersCheckoutService(["OrdersCheckoutService"])
+  end
+  subgraph sg_PaymentsProcessing["Payments Processing"]
+    direction LR
+    PaymentsProcessing__c_PaymentsProcessingService_authorizePayment["authorizePayment"]
+    PaymentsProcessing__c_PaymentsProcessingService_retryPayment["retryPayment"]
+    PaymentsProcessing__c_PaymentsProcessingService_capturePayment["capturePayment"]
+    PaymentsProcessing__c_PaymentsProcessingService_voidPayment["voidPayment"]
+    PaymentsProcessing__e_PaymentAuthorized["PaymentAuthorized"]
+    PaymentsProcessing__e_PaymentDeclined["PaymentDeclined"]
+    PaymentsProcessing__e_PaymentFailed["PaymentFailed"]
+    PaymentsProcessing__e_PaymentRetried["PaymentRetried"]
+    PaymentsProcessing__e_PaymentRetryExhausted["PaymentRetryExhausted"]
+    PaymentsProcessing__e_PaymentCaptured["PaymentCaptured"]
+    PaymentsProcessing__e_PaymentCaptureFailed["PaymentCaptureFailed"]
+    PaymentsProcessing__e_PaymentVoided["PaymentVoided"]
+    PaymentsProcessing__s_PaymentsProcessingService(["PaymentsProcessingService"])
+  end
+  CatalogInventory__c_InventoryService_reserveStock ~~~ CatalogInventory__s_InventoryService
+  CatalogInventory__c_InventoryService_releaseStock ~~~ CatalogInventory__s_InventoryService
+  CatalogInventory__c_InventoryService_confirmStockReservation ~~~ CatalogInventory__s_InventoryService
+  CatalogInventory__s_InventoryService ~~~ CatalogInventory__e_StockReleased
+  CatalogInventory__s_InventoryService ~~~ CatalogInventory__e_StockReservationConfirmed
+  CatalogInventory__c_InventoryBackofficeService_receiveStock ~~~ CatalogInventory__s_InventoryBackofficeService
+  CatalogInventory__c_InventoryBackofficeService_adjustStock ~~~ CatalogInventory__s_InventoryBackofficeService
+  CatalogInventory__s_InventoryBackofficeService ~~~ CatalogInventory__e_StockReceived
+  CatalogInventory__s_InventoryBackofficeService ~~~ CatalogInventory__e_StockAdjusted
+  CatalogProducts__c_ProductCatalogService_createProduct ~~~ CatalogProducts__s_ProductCatalogService
+  CatalogProducts__c_ProductCatalogService_updateProduct ~~~ CatalogProducts__s_ProductCatalogService
+  CatalogProducts__c_ProductCatalogService_publishProduct ~~~ CatalogProducts__s_ProductCatalogService
+  CatalogProducts__c_ProductCatalogService_retireProduct ~~~ CatalogProducts__s_ProductCatalogService
+  CatalogProducts__s_ProductCatalogService ~~~ CatalogProducts__e_ProductPublished
+  CatalogProducts__s_ProductCatalogService ~~~ CatalogProducts__e_ProductRetired
+  FulfillmentShipping__c_FulfillmentShippingService_scheduleFulfillment ~~~ FulfillmentShipping__s_FulfillmentShippingService
+  FulfillmentShipping__c_FulfillmentShippingService_markReadyToShip ~~~ FulfillmentShipping__s_FulfillmentShippingService
+  FulfillmentShipping__s_FulfillmentShippingService ~~~ FulfillmentShipping__e_FulfillmentScheduled
+  FulfillmentShipping__s_FulfillmentShippingService ~~~ FulfillmentShipping__e_FulfillmentFailed
+  FulfillmentShipping__s_FulfillmentShippingService ~~~ FulfillmentShipping__e_FulfillmentReadyToShip
+  NotificationsConsumer__c_NotificationsConsumerService_sendOrderConfirmation ~~~ NotificationsConsumer__s_NotificationsConsumerService
+  NotificationsConsumer__c_NotificationsConsumerService_sendStockUnavailableNotification ~~~ NotificationsConsumer__s_NotificationsConsumerService
+  NotificationsConsumer__c_NotificationsConsumerService_sendOrderCancelledNotification ~~~ NotificationsConsumer__s_NotificationsConsumerService
+  NotificationsConsumer__s_NotificationsConsumerService ~~~ NotificationsConsumer__e_OrderConfirmationSent
+  NotificationsConsumer__s_NotificationsConsumerService ~~~ NotificationsConsumer__e_NotificationDeliveryFailed
+  NotificationsConsumer__s_NotificationsConsumerService ~~~ NotificationsConsumer__e_StockUnavailableNotificationSent
+  NotificationsConsumer__s_NotificationsConsumerService ~~~ NotificationsConsumer__e_OrderCancelledNotificationSent
+  OrdersCheckout__c_OrdersCheckoutService_startOrderCheckout ~~~ OrdersCheckout__s_OrdersCheckoutService
+  OrdersCheckout__c_OrdersCheckoutService_confirmOrder ~~~ OrdersCheckout__s_OrdersCheckoutService
+  OrdersCheckout__c_OrdersCheckoutService_cancelOrder ~~~ OrdersCheckout__s_OrdersCheckoutService
+  OrdersCheckout__s_OrdersCheckoutService ~~~ OrdersCheckout__e_OrderCreated
+  OrdersCheckout__s_OrdersCheckoutService ~~~ OrdersCheckout__e_StockUnavailable
+  OrdersCheckout__s_OrdersCheckoutService ~~~ OrdersCheckout__e_OrderConfirmed
+  OrdersCheckout__s_OrdersCheckoutService ~~~ OrdersCheckout__e_OrderCancelled
+  PaymentsProcessing__c_PaymentsProcessingService_authorizePayment ~~~ PaymentsProcessing__s_PaymentsProcessingService
+  PaymentsProcessing__c_PaymentsProcessingService_retryPayment ~~~ PaymentsProcessing__s_PaymentsProcessingService
+  PaymentsProcessing__c_PaymentsProcessingService_capturePayment ~~~ PaymentsProcessing__s_PaymentsProcessingService
+  PaymentsProcessing__c_PaymentsProcessingService_voidPayment ~~~ PaymentsProcessing__s_PaymentsProcessingService
+  PaymentsProcessing__s_PaymentsProcessingService ~~~ PaymentsProcessing__e_PaymentAuthorized
+  PaymentsProcessing__s_PaymentsProcessingService ~~~ PaymentsProcessing__e_PaymentDeclined
+  PaymentsProcessing__s_PaymentsProcessingService ~~~ PaymentsProcessing__e_PaymentFailed
+  PaymentsProcessing__s_PaymentsProcessingService ~~~ PaymentsProcessing__e_PaymentRetried
+  PaymentsProcessing__e_PaymentAuthorized ~~~ PaymentsProcessing__e_PaymentRetryExhausted
+  PaymentsProcessing__e_PaymentDeclined ~~~ PaymentsProcessing__e_PaymentCaptured
+  PaymentsProcessing__e_PaymentFailed ~~~ PaymentsProcessing__e_PaymentCaptureFailed
+  PaymentsProcessing__e_PaymentRetried ~~~ PaymentsProcessing__e_PaymentVoided
+  CatalogInventory__e_StockReceived ~~~ CatalogProducts__c_ProductCatalogService_createProduct
+  CatalogProducts__e_ProductPublished ~~~ FulfillmentShipping__c_FulfillmentShippingService_scheduleFulfillment
+  NotificationsConsumer__e_OrderConfirmationSent ~~~ OrdersCheckout__c_OrdersCheckoutService_startOrderCheckout
+  OrdersCheckout__e_OrderCreated ~~~ PaymentsProcessing__c_PaymentsProcessingService_authorizePayment
+  class CatalogInventory__c_InventoryService_reserveStock,CatalogInventory__c_InventoryService_releaseStock,CatalogInventory__c_InventoryService_confirmStockReservation,CatalogInventory__c_InventoryBackofficeService_receiveStock,CatalogInventory__c_InventoryBackofficeService_adjustStock,CatalogProducts__c_ProductCatalogService_createProduct,CatalogProducts__c_ProductCatalogService_updateProduct,CatalogProducts__c_ProductCatalogService_publishProduct,CatalogProducts__c_ProductCatalogService_retireProduct,FulfillmentShipping__c_FulfillmentShippingService_scheduleFulfillment,FulfillmentShipping__c_FulfillmentShippingService_markReadyToShip,NotificationsConsumer__c_NotificationsConsumerService_sendOrderConfirmation,NotificationsConsumer__c_NotificationsConsumerService_sendStockUnavailableNotification,NotificationsConsumer__c_NotificationsConsumerService_sendOrderCancelledNotification,OrdersCheckout__c_OrdersCheckoutService_startOrderCheckout,OrdersCheckout__c_OrdersCheckoutService_confirmOrder,OrdersCheckout__c_OrdersCheckoutService_cancelOrder,PaymentsProcessing__c_PaymentsProcessingService_authorizePayment,PaymentsProcessing__c_PaymentsProcessingService_retryPayment,PaymentsProcessing__c_PaymentsProcessingService_capturePayment,PaymentsProcessing__c_PaymentsProcessingService_voidPayment command
+  class CatalogInventory__s_InventoryService,CatalogInventory__s_InventoryBackofficeService,CatalogProducts__s_ProductCatalogService,FulfillmentShipping__s_FulfillmentShippingService,NotificationsConsumer__s_NotificationsConsumerService,OrdersCheckout__s_OrdersCheckoutService,PaymentsProcessing__s_PaymentsProcessingService service
+  class CatalogInventory__e_StockReleased,CatalogInventory__e_StockReservationConfirmed,CatalogInventory__e_StockReceived,CatalogInventory__e_StockAdjusted,CatalogProducts__e_ProductPublished,CatalogProducts__e_ProductRetired,FulfillmentShipping__e_FulfillmentScheduled,FulfillmentShipping__e_FulfillmentFailed,FulfillmentShipping__e_FulfillmentReadyToShip,NotificationsConsumer__e_OrderConfirmationSent,NotificationsConsumer__e_NotificationDeliveryFailed,NotificationsConsumer__e_StockUnavailableNotificationSent,NotificationsConsumer__e_OrderCancelledNotificationSent,OrdersCheckout__e_OrderCreated,OrdersCheckout__e_StockUnavailable,OrdersCheckout__e_OrderConfirmed,OrdersCheckout__e_OrderCancelled,PaymentsProcessing__e_PaymentAuthorized,PaymentsProcessing__e_PaymentDeclined,PaymentsProcessing__e_PaymentFailed,PaymentsProcessing__e_PaymentRetried,PaymentsProcessing__e_PaymentRetryExhausted,PaymentsProcessing__e_PaymentCaptured,PaymentsProcessing__e_PaymentCaptureFailed,PaymentsProcessing__e_PaymentVoided event
+  style sg_CatalogInventory fill:#ffffff,stroke:#999999,stroke-dasharray:4 3,color:#333333
+  style sg_CatalogProducts fill:#ffffff,stroke:#999999,stroke-dasharray:4 3,color:#333333
+  style sg_FulfillmentShipping fill:#ffffff,stroke:#999999,stroke-dasharray:4 3,color:#333333
+  style sg_NotificationsConsumer fill:#ffffff,stroke:#999999,stroke-dasharray:4 3,color:#333333
+  style sg_OrdersCheckout fill:#ffffff,stroke:#999999,stroke-dasharray:4 3,color:#333333
+  style sg_PaymentsProcessing fill:#ffffff,stroke:#999999,stroke-dasharray:4 3,color:#333333
+```
+
+Dashed box = module. Pink = service. Blue = command. Orange = event emitted by the service.
+
+## Dependencies
+
+The system has too many modules or events for one diagram, so this one shows modules only. Each module page has the diagram of that module.
 
 ```mermaid
 flowchart LR

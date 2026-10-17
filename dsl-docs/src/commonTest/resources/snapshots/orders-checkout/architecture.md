@@ -5,7 +5,42 @@
 
 1 module declaring 4 events (0 internal, 4 external), plus 2 events from other systems. Generated from the ZDL files: edit the models, not this page.
 
-## Diagram
+## Overview
+
+Each module with its services, the commands they handle and the events they emit.
+
+```mermaid
+flowchart LR
+  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
+  classDef service fill:#fbd3ee,stroke:#c2569b,color:#111
+  subgraph sg_OrdersCheckout["Orders Checkout"]
+    direction LR
+    OrdersCheckout__c_OrdersCheckoutService_startOrderCheckout["startOrderCheckout"]
+    OrdersCheckout__c_OrdersCheckoutService_confirmOrder["confirmOrder"]
+    OrdersCheckout__c_OrdersCheckoutService_cancelOrder["cancelOrder"]
+    OrdersCheckout__e_OrderCreated["OrderCreated"]
+    OrdersCheckout__e_StockUnavailable["StockUnavailable"]
+    OrdersCheckout__e_OrderConfirmed["OrderConfirmed"]
+    OrdersCheckout__e_OrderCancelled["OrderCancelled"]
+    OrdersCheckout__s_OrdersCheckoutService(["OrdersCheckoutService"])
+  end
+  OrdersCheckout__c_OrdersCheckoutService_startOrderCheckout ~~~ OrdersCheckout__s_OrdersCheckoutService
+  OrdersCheckout__c_OrdersCheckoutService_confirmOrder ~~~ OrdersCheckout__s_OrdersCheckoutService
+  OrdersCheckout__c_OrdersCheckoutService_cancelOrder ~~~ OrdersCheckout__s_OrdersCheckoutService
+  OrdersCheckout__s_OrdersCheckoutService ~~~ OrdersCheckout__e_OrderCreated
+  OrdersCheckout__s_OrdersCheckoutService ~~~ OrdersCheckout__e_StockUnavailable
+  OrdersCheckout__s_OrdersCheckoutService ~~~ OrdersCheckout__e_OrderConfirmed
+  OrdersCheckout__s_OrdersCheckoutService ~~~ OrdersCheckout__e_OrderCancelled
+  class OrdersCheckout__c_OrdersCheckoutService_startOrderCheckout,OrdersCheckout__c_OrdersCheckoutService_confirmOrder,OrdersCheckout__c_OrdersCheckoutService_cancelOrder command
+  class OrdersCheckout__s_OrdersCheckoutService service
+  class OrdersCheckout__e_OrderCreated,OrdersCheckout__e_StockUnavailable,OrdersCheckout__e_OrderConfirmed,OrdersCheckout__e_OrderCancelled event
+  style sg_OrdersCheckout fill:#ffffff,stroke:#999999,stroke-dasharray:4 3,color:#333333
+```
+
+Dashed box = module. Pink = service. Blue = command. Orange = event emitted by the service.
+
+## Dependencies
 
 Modules, the events they own and who consumes them, and direct calls between modules.
 

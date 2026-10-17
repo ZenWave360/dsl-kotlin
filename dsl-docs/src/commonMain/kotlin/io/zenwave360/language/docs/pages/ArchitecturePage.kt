@@ -11,6 +11,7 @@ import io.zenwave360.language.zdl.architecture.EventRef
 import io.zenwave360.language.zdl.architecture.ZdlArchitecture
 import io.zenwave360.language.zdl.view.ArchitectureDiagram
 import io.zenwave360.language.zdl.view.ArchitectureDiagrams
+import io.zenwave360.language.zdl.view.ZdlArchitectureToEventStormingTransformer
 import io.zenwave360.language.zdl.view.ZdlDomain
 
 /**
@@ -97,10 +98,17 @@ internal object ArchitecturePage {
 
         // With module pages, the per-module diagrams of a scaled architecture go there.
         val onThisPage = if (context.modulePages) context.diagrams.diagrams.filter { it.moduleId == null } else context.diagrams.diagrams
+        ZdlArchitectureToEventStormingTransformer().transform(a)?.let { overview ->
+            append("## Overview\n\n")
+            append("Each module with its services, the commands they handle and the events they emit.\n\n")
+            append(Markdown.mermaid(overview)).append('\n')
+            append(ZdlArchitectureToEventStormingTransformer.LEGEND).append("\n\n")
+        }
+
         val scaled = context.diagrams.scaled
-        append(if (scaled) "## Overview\n\n" else "## Diagram\n\n")
+        append("## Dependencies\n\n")
         if (scaled) {
-            append("The system has too many modules or events for one diagram, so this overview shows modules only. ")
+            append("The system has too many modules or events for one diagram, so this one shows modules only. ")
             append(if (context.modulePages) "Each module page has the diagram of that module." else "The diagrams below show each module in detail.")
             append("\n\n")
         } else {
