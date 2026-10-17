@@ -1,0 +1,22 @@
+{
+  "type" : "record",
+  "name" : "ScheduleFulfillmentInput",
+  "namespace" : "com.arcadiaeditions.fulfillment.shipping.events.avro",
+  "fields" : [ {
+    "name" : "orderId",
+    "type" : "string"
+  }, {
+    "name" : "customerId",
+    "type" : "string"
+  }, {
+    "name" : "shippingAddress",
+    "type" : "ShippingAddressInput"
+  }, {
+    "name" : "items",
+    "type" : {
+      "type" : "array",
+      "items" : "FulfillmentItemInput",
+      "java-class" : "java.util.List"
+    }
+  } ]
+}
