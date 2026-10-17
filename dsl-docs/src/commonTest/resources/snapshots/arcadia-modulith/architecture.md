@@ -27,15 +27,15 @@ flowchart LR
 
   class CatalogInventory,CatalogProducts,FulfillmentShipping,NotificationsConsumer,OrdersCheckout,PaymentsProcessing module
 
-  CatalogInventory -.->|"1 event"| OrdersCheckout
-  FulfillmentShipping -.->|"2 events"| PaymentsProcessing
-  OrdersCheckout -.->|"1 event"| FulfillmentShipping
-  OrdersCheckout -.->|"2 events"| NotificationsConsumer
-  OrdersCheckout -.->|"1 event"| PaymentsProcessing
-  PaymentsProcessing -.->|"3 events"| CatalogInventory
-  PaymentsProcessing -.->|"1 event"| NotificationsConsumer
-  PaymentsProcessing -.->|"1 event"| OrdersCheckout
-  OrdersCheckout ==>|"2 calls"| CatalogInventory
+  CatalogInventory -.->|"StockReleased"| OrdersCheckout
+  FulfillmentShipping -.->|"FulfillmentFailed<br/>FulfillmentScheduled"| PaymentsProcessing
+  OrdersCheckout -.->|"OrderConfirmed"| FulfillmentShipping
+  OrdersCheckout -.->|"OrderCancelled<br/>StockUnavailable"| NotificationsConsumer
+  OrdersCheckout -.->|"OrderCreated"| PaymentsProcessing
+  PaymentsProcessing -.->|"PaymentDeclined<br/>PaymentRetryExhausted<br/>PaymentVoided"| CatalogInventory
+  PaymentsProcessing -.->|"PaymentCaptured"| NotificationsConsumer
+  PaymentsProcessing -.->|"PaymentAuthorized"| OrdersCheckout
+  OrdersCheckout ==>|"confirmStockReservation<br/>reserveStock"| CatalogInventory
 ```
 
 Hexagon = module. Rectangle inside a box = internal event owned by that module. Pipe outside boxes = external event (has a topic). Solid = published by. Dashed = consumed by. Thick = direct call.

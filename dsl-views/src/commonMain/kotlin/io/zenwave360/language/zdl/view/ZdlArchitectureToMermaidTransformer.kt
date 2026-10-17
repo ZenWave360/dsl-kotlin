@@ -178,13 +178,15 @@ class ZdlArchitectureToMermaidTransformer(
             .filter { it.event.module != null && it.event.module != it.consumer }
             .groupBy { it.event.module!! to it.consumer }
         for ((pair, list) in flows.entries.sortedBy { "${it.key.first} ${it.key.second}" }) {
-            val n = list.map { it.event.name }.distinct().size
-            out.append("  ${pair.first} -.->|\"$n ${if (n == 1) "event" else "events"}\"| ${pair.second}\n")
+            val names = list.map { it.event.name }.distinct().sorted()
+            val label = if (names.size <= 3) names.joinToString("<br/>") { esc(it) } else "${names.size} events"
+            out.append("  ${pair.first} -.->|\"$label\"| ${pair.second}\n")
         }
         val calls = a.calls.filter { it.caller != it.callee }.groupBy { it.caller to it.callee }
         for ((pair, list) in calls.entries.sortedBy { "${it.key.first} ${it.key.second}" }) {
-            val n = list.map { it.command }.distinct().size
-            out.append("  ${pair.first} ==>|\"$n ${if (n == 1) "call" else "calls"}\"| ${pair.second}\n")
+            val names = list.map { it.command }.distinct().sorted()
+            val label = if (names.size <= 3) names.joinToString("<br/>") { esc(it) } else "${names.size} calls"
+            out.append("  ${pair.first} ==>|\"$label\"| ${pair.second}\n")
         }
         return out.toString().trimEnd() + "\n"
     }

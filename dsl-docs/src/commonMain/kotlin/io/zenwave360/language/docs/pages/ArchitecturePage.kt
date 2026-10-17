@@ -239,7 +239,7 @@ internal object ModulePage {
             append(consumedBy(context, module))
             append(calls(context, module))
         }
-        append(DomainPage.section(document, intros = true, beforeDiagram = before, atEnd = after))
+        append(DomainPage.section(document, intros = true, heading = module.name, beforeDiagram = before, atEnd = after))
     }
 
     private fun page(context: ArchitectureContext, module: ArchModule): String? =

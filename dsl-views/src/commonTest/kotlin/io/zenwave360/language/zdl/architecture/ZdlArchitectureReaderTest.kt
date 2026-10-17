@@ -167,7 +167,7 @@ class ZdlArchitectureReaderTest {
         assertEquals(listOf("Billing", "Ledger", "Orders"), a.modules.map { it.id })
         assertEquals(listOf(false, true, true), a.modules.map { it.referenced })
         // Referenced modules use the slug words; every event referenced in them is recorded, found or not.
-        assertEquals("Shop - Billing", a.module("Billing")?.name)
+        assertEquals("Billing", a.module("Billing")?.name)
         assertEquals("Orders", a.module("Orders")?.name)
         assertEquals(listOf("Billing"), a.calls.map { it.caller }.distinct())
         assertEquals(listOf("Orders"), a.calls.map { it.callee }.distinct())
@@ -197,8 +197,17 @@ class ZdlArchitectureReaderTest {
             }
         """.trimIndent()
         val a = reader.read(listOf(ZdlSource("domain-model.zdl", zdl)))
-        assertEquals(listOf("CatalogInventory", "DomainModel"), a.modules.map { it.id })
-        assertEquals(listOf("DomainModel" to "CatalogInventory"), a.calls.map { it.caller to it.callee })
+        assertEquals(listOf("CatalogInventory", "Orders"), a.modules.map { it.id })
+        assertEquals(listOf("Orders" to "CatalogInventory"), a.calls.map { it.caller to it.callee })
+    }
+
+    @Test
+    fun genericFileNameWithoutFolderTakesTheLastTitleSegment() {
+        val a = reader.read(listOf(ZdlSource("domain-model.zdl", "config { title \"Arcadia Editions - Orders Checkout\" }")))
+        val module = a.modules.single()
+        assertEquals("OrdersCheckout", module.id)
+        assertEquals("orders-checkout", module.slug)
+        assertEquals("Orders Checkout", module.name)
     }
 
     @Test

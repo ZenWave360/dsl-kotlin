@@ -19,8 +19,8 @@ flowchart LR
     CatalogInventory{{"Catalog Inventory"}}
   end
 
-  subgraph sg_DomainModel["Arcadia Editions - Orders Checkout"]
-    DomainModel{{"Arcadia Editions - Orders Checkout"}}
+  subgraph sg_OrdersCheckout["Orders Checkout"]
+    OrdersCheckout{{"Orders Checkout"}}
   end
 
   OrderCancelled@{ shape: h-cyl, label: "OrderCancelled" }
@@ -30,17 +30,17 @@ flowchart LR
   ext_payment_authorized_event_v1@{ shape: h-cyl, label: "payment-authorized-event-v1" }
   ext_stock_released_event_v1@{ shape: h-cyl, label: "stock-released-event-v1" }
 
-  class DomainModel module
+  class OrdersCheckout module
   class CatalogInventory,ext_payment_authorized_event_v1,ext_stock_released_event_v1,sg_CatalogInventory foreign
   class OrderCancelled,OrderConfirmed,OrderCreated,StockUnavailable event
 
-  DomainModel --> OrderCancelled
-  DomainModel --> OrderConfirmed
-  DomainModel --> OrderCreated
-  DomainModel --> StockUnavailable
-  ext_payment_authorized_event_v1 -.-> DomainModel
-  ext_stock_released_event_v1 -.-> DomainModel
-  DomainModel ==>|"confirmStockReservation<br/>reserveStock"| CatalogInventory
+  OrdersCheckout --> OrderCancelled
+  OrdersCheckout --> OrderConfirmed
+  OrdersCheckout --> OrderCreated
+  OrdersCheckout --> StockUnavailable
+  ext_payment_authorized_event_v1 -.-> OrdersCheckout
+  ext_stock_released_event_v1 -.-> OrdersCheckout
+  OrdersCheckout ==>|"confirmStockReservation<br/>reserveStock"| CatalogInventory
 ```
 
 Hexagon = module. Rectangle inside a box = internal event owned by that module. Pipe outside boxes = external event (has a topic). Solid = published by. Dashed = consumed by. Thick = direct call.
@@ -51,21 +51,21 @@ Every event with the module that owns it and the modules that consume it. An eve
 
 | Event | Kind | Owner | Topic | Defined in | Consumers |
 | --- | --- | --- | --- | --- | --- |
-| OrderCancelled | external | [Arcadia Editions - Orders Checkout](domain.md) | `orders-checkout.order-cancelled.event.avro.v1` | [`domain-model.zdl`](../domain-model.zdl) |  |
-| OrderConfirmed | external | [Arcadia Editions - Orders Checkout](domain.md) | `orders-checkout.order-confirmed.event.avro.v1` | [`domain-model.zdl`](../domain-model.zdl) |  |
-| OrderCreated | external | [Arcadia Editions - Orders Checkout](domain.md) | `orders-checkout.order-created.event.avro.v1` | [`domain-model.zdl`](../domain-model.zdl) |  |
-| StockUnavailable | external | [Arcadia Editions - Orders Checkout](domain.md) | `orders-checkout.stock-unavailable.event.avro.v1` | [`domain-model.zdl`](../domain-model.zdl) |  |
-| payment-authorized-event-v1 | external | unknown |  | `PaymentsProcessingApi` (not in these files) | [Arcadia Editions - Orders Checkout](domain.md) |
-| stock-released-event-v1 | external | unknown |  | `CatalogInventoryApi` (not in these files) | [Arcadia Editions - Orders Checkout](domain.md) |
+| OrderCancelled | external | [Orders Checkout](domain.md) | `orders-checkout.order-cancelled.event.avro.v1` | [`domain-model.zdl`](../domain-model.zdl) |  |
+| OrderConfirmed | external | [Orders Checkout](domain.md) | `orders-checkout.order-confirmed.event.avro.v1` | [`domain-model.zdl`](../domain-model.zdl) |  |
+| OrderCreated | external | [Orders Checkout](domain.md) | `orders-checkout.order-created.event.avro.v1` | [`domain-model.zdl`](../domain-model.zdl) |  |
+| StockUnavailable | external | [Orders Checkout](domain.md) | `orders-checkout.stock-unavailable.event.avro.v1` | [`domain-model.zdl`](../domain-model.zdl) |  |
+| payment-authorized-event-v1 | external | unknown |  | `PaymentsProcessingApi` (not in these files) | [Orders Checkout](domain.md) |
+| stock-released-event-v1 | external | unknown |  | `CatalogInventoryApi` (not in these files) | [Orders Checkout](domain.md) |
 
 ### Events with no consumers
 
 No service method in these files listens to them. An external event may be an integration point for other systems.
 
-- OrderCancelled (Arcadia Editions - Orders Checkout, external)
-- OrderConfirmed (Arcadia Editions - Orders Checkout, external)
-- OrderCreated (Arcadia Editions - Orders Checkout, external)
-- StockUnavailable (Arcadia Editions - Orders Checkout, external)
+- OrderCancelled (Orders Checkout, external)
+- OrderConfirmed (Orders Checkout, external)
+- OrderCreated (Orders Checkout, external)
+- StockUnavailable (Orders Checkout, external)
 
 ## Modules
 
@@ -74,7 +74,7 @@ One module per ZDL file.
 | Module | Package | ZDL | Page |
 | --- | --- | --- | --- |
 | Catalog Inventory |  | `domain-model.zdl` (not in these files) |  |
-| Arcadia Editions - Orders Checkout | `com.arcadiaeditions.orders.checkout` | [`domain-model.zdl`](../domain-model.zdl) | [domain.md](domain.md) |
+| Orders Checkout | `com.arcadiaeditions.orders.checkout` | [`domain-model.zdl`](../domain-model.zdl) | [domain.md](domain.md) |
 
 ## Direct calls
 
@@ -82,6 +82,6 @@ Calls from one module to a command of another, declared with `@calls`. The calle
 
 | Caller | Callee | Command | Called from |
 | --- | --- | --- | --- |
-| [Arcadia Editions - Orders Checkout](domain.md) | Catalog Inventory | `confirmStockReservation` | `OrdersCheckoutService.confirmOrder` |
-| [Arcadia Editions - Orders Checkout](domain.md) | Catalog Inventory | `reserveStock` | `OrdersCheckoutService.startOrderCheckout` |
+| [Orders Checkout](domain.md) | Catalog Inventory | `confirmStockReservation` | `OrdersCheckoutService.confirmOrder` |
+| [Orders Checkout](domain.md) | Catalog Inventory | `reserveStock` | `OrdersCheckoutService.startOrderCheckout` |
 

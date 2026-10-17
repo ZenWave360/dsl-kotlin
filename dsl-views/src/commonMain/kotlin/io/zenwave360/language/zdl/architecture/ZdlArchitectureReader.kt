@@ -88,7 +88,12 @@ private class Reading(private val parser: ZdlParser) {
         val result = mutableListOf<Parsed>()
         rows.forEachIndexed { i, row ->
             val config = row.model.section("config")
-            val slug = slugOf(row.path)
+            val title = config.str("title")
+            val slug = if (isGeneric(row.path) && !row.path.contains('/') && title != null) {
+                kebab(title.substringAfterLast(" - ")).takeIf { it != "module" } ?: slugOf(row.path)
+            } else {
+                slugOf(row.path)
+            }
             val id = pascalCase(slug)
             if (modules.containsKey(id)) {
                 problems += "${row.path}: duplicate module '$id', the file is ignored"
@@ -107,9 +112,10 @@ private class Reading(private val parser: ZdlParser) {
 
     /**
      * Titles of several modules usually share a prefix like `Arcadia Editions - `: drop it.
-     * A single module keeps its title.
+     * A single module drops everything up to its last ` - `.
      */
     private fun displayNames(titles: List<String?>): List<String?> {
+        if (titles.size == 1) return titles.map { it?.substringAfterLast(" - ") }
         if (titles.size < 2 || titles.any { it == null }) return titles
         val all = titles.filterNotNull()
         var common = all.first()
@@ -239,6 +245,9 @@ private fun resolvePath(from: String, relative: String): String {
     if (rel.startsWith("/") || Regex("^[A-Za-z]:/").containsMatchIn(rel)) return normalizePath(rel)
     return normalizePath(from.substringBeforeLast('/', "") + "/" + rel)
 }
+
+/** `domain-model.zdl` and `model.zdl` say nothing about the module. */
+private fun isGeneric(path: String) = path.substringAfterLast('/').removeSuffix(".zdl") in setOf("domain-model", "model")
 
 /** `payments-processing-domain-model.zdl` -> `payments-processing`; `domain-model.zdl` -> its folder name. */
 private fun slugOf(path: String): String {

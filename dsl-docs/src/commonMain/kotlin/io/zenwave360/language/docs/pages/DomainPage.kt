@@ -35,10 +35,11 @@ internal object DomainPage {
     }
 
     /** One ZDL file: class diagram, glossary, commands and events. On `domain.md` it is a `##` section; on a module page ([intros] set) it is the page, and each section starts with a line saying what it shows. */
-    internal fun section(document: ZdlDocument, intros: Boolean = false, beforeDiagram: String = "", atEnd: String = ""): String = buildString {
+    internal fun section(document: ZdlDocument, intros: Boolean = false, heading: String? = null, beforeDiagram: String = "", atEnd: String = ""): String = buildString {
         val h = if (intros) "##" else "###"
         val model = document.model
-        append(if (intros) "# " else "## ").append(Markdown.inline(document.title ?: document.source.path)).append("\n\n")
+        append(if (intros) "# " else "## ").append(Markdown.inline(heading ?: document.title ?: document.source.path)).append("\n\n")
+        if (heading != null && document.title != null && document.title != heading) append(Markdown.inline(document.title)).append("\n\n")
         append("Source: ").append(Markdown.code(document.source.path)).append("\n\n")
         model.string("javadoc")?.let { append(Markdown.javadoc(it)).append("\n\n") }
         append(Markdown.problems(document.problems))
