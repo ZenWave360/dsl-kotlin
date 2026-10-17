@@ -250,17 +250,11 @@ class ZflToMermaidDiagramsTransformer(
     ) {
         lines += "sequenceDiagram"
         participants.filter { it.kind == ParticipantKind.ACTOR }.forEach { lines += "    actor ${it.alias}" }
-        val others = participants.filter { it.kind != ParticipantKind.ACTOR }
-        others.filter { it.system == null }.forEach { lines += participantLine(it, "    ") }
-        others.filter { it.system != null }.groupBy { it.system }.forEach { (system, members) ->
-            lines += "    box transparent ${escapeSequence(system.orEmpty())}"
-            members.forEach { lines += participantLine(it, "        ") }
-            lines += "    end"
-        }
+        participants.filter { it.kind != ParticipantKind.ACTOR }.forEach { lines += participantLine(it) }
     }
 
-    private fun participantLine(participant: SequenceParticipant, indent: String): String =
-        "${indent}participant ${participant.alias} as ${escapeSequence(participant.label)}"
+    private fun participantLine(participant: SequenceParticipant): String =
+        "    participant ${participant.alias} as ${escapeSequence(participant.label)}"
 
     private fun collectParticipants(paths: List<SequencePath>): List<SequenceParticipant> {
         val participants = linkedMapOf<String, SequenceParticipant>()

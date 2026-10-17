@@ -69,21 +69,11 @@ class PlaceOrderFlowSequencesTest {
             """
             sequenceDiagram
                 actor Customer
-                box transparent OrdersCheckout
-                    participant OrdersCheckoutService as OrdersCheckoutService
-                end
-                box transparent CatalogInventory
-                    participant InventoryService as InventoryService
-                end
-                box transparent PaymentsProcessing
-                    participant PaymentsProcessingService as PaymentsProcessingService
-                end
-                box transparent FulfillmentShipping
-                    participant FulfillmentShippingService as FulfillmentShippingService
-                end
-                box transparent NotificationsConsumer
-                    participant NotificationsConsumerService as NotificationsConsumerService
-                end
+                participant OrdersCheckoutService as OrdersCheckoutService
+                participant InventoryService as InventoryService
+                participant PaymentsProcessingService as PaymentsProcessingService
+                participant FulfillmentShippingService as FulfillmentShippingService
+                participant NotificationsConsumerService as NotificationsConsumerService
                 Customer->>OrdersCheckoutService: startOrderCheckout
                 OrdersCheckoutService->>InventoryService: reserveStock
                 InventoryService-->>OrdersCheckoutService: StockReservedResult
@@ -133,13 +123,12 @@ class PlaceOrderFlowSequencesTest {
     }
 
     @Test
-    fun participantsAreGroupedBySystemWithActorsOutsideTheBoxes() {
+    fun actorsFirstThenParticipantsWithoutBoxes() {
         val mermaid = diagrams(MermaidSequenceRenderMode.SEPARATE_VARIANTS).sequences.first().mermaid.lines()
 
         assertEquals("sequenceDiagram", mermaid[0])
         assertEquals("    actor Customer", mermaid[1])
-        assertEquals("    box transparent OrdersCheckout", mermaid[2])
-        assertEquals("        participant OrdersCheckoutService as OrdersCheckoutService", mermaid[3])
-        assertEquals("    end", mermaid[4])
+        assertEquals("    participant OrdersCheckoutService as OrdersCheckoutService", mermaid[2])
+        assertTrue(mermaid.none { it.trimStart().startsWith("box ") })
     }
 }

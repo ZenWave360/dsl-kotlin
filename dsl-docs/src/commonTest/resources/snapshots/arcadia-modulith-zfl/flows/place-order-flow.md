@@ -27,21 +27,11 @@ Starts with `StartOrderCheckout` and ends with the outcome `completed`.
 ```mermaid
 sequenceDiagram
     actor Customer
-    box transparent OrdersCheckout
-        participant OrdersCheckoutService as OrdersCheckoutService
-    end
-    box transparent CatalogInventory
-        participant InventoryService as InventoryService
-    end
-    box transparent PaymentsProcessing
-        participant PaymentsProcessingService as PaymentsProcessingService
-    end
-    box transparent FulfillmentShipping
-        participant FulfillmentShippingService as FulfillmentShippingService
-    end
-    box transparent NotificationsConsumer
-        participant NotificationsConsumerService as NotificationsConsumerService
-    end
+    participant OrdersCheckoutService as OrdersCheckoutService
+    participant InventoryService as InventoryService
+    participant PaymentsProcessingService as PaymentsProcessingService
+    participant FulfillmentShippingService as FulfillmentShippingService
+    participant NotificationsConsumerService as NotificationsConsumerService
     Customer->>OrdersCheckoutService: startOrderCheckout
     OrdersCheckoutService->>InventoryService: reserveStock
     InventoryService-->>OrdersCheckoutService: StockReservedResult
@@ -290,21 +280,11 @@ Every other way through the flow, one diagram per path, grouped by the outcome w
 ```mermaid
 sequenceDiagram
     actor Customer
-    box transparent OrdersCheckout
-        participant OrdersCheckoutService as OrdersCheckoutService
-    end
-    box transparent CatalogInventory
-        participant InventoryService as InventoryService
-    end
-    box transparent PaymentsProcessing
-        participant PaymentsProcessingService as PaymentsProcessingService
-    end
-    box transparent FulfillmentShipping
-        participant FulfillmentShippingService as FulfillmentShippingService
-    end
-    box transparent NotificationsConsumer
-        participant NotificationsConsumerService as NotificationsConsumerService
-    end
+    participant OrdersCheckoutService as OrdersCheckoutService
+    participant InventoryService as InventoryService
+    participant PaymentsProcessingService as PaymentsProcessingService
+    participant FulfillmentShippingService as FulfillmentShippingService
+    participant NotificationsConsumerService as NotificationsConsumerService
     Customer->>OrdersCheckoutService: startOrderCheckout
     OrdersCheckoutService->>InventoryService: reserveStock
     InventoryService-->>OrdersCheckoutService: StockReservedResult
@@ -335,15 +315,9 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Customer
-    box transparent OrdersCheckout
-        participant OrdersCheckoutService as OrdersCheckoutService
-    end
-    box transparent CatalogInventory
-        participant InventoryService as InventoryService
-    end
-    box transparent NotificationsConsumer
-        participant NotificationsConsumerService as NotificationsConsumerService
-    end
+    participant OrdersCheckoutService as OrdersCheckoutService
+    participant InventoryService as InventoryService
+    participant NotificationsConsumerService as NotificationsConsumerService
     Customer->>OrdersCheckoutService: startOrderCheckout
     OrdersCheckoutService->>InventoryService: reserveStock
     InventoryService-->>OrdersCheckoutService: StockUnavailableResult
@@ -360,18 +334,10 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Customer
-    box transparent OrdersCheckout
-        participant OrdersCheckoutService as OrdersCheckoutService
-    end
-    box transparent CatalogInventory
-        participant InventoryService as InventoryService
-    end
-    box transparent PaymentsProcessing
-        participant PaymentsProcessingService as PaymentsProcessingService
-    end
-    box transparent NotificationsConsumer
-        participant NotificationsConsumerService as NotificationsConsumerService
-    end
+    participant OrdersCheckoutService as OrdersCheckoutService
+    participant InventoryService as InventoryService
+    participant PaymentsProcessingService as PaymentsProcessingService
+    participant NotificationsConsumerService as NotificationsConsumerService
     Customer->>OrdersCheckoutService: startOrderCheckout
     OrdersCheckoutService->>InventoryService: reserveStock
     InventoryService-->>OrdersCheckoutService: StockReservedResult
@@ -392,21 +358,11 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Customer
-    box transparent OrdersCheckout
-        participant OrdersCheckoutService as OrdersCheckoutService
-    end
-    box transparent CatalogInventory
-        participant InventoryService as InventoryService
-    end
-    box transparent PaymentsProcessing
-        participant PaymentsProcessingService as PaymentsProcessingService
-    end
-    box transparent FulfillmentShipping
-        participant FulfillmentShippingService as FulfillmentShippingService
-    end
-    box transparent NotificationsConsumer
-        participant NotificationsConsumerService as NotificationsConsumerService
-    end
+    participant OrdersCheckoutService as OrdersCheckoutService
+    participant InventoryService as InventoryService
+    participant PaymentsProcessingService as PaymentsProcessingService
+    participant FulfillmentShippingService as FulfillmentShippingService
+    participant NotificationsConsumerService as NotificationsConsumerService
     Customer->>OrdersCheckoutService: startOrderCheckout
     OrdersCheckoutService->>InventoryService: reserveStock
     InventoryService-->>OrdersCheckoutService: StockReservedResult
@@ -435,18 +391,10 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Customer
-    box transparent OrdersCheckout
-        participant OrdersCheckoutService as OrdersCheckoutService
-    end
-    box transparent CatalogInventory
-        participant InventoryService as InventoryService
-    end
-    box transparent PaymentsProcessing
-        participant PaymentsProcessingService as PaymentsProcessingService
-    end
-    box transparent NotificationsConsumer
-        participant NotificationsConsumerService as NotificationsConsumerService
-    end
+    participant OrdersCheckoutService as OrdersCheckoutService
+    participant InventoryService as InventoryService
+    participant PaymentsProcessingService as PaymentsProcessingService
+    participant NotificationsConsumerService as NotificationsConsumerService
     Customer->>OrdersCheckoutService: startOrderCheckout
     OrdersCheckoutService->>InventoryService: reserveStock
     InventoryService-->>OrdersCheckoutService: StockReservedResult
@@ -469,21 +417,11 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Customer
-    box transparent OrdersCheckout
-        participant OrdersCheckoutService as OrdersCheckoutService
-    end
-    box transparent CatalogInventory
-        participant InventoryService as InventoryService
-    end
-    box transparent PaymentsProcessing
-        participant PaymentsProcessingService as PaymentsProcessingService
-    end
-    box transparent FulfillmentShipping
-        participant FulfillmentShippingService as FulfillmentShippingService
-    end
-    box transparent NotificationsConsumer
-        participant NotificationsConsumerService as NotificationsConsumerService
-    end
+    participant OrdersCheckoutService as OrdersCheckoutService
+    participant InventoryService as InventoryService
+    participant PaymentsProcessingService as PaymentsProcessingService
+    participant FulfillmentShippingService as FulfillmentShippingService
+    participant NotificationsConsumerService as NotificationsConsumerService
     Customer->>OrdersCheckoutService: startOrderCheckout
     OrdersCheckoutService->>InventoryService: reserveStock
     InventoryService-->>OrdersCheckoutService: StockReservedResult
@@ -514,18 +452,10 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Customer
-    box transparent OrdersCheckout
-        participant OrdersCheckoutService as OrdersCheckoutService
-    end
-    box transparent CatalogInventory
-        participant InventoryService as InventoryService
-    end
-    box transparent PaymentsProcessing
-        participant PaymentsProcessingService as PaymentsProcessingService
-    end
-    box transparent NotificationsConsumer
-        participant NotificationsConsumerService as NotificationsConsumerService
-    end
+    participant OrdersCheckoutService as OrdersCheckoutService
+    participant InventoryService as InventoryService
+    participant PaymentsProcessingService as PaymentsProcessingService
+    participant NotificationsConsumerService as NotificationsConsumerService
     Customer->>OrdersCheckoutService: startOrderCheckout
     OrdersCheckoutService->>InventoryService: reserveStock
     InventoryService-->>OrdersCheckoutService: StockReservedResult
@@ -550,21 +480,11 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Customer
-    box transparent OrdersCheckout
-        participant OrdersCheckoutService as OrdersCheckoutService
-    end
-    box transparent CatalogInventory
-        participant InventoryService as InventoryService
-    end
-    box transparent PaymentsProcessing
-        participant PaymentsProcessingService as PaymentsProcessingService
-    end
-    box transparent FulfillmentShipping
-        participant FulfillmentShippingService as FulfillmentShippingService
-    end
-    box transparent NotificationsConsumer
-        participant NotificationsConsumerService as NotificationsConsumerService
-    end
+    participant OrdersCheckoutService as OrdersCheckoutService
+    participant InventoryService as InventoryService
+    participant PaymentsProcessingService as PaymentsProcessingService
+    participant FulfillmentShippingService as FulfillmentShippingService
+    participant NotificationsConsumerService as NotificationsConsumerService
     Customer->>OrdersCheckoutService: startOrderCheckout
     OrdersCheckoutService->>InventoryService: reserveStock
     InventoryService-->>OrdersCheckoutService: StockReservedResult
@@ -597,18 +517,10 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Customer
-    box transparent OrdersCheckout
-        participant OrdersCheckoutService as OrdersCheckoutService
-    end
-    box transparent CatalogInventory
-        participant InventoryService as InventoryService
-    end
-    box transparent PaymentsProcessing
-        participant PaymentsProcessingService as PaymentsProcessingService
-    end
-    box transparent NotificationsConsumer
-        participant NotificationsConsumerService as NotificationsConsumerService
-    end
+    participant OrdersCheckoutService as OrdersCheckoutService
+    participant InventoryService as InventoryService
+    participant PaymentsProcessingService as PaymentsProcessingService
+    participant NotificationsConsumerService as NotificationsConsumerService
     Customer->>OrdersCheckoutService: startOrderCheckout
     OrdersCheckoutService->>InventoryService: reserveStock
     InventoryService-->>OrdersCheckoutService: StockReservedResult
@@ -635,21 +547,11 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Customer
-    box transparent OrdersCheckout
-        participant OrdersCheckoutService as OrdersCheckoutService
-    end
-    box transparent CatalogInventory
-        participant InventoryService as InventoryService
-    end
-    box transparent PaymentsProcessing
-        participant PaymentsProcessingService as PaymentsProcessingService
-    end
-    box transparent FulfillmentShipping
-        participant FulfillmentShippingService as FulfillmentShippingService
-    end
-    box transparent NotificationsConsumer
-        participant NotificationsConsumerService as NotificationsConsumerService
-    end
+    participant OrdersCheckoutService as OrdersCheckoutService
+    participant InventoryService as InventoryService
+    participant PaymentsProcessingService as PaymentsProcessingService
+    participant FulfillmentShippingService as FulfillmentShippingService
+    participant NotificationsConsumerService as NotificationsConsumerService
     Customer->>OrdersCheckoutService: startOrderCheckout
     OrdersCheckoutService->>InventoryService: reserveStock
     InventoryService-->>OrdersCheckoutService: StockReservedResult
@@ -684,15 +586,9 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Scheduler
-    box transparent CatalogInventory
-        participant InventoryService as InventoryService
-    end
-    box transparent OrdersCheckout
-        participant OrdersCheckoutService as OrdersCheckoutService
-    end
-    box transparent NotificationsConsumer
-        participant NotificationsConsumerService as NotificationsConsumerService
-    end
+    participant InventoryService as InventoryService
+    participant OrdersCheckoutService as OrdersCheckoutService
+    participant NotificationsConsumerService as NotificationsConsumerService
     Scheduler->>InventoryService: releaseStock
     InventoryService-->>OrdersCheckoutService: StockReleased
     OrdersCheckoutService->>OrdersCheckoutService: cancelOrder
