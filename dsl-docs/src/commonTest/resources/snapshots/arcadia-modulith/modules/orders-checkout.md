@@ -17,7 +17,6 @@ Back to the [architecture](../architecture.md).
 - [Aggregates](#aggregates)
   - [Order](#order)
 - [Domain events](#domain-events)
-  - [OrdersCheckoutService](#orderscheckoutservice-1)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
@@ -116,7 +115,7 @@ Each service with its commands (blue) and the events they emit (orange), inside 
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
-  subgraph agg_Order["Order"]
+  subgraph agg_OrdersCheckoutService["service OrdersCheckoutService for Order"]
     direction LR
     cmd_startOrderCheckout["startOrderCheckout"]
     cmd_confirmOrder["confirmOrder"]
@@ -126,7 +125,7 @@ flowchart LR
     evt_OrderConfirmed["OrderConfirmed"]
     evt_OrderCancelled["OrderCancelled"]
   end
-  style agg_Order fill:#fbd3ee,stroke:#c2569b,color:#111
+  style agg_OrdersCheckoutService fill:#fbd3ee,stroke:#c2569b,color:#111
   class cmd_startOrderCheckout command
   class cmd_confirmOrder command
   class cmd_cancelOrder command
@@ -162,8 +161,8 @@ classDiagram
         String customerId
         String customerEmail
         String paymentMethodId
-        OrderItem[] items
-        ShippingAddress shippingAddress
+        @json OrderItem[] items
+        @json ShippingAddress shippingAddress
         BigDecimal totalAmount
         String currency
         Instant createdAt
@@ -224,9 +223,7 @@ Field `status`, initial `CREATED`.
 
 ## Domain events
 
-The events each service emits, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
-
-### OrdersCheckoutService
+The events this module declares, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
 
 ```mermaid
 ---
@@ -361,8 +358,8 @@ Aggregate root
 | customerId | String | Customer snapshot taken at checkout (there is no customers bounded context yet). |
 | customerEmail | String |  |
 | paymentMethodId | String |  |
-| items | [OrderItem](#orderitem)[] |  |
-| shippingAddress | [ShippingAddress](#shippingaddress) |  |
+| items | @json [OrderItem](#orderitem)[] |  |
+| shippingAddress | @json [ShippingAddress](#shippingaddress) |  |
 | totalAmount | BigDecimal |  |
 | currency | String |  |
 | createdAt | Instant |  |

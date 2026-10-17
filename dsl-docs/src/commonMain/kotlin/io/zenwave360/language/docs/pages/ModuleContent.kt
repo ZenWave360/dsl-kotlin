@@ -88,20 +88,11 @@ internal class ModuleContent(
 
     /** `## Domain events`: a class diagram per service with the events its commands emit, then the events no command emits. */
     fun domainEvents(): String {
-        val diagrams = ZdlEventToMermaidClassDiagramTransformer().transform(domain)
-        if (diagrams.services.isEmpty() && diagrams.others == null) return ""
+        val diagram = ZdlEventToMermaidClassDiagramTransformer().transform(domain) ?: return ""
         return buildString {
             append(anchors.heading(2, "Domain events"))
-            append("The events each service emits, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.\n\n")
-            for (d in diagrams.services) {
-                append(anchors.heading(3, Markdown.inline(d.service)))
-                append(Markdown.mermaid(d.mermaid)).append('\n')
-            }
-            diagrams.others?.let {
-                append(anchors.heading(3, "Other events"))
-                append("Events that no command of a service emits.\n\n")
-                append(Markdown.mermaid(it)).append('\n')
-            }
+            append("The events this module declares, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.\n\n")
+            append(Markdown.mermaid(diagram)).append('\n')
         }
     }
 
@@ -220,5 +211,5 @@ internal class ModuleContent(
     private fun fieldTable(type: String): String =
         Markdown.table(listOf("Field", "Type", "Description"), domain.fieldsOf(type).map { f -> listOf(f.name, fieldType(f), Markdown.javadoc(f.javadoc)) })
 
-    private fun fieldType(f: ZdlField): String = typeLink(f.type, f.isArray)
+    private fun fieldType(f: ZdlField): String = (if (f.json) "@json " else "") + typeLink(f.type, f.isArray)
 }

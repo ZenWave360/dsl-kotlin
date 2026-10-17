@@ -17,7 +17,6 @@ Back to the [architecture](../architecture.md).
 - [Aggregates](#aggregates)
   - [Product](#product)
 - [Domain events](#domain-events)
-  - [ProductCatalogService](#productcatalogservice-1)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
@@ -71,7 +70,7 @@ Each service with its commands (blue) and the events they emit (orange), inside 
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
-  subgraph agg_Product["Product"]
+  subgraph agg_ProductCatalogService["service ProductCatalogService for Product"]
     direction LR
     cmd_createProduct["createProduct"]
     cmd_updateProduct["updateProduct"]
@@ -80,7 +79,7 @@ flowchart LR
     evt_ProductPublished["ProductPublished"]
     evt_ProductRetired["ProductRetired"]
   end
-  style agg_Product fill:#fbd3ee,stroke:#c2569b,color:#111
+  style agg_ProductCatalogService fill:#fbd3ee,stroke:#c2569b,color:#111
   class cmd_createProduct command
   class cmd_updateProduct command
   class cmd_publishProduct command
@@ -160,9 +159,7 @@ Field `status`, initial `DRAFT`.
 
 ## Domain events
 
-The events each service emits, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
-
-### ProductCatalogService
+The events this module declares, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
 
 ```mermaid
 ---

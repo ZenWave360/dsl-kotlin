@@ -79,7 +79,7 @@ class ZdlAggregateToMermaidClassDiagramTransformer {
                     ZdlTypeKind.ENUM -> domain.enumValues(name).map { v ->
                         memberText(if (v.value == null) v.name else "${v.name} = ${v.value}")
                     }
-                    else -> domain.fieldsOf(name).map { f -> memberText(f.type + (if (f.isArray) "[]" else "") + " " + f.name) }
+                    else -> domain.fieldsOf(name).map { f -> memberText(f.typeText + " " + f.name) }
                 }
                 val type = domain.types.getValue(name)
                 val stereotype = when {

@@ -6,33 +6,20 @@ import io.zenwave360.language.zdl.view.ZdlToMermaidClassDiagramTransformer.Compa
 import io.zenwave360.language.zdl.view.ZdlToMermaidClassDiagramTransformer.Companion.memberText
 
 /**
- * Domain events as Mermaid class diagrams: one per service, with the events its commands emit (in
- * order of first appearance), plus one for the module events no service command emits.
+ * The domain events of a ZDL as one Mermaid class diagram, in declaration order. Events belong to the
+ * ZDL, not to a service, so they are not grouped.
  *
  * Each event is a `<<event>>` class with its fields (`@copy` resolved, see [ZdlDomain.fieldsOf]); types
  * declared inline inside an event are `<<embedded>>` classes joined by a composition arrow (`*--`, with
  * `"*"` for arrays) labeled with the field name. Light styling as in [MermaidLight].
- *
- * Events emitted only by commands of an `aggregate` block (which belong to no service) are in the
- * "other events" diagram. A service whose commands emit no declared event has no diagram.
  */
 class ZdlEventToMermaidClassDiagramTransformer {
 
-    fun transform(model: ZdlModel): EventClassDiagrams = transform(ZdlDomain(model))
+    /** Null when the ZDL declares no events. */
+    fun transform(model: ZdlModel): String? = transform(ZdlDomain(model))
 
-    fun transform(domain: ZdlDomain): EventClassDiagrams {
-        val declared = domain.events.map { it.name }.toSet()
-        val shown = mutableSetOf<String>()
-        val services = mutableListOf<ServiceEventClassDiagram>()
-        for (service in domain.services) {
-            val events = service.methods.flatMap { it.eventNames }.filter { it in declared }.distinct()
-            if (events.isEmpty()) continue
-            shown += events
-            services += ServiceEventClassDiagram(service.name, events, render(domain, events))
-        }
-        val otherEvents = domain.events.map { it.name }.filter { it !in shown }
-        return EventClassDiagrams(services, if (otherEvents.isEmpty()) null else render(domain, otherEvents), otherEvents)
-    }
+    fun transform(domain: ZdlDomain): String? =
+        domain.events.map { it.name }.takeIf { it.isNotEmpty() }?.let { render(domain, it) }
 
     private fun render(domain: ZdlDomain, events: List<String>): String {
         val classes = StringBuilder()
@@ -43,7 +30,7 @@ class ZdlEventToMermaidClassDiagramTransformer {
         fun draw(name: String, stereotype: String, nested: Set<String>) {
             if (!drawn.add(name)) return
             val fields = domain.fieldsOf(name)
-            classes.append(classBlock(name, stereotype, fields.map { f -> memberText(f.type + (if (f.isArray) "[]" else "") + " " + f.name) }))
+            classes.append(classBlock(name, stereotype, fields.map { f -> memberText(f.typeText + " " + f.name) }))
             styles.append(MermaidLight.styleLine(id(name), stereotype))
             for (f in fields) {
                 if (f.type !in nested || f.type == name) continue
@@ -66,9 +53,3 @@ class ZdlEventToMermaidClassDiagramTransformer {
         }
     }
 }
-
-/** The events emitted by the commands of one service, [events] in order of first appearance. */
-data class ServiceEventClassDiagram(val service: String, val events: List<String>, val mermaid: String)
-
-/** [others] is the diagram of the events no service command emits ([otherEvents]), null when there are none. */
-data class EventClassDiagrams(val services: List<ServiceEventClassDiagram>, val others: String?, val otherEvents: List<String>)

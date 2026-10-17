@@ -28,7 +28,7 @@ class ZdlServiceToEventStormingTransformerTest {
             flowchart LR
               classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
               classDef event fill:#ffb76b,stroke:#d9822b,color:#111
-              subgraph agg_Order__Customer["Order, Customer"]
+              subgraph agg_OrderService["service OrderService for Order, Customer"]
                 direction LR
                 cmd_startCheckout["startCheckout"]
                 cmd_pay["pay"]
@@ -38,7 +38,7 @@ class ZdlServiceToEventStormingTransformerTest {
                 evt_PaymentFailed["PaymentFailed"]
                 evt_OrderPaid["OrderPaid"]
               end
-              style agg_Order__Customer fill:#fbd3ee,stroke:#c2569b,color:#111
+              style agg_OrderService fill:#fbd3ee,stroke:#c2569b,color:#111
               class cmd_startCheckout command
               class cmd_pay command
               class cmd_audit command
@@ -80,7 +80,7 @@ class ZdlServiceToEventStormingTransformerTest {
             flowchart LR
               classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
               classDef event fill:#ffb76b,stroke:#d9822b,color:#111
-              subgraph agg_Order["Order"]
+              subgraph agg_OrdersCheckoutService["service OrdersCheckoutService for Order"]
                 direction LR
                 cmd_startOrderCheckout["startOrderCheckout"]
                 cmd_confirmOrder["confirmOrder"]
@@ -90,7 +90,7 @@ class ZdlServiceToEventStormingTransformerTest {
                 evt_OrderConfirmed["OrderConfirmed"]
                 evt_OrderCancelled["OrderCancelled"]
               end
-              style agg_Order fill:#fbd3ee,stroke:#c2569b,color:#111
+              style agg_OrdersCheckoutService fill:#fbd3ee,stroke:#c2569b,color:#111
               class cmd_startOrderCheckout command
               class cmd_confirmOrder command
               class cmd_cancelOrder command

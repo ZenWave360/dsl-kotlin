@@ -17,7 +17,6 @@ Back to the [architecture](../architecture.md).
 - [Aggregates](#aggregates)
   - [Payment](#payment)
 - [Domain events](#domain-events)
-  - [PaymentsProcessingService](#paymentsprocessingservice-1)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
@@ -127,7 +126,7 @@ Each service with its commands (blue) and the events they emit (orange), inside 
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
-  subgraph agg_Payment["Payment"]
+  subgraph agg_PaymentsProcessingService["service PaymentsProcessingService for Payment"]
     direction LR
     cmd_authorizePayment["authorizePayment"]
     cmd_retryPayment["retryPayment"]
@@ -142,7 +141,7 @@ flowchart LR
     evt_PaymentCaptureFailed["PaymentCaptureFailed"]
     evt_PaymentVoided["PaymentVoided"]
   end
-  style agg_Payment fill:#fbd3ee,stroke:#c2569b,color:#111
+  style agg_PaymentsProcessingService fill:#fbd3ee,stroke:#c2569b,color:#111
   class cmd_authorizePayment command
   class cmd_retryPayment command
   class cmd_capturePayment command
@@ -238,9 +237,7 @@ Field `status`, initial `AUTHORIZATION_REQUESTED`.
 
 ## Domain events
 
-The events each service emits, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
-
-### PaymentsProcessingService
+The events this module declares, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
 
 ```mermaid
 ---

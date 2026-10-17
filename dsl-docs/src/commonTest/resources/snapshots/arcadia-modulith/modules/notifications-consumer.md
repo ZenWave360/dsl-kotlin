@@ -17,7 +17,6 @@ Back to the [architecture](../architecture.md).
 - [Aggregates](#aggregates)
   - [Notification](#notification)
 - [Domain events](#domain-events)
-  - [NotificationsConsumerService](#notificationsconsumerservice-1)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
@@ -105,7 +104,7 @@ Each service with its commands (blue) and the events they emit (orange), inside 
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
-  subgraph agg_Notification["Notification"]
+  subgraph agg_NotificationsConsumerService["service NotificationsConsumerService for Notification"]
     direction LR
     cmd_sendOrderConfirmation["sendOrderConfirmation"]
     cmd_sendStockUnavailableNotification["sendStockUnavailableNotification"]
@@ -115,7 +114,7 @@ flowchart LR
     evt_StockUnavailableNotificationSent["StockUnavailableNotificationSent"]
     evt_OrderCancelledNotificationSent["OrderCancelledNotificationSent"]
   end
-  style agg_Notification fill:#fbd3ee,stroke:#c2569b,color:#111
+  style agg_NotificationsConsumerService fill:#fbd3ee,stroke:#c2569b,color:#111
   class cmd_sendOrderConfirmation command
   class cmd_sendStockUnavailableNotification command
   class cmd_sendOrderCancelledNotification command
@@ -209,9 +208,7 @@ Field `status`, initial `PENDING`.
 
 ## Domain events
 
-The events each service emits, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
-
-### NotificationsConsumerService
+The events this module declares, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
 
 ```mermaid
 ---
@@ -230,18 +227,6 @@ classDiagram
         NotificationChannel channel
         String recipient
         Instant sentAt
-    }
-    class NotificationDeliveryFailed {
-        <<event>>
-        String notificationId
-        String orderId
-        String customerId
-        String[] skus
-        NotificationType type
-        NotificationChannel channel
-        String recipient
-        String reason
-        Instant failedAt
     }
     class StockUnavailableNotificationSent {
         <<event>>
@@ -263,10 +248,22 @@ classDiagram
         String recipient
         Instant sentAt
     }
+    class NotificationDeliveryFailed {
+        <<event>>
+        String notificationId
+        String orderId
+        String customerId
+        String[] skus
+        NotificationType type
+        NotificationChannel channel
+        String recipient
+        String reason
+        Instant failedAt
+    }
     style OrderConfirmationSent fill:#ffe0bf,stroke:#333333,color:#111111
-    style NotificationDeliveryFailed fill:#ffe0bf,stroke:#333333,color:#111111
     style StockUnavailableNotificationSent fill:#ffe0bf,stroke:#333333,color:#111111
     style OrderCancelledNotificationSent fill:#ffe0bf,stroke:#333333,color:#111111
+    style NotificationDeliveryFailed fill:#ffe0bf,stroke:#333333,color:#111111
 ```
 
 ## Commands

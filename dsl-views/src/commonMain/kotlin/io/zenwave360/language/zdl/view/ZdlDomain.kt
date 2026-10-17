@@ -18,7 +18,10 @@ data class ZdlType(
     val topic: String? = null,
 )
 
-/** A field of an entity, input, output or event. [copied] is true when it comes from an `@copy(X)`. */
+/**
+ * A field of an entity, input, output or event. [copied] is true when it comes from an `@copy(X)`;
+ * [json] is true when the field is annotated with `@json`.
+ */
 data class ZdlField(
     val name: String,
     val type: String,
@@ -26,7 +29,12 @@ data class ZdlField(
     val required: Boolean,
     val javadoc: String?,
     val copied: Boolean = false,
-)
+    val json: Boolean = false,
+) {
+    /** The type as written in the ZDL, with `@json` and `[]` when present: `@json OrderItem[]`. */
+    val typeText: String
+        get() = (if (json) "@json " else "") + type + (if (isArray) "[]" else "")
+}
 
 data class ZdlEnumValue(val name: String, val value: String?, val javadoc: String?)
 
@@ -354,6 +362,7 @@ class ZdlDomain(private val model: ZdlModel) {
 
     private fun field(name: String, f: Map<String, Any?>) = ZdlField(
         name, f.text("type") ?: "", f["isArray"] == true, f.sub("validations").containsKey("required"), f.text("javadoc"),
+        json = f.sub("options").containsKey("json"),
     )
 
     /** The service-level `@rest("/base")`: `@rest` alone or `@rest({ path: ... })` are also read. */

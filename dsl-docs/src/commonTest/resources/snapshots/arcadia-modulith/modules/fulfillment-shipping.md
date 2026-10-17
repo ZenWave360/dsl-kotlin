@@ -17,7 +17,6 @@ Back to the [architecture](../architecture.md).
 - [Aggregates](#aggregates)
   - [Fulfillment](#fulfillment)
 - [Domain events](#domain-events)
-  - [FulfillmentShippingService](#fulfillmentshippingservice-1)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
@@ -90,7 +89,7 @@ Each service with its commands (blue) and the events they emit (orange), inside 
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
-  subgraph agg_Fulfillment["Fulfillment"]
+  subgraph agg_FulfillmentShippingService["service FulfillmentShippingService for Fulfillment"]
     direction LR
     cmd_scheduleFulfillment["scheduleFulfillment"]
     cmd_markReadyToShip["markReadyToShip"]
@@ -98,7 +97,7 @@ flowchart LR
     evt_FulfillmentFailed["FulfillmentFailed"]
     evt_FulfillmentReadyToShip["FulfillmentReadyToShip"]
   end
-  style agg_Fulfillment fill:#fbd3ee,stroke:#c2569b,color:#111
+  style agg_FulfillmentShippingService fill:#fbd3ee,stroke:#c2569b,color:#111
   class cmd_scheduleFulfillment command
   class cmd_markReadyToShip command
   class evt_FulfillmentScheduled event
@@ -130,8 +129,8 @@ classDiagram
         String orderId
         String customerId
         FulfillmentStatus status
-        ShippingAddress shippingAddress
-        FulfillmentItem[] items
+        @json ShippingAddress shippingAddress
+        @json FulfillmentItem[] items
         String carrierCode
         String trackingNumber
         Instant scheduledAt
@@ -189,9 +188,7 @@ Field `status`, initial `SCHEDULED`.
 
 ## Domain events
 
-The events each service emits, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
-
-### FulfillmentShippingService
+The events this module declares, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
 
 ```mermaid
 ---
@@ -273,8 +270,8 @@ Aggregate root
 | orderId | String |  |
 | customerId | String |  |
 | status | [FulfillmentStatus](#fulfillmentstatus) |  |
-| shippingAddress | [ShippingAddress](#shippingaddress) |  |
-| items | [FulfillmentItem](#fulfillmentitem)[] |  |
+| shippingAddress | @json [ShippingAddress](#shippingaddress) |  |
+| items | @json [FulfillmentItem](#fulfillmentitem)[] |  |
 | carrierCode | String |  |
 | trackingNumber | String |  |
 | scheduledAt | Instant |  |

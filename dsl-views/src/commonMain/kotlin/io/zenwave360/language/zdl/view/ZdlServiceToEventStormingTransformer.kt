@@ -5,7 +5,7 @@ import io.zenwave360.language.zdl.view.ZdlToMermaidClassDiagramTransformer.Compa
 import io.zenwave360.language.zdl.view.ZdlToMermaidClassDiagramTransformer.Companion.memberText
 
 /**
- * One service as an EventStorming-style Mermaid flowchart: the aggregate is the box (pink), its
+ * One service as an EventStorming-style Mermaid flowchart: the service and its aggregates are the box (pink), its
  * commands (blue) sit on the left and the events they emit (orange) on the right, with a
  * command to event arrow for each event a command can emit.
  *
@@ -24,8 +24,8 @@ class ZdlServiceToEventStormingTransformer {
         val queries = service.queries.map { it.name }
         if (commands.isEmpty()) return ServiceEventStorming(service.name, null, queries)
 
-        val label = memberText(service.aggregates.joinToString(", ").ifEmpty { service.name })
-        val boxId = "agg_" + id(label)
+        val label = memberText(boxLabel(service))
+        val boxId = "agg_" + id(service.name)
         val events = commands.flatMap { it.eventNames }.distinct()
         val mermaid = buildString {
             append("flowchart LR\n")
@@ -45,6 +45,10 @@ class ZdlServiceToEventStormingTransformer {
         }
         return ServiceEventStorming(service.name, mermaid, queries)
     }
+
+    /** As declared in the ZDL: `service OrdersCheckoutService for Order, OtherAggregate`. */
+    private fun boxLabel(service: ZdlService) =
+        "service ${service.name}" + service.aggregates.joinToString(", ", " for ").takeIf { service.aggregates.isNotEmpty() }.orEmpty()
 
     private fun commandId(c: ZdlCommand) = "cmd_" + id(c.name)
 

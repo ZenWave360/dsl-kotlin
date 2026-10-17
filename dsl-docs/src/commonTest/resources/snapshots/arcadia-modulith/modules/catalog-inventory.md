@@ -20,11 +20,9 @@ Back to the [architecture](../architecture.md).
   - [InventoryPosition](#inventoryposition)
   - [Other entities](#other-entities)
 - [Domain events](#domain-events)
+- [Commands](#commands)
   - [InventoryService](#inventoryservice-1)
   - [InventoryBackofficeService](#inventorybackofficeservice-1)
-- [Commands](#commands)
-  - [InventoryService](#inventoryservice-2)
-  - [InventoryBackofficeService](#inventorybackofficeservice-2)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
   - [Enums](#enums)
@@ -112,7 +110,7 @@ Each service with its commands (blue) and the events they emit (orange), inside 
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
-  subgraph agg_StockReservation["StockReservation"]
+  subgraph agg_InventoryService["service InventoryService for StockReservation"]
     direction LR
     cmd_reserveStock["reserveStock"]
     cmd_releaseStock["releaseStock"]
@@ -120,7 +118,7 @@ flowchart LR
     evt_StockReleased["StockReleased"]
     evt_StockReservationConfirmed["StockReservationConfirmed"]
   end
-  style agg_StockReservation fill:#fbd3ee,stroke:#c2569b,color:#111
+  style agg_InventoryService fill:#fbd3ee,stroke:#c2569b,color:#111
   class cmd_reserveStock command
   class cmd_releaseStock command
   class cmd_confirmStockReservation command
@@ -136,14 +134,14 @@ flowchart LR
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
-  subgraph agg_InventoryPosition["InventoryPosition"]
+  subgraph agg_InventoryBackofficeService["service InventoryBackofficeService for InventoryPosition"]
     direction LR
     cmd_receiveStock["receiveStock"]
     cmd_adjustStock["adjustStock"]
     evt_StockReceived["StockReceived"]
     evt_StockAdjusted["StockAdjusted"]
   end
-  style agg_InventoryPosition fill:#fbd3ee,stroke:#c2569b,color:#111
+  style agg_InventoryBackofficeService fill:#fbd3ee,stroke:#c2569b,color:#111
   class cmd_receiveStock command
   class cmd_adjustStock command
   class evt_StockReceived event
@@ -275,9 +273,7 @@ classDiagram
 
 ## Domain events
 
-The events each service emits, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
-
-### InventoryService
+The events this module declares, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
 
 ```mermaid
 ---
@@ -313,25 +309,6 @@ classDiagram
         String sku
         Integer quantity
     }
-    StockReleased *-- "*" StockReleasedItem : items
-    StockReservationConfirmed *-- "*" StockReservationConfirmedItem : items
-    style StockReleased fill:#ffe0bf,stroke:#333333,color:#111111
-    style StockReleasedItem fill:#ffffff,stroke:#333333,color:#111111
-    style StockReservationConfirmed fill:#ffe0bf,stroke:#333333,color:#111111
-    style StockReservationConfirmedItem fill:#ffffff,stroke:#333333,color:#111111
-```
-
-### InventoryBackofficeService
-
-```mermaid
----
-config:
-  theme: default
-  themeVariables:
-    lineColor: "#888888"
-    edgeLabelBackground: "#ffffff"
----
-classDiagram
     class StockReceived {
         <<event>>
         String sku
@@ -354,6 +331,12 @@ classDiagram
         String reference
         Instant adjustedAt
     }
+    StockReleased *-- "*" StockReleasedItem : items
+    StockReservationConfirmed *-- "*" StockReservationConfirmedItem : items
+    style StockReleased fill:#ffe0bf,stroke:#333333,color:#111111
+    style StockReleasedItem fill:#ffffff,stroke:#333333,color:#111111
+    style StockReservationConfirmed fill:#ffe0bf,stroke:#333333,color:#111111
+    style StockReservationConfirmedItem fill:#ffffff,stroke:#333333,color:#111111
     style StockReceived fill:#ffe0bf,stroke:#333333,color:#111111
     style StockAdjusted fill:#ffe0bf,stroke:#333333,color:#111111
 ```

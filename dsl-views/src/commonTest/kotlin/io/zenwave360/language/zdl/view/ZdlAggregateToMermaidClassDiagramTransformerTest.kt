@@ -166,8 +166,8 @@ class ZdlAggregateToMermaidClassDiagramTransformerTest {
                     String customerId
                     String customerEmail
                     String paymentMethodId
-                    OrderItem[] items
-                    ShippingAddress shippingAddress
+                    @json OrderItem[] items
+                    @json ShippingAddress shippingAddress
                     BigDecimal totalAmount
                     String currency
                     Instant createdAt
