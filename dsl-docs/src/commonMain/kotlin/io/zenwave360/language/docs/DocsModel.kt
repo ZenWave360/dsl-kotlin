@@ -1,11 +1,33 @@
 package io.zenwave360.language.docs
 
+import io.zenwave360.language.docs.internal.Yaml
+
 /** The kinds of model and specification files dsl-docs reads. */
 enum class SourceKind {
     ZDL,
     ZFL,
     OPENAPI,
     ASYNCAPI,
+    ;
+
+    companion object {
+        /**
+         * Tells an API file from its content: [OPENAPI] when the YAML or JSON top level has an `openapi` (or
+         * `swagger`) key, [ASYNCAPI] for `asyncapi`, null when it is neither or cannot be read.
+         */
+        fun ofApi(content: String): SourceKind? {
+            val root = try {
+                Yaml.read(content)
+            } catch (e: Exception) {
+                return null
+            }
+            return when {
+                "openapi" in root || "swagger" in root -> OPENAPI
+                "asyncapi" in root -> ASYNCAPI
+                else -> null
+            }
+        }
+    }
 }
 
 /**
