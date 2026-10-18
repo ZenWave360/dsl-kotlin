@@ -13,7 +13,7 @@ plugins {
 
 // Single version for every module. The release workflow rewrites this line.
 group = "io.zenwave360.dsl"
-version = "1.10.0-SNAPSHOT"
+version = "1.10.0"
 
 val hasSigningCredentials = sequenceOf(
     "signingInMemoryKey",
