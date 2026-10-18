@@ -1,0 +1,144 @@
+config {
+    id "urn:com.arcadiaeditions:notifications:consumer"
+    version "0.1.0"
+    title "Arcadia Editions - Notifications Consumer"
+    moduleBasePackage "com.arcadiaeditions.notifications.consumer"
+    persistence jpa
+    layout LayeredProjectLayout
+
+    plugins {
+//        /** Generates an OpenAPI 3.0 specification from this ZDL model. */
+//        ZDLToOpenAPIPlugin {
+//            idType integer
+//            idTypeFormat int64
+//            targetFile "./notifications-consumer-openapi.yml"
+//        }
+    }
+}
+
+apis {
+    zdl client PaymentsProcessingZdl "./payments-processing-domain-model.zdl"
+    zdl client OrdersCheckoutZdl "./orders-checkout-domain-model.zdl"
+}
+
+@aggregate
+@lifecycle(field: status, initial: PENDING)
+entity Notification {
+    notificationId String required unique
+    customerId String required
+    orderId String
+    skus String[]
+    type NotificationType required
+    channel NotificationChannel required
+    status NotificationStatus required
+    subject String required
+    body String required
+    recipient String required
+    createdAt Instant required
+    sentAt Instant
+    failedAt Instant
+    failureReason String
+}
+
+enum NotificationType {
+    ORDER_CONFIRMATION
+    STOCK_UNAVAILABLE
+    ORDER_CANCELLED
+}
+
+enum NotificationChannel {
+    EMAIL
+    SMS
+    PUSH
+}
+
+enum NotificationStatus {
+    PENDING
+    SENT
+    FAILED
+}
+
+input SendOrderConfirmationInput {
+    orderId String required
+    customerId String required
+    customerEmail String required
+}
+
+input SendStockUnavailableNotificationInput {
+    orderId String required
+    customerId String required
+    customerEmail String required
+    unavailableItems StockUnavailableItemInput[] required minlength(1) {
+        sku String required
+        requestedQuantity Integer
+        availableQuantity Integer
+    }
+}
+
+input SendOrderCancelledNotificationInput {
+    orderId String required
+    customerId String required
+    reason String required
+    customerEmail String required
+}
+
+//@rest("/notifications")
+service NotificationsConsumerService for (Notification) {
+
+    @listener(zdl: PaymentsProcessingZdl, event: PaymentCaptured)
+    @transition(to: PENDING)
+    sendOrderConfirmation(SendOrderConfirmationInput) Notification withEvents [OrderConfirmationSent | NotificationDeliveryFailed]
+
+    @listener(zdl: OrdersCheckoutZdl, event: StockUnavailable)
+    @transition(to: PENDING)
+    sendStockUnavailableNotification(SendStockUnavailableNotificationInput) Notification withEvents [StockUnavailableNotificationSent | NotificationDeliveryFailed]
+
+    @listener(zdl: OrdersCheckoutZdl, event: OrderCancelled)
+    @transition(to: PENDING)
+    sendOrderCancelledNotification(SendOrderCancelledNotificationInput) Notification withEvents [OrderCancelledNotificationSent | NotificationDeliveryFailed]
+}
+
+// @asyncapi({ channel: "order-confirmation-sent-event-v1", topic: "notifications-consumer.order-confirmation-sent.event.avro.v1" })
+event OrderConfirmationSent {
+    notificationId String
+    orderId String
+    customerId String
+    channel NotificationChannel
+    recipient String
+    sentAt Instant
+}
+
+// @asyncapi({ channel: "stock-unavailable-notification-sent-event-v1", topic: "notifications-consumer.stock-unavailable-notification-sent.event.avro.v1" })
+event StockUnavailableNotificationSent {
+    notificationId String
+    orderId String
+    customerId String
+    skus String[]
+    channel NotificationChannel
+    recipient String
+    sentAt Instant
+}
+
+// @asyncapi({ channel: "order-cancelled-notification-sent-event-v1", topic: "notifications-consumer.order-cancelled-notification-sent.event.avro.v1" })
+event OrderCancelledNotificationSent {
+    notificationId String
+    orderId String
+    customerId String
+    reason String
+    channel NotificationChannel
+    recipient String
+    sentAt Instant
+}
+
+// @asyncapi({ channel: "notification-delivery-failed-event-v1", topic: "notifications-consumer.notification-delivery-failed.event.avro.v1" })
+event NotificationDeliveryFailed {
+    notificationId String
+    orderId String
+    customerId String
+    skus String[]
+    type NotificationType
+    channel NotificationChannel
+    recipient String
+    reason String
+    failedAt Instant
+}

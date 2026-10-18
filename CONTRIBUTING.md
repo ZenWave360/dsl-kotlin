@@ -12,8 +12,12 @@
 # Build the project
 ./gradlew clean build
 
-# Run tests
+# Run tests (all three modules: dsl-kotlin, dsl-views, dsl-docs)
 ./gradlew jvmTest
+
+# Run the tests of one module (JVM only, or JVM + JS)
+./gradlew :dsl-views:jvmTest
+./gradlew :dsl-docs:allTests
 
 # Run tests with coverage
 ./gradlew build koverHtmlReport
@@ -32,7 +36,7 @@
 
 See [RELEASING.md](RELEASING.md) and [docs/release-security.md](docs/release-security.md)
 for the full flow. In short: add a `release-notes/release-notes.v<version>.md`
-file to `main`, then trigger the **Release from Notes** workflow from GitHub
+file to `main`, then trigger the **Release** workflow from GitHub
 Actions with the release version (and, optionally, the next development
 version and whether to publish to npm). It prepares the version bump, tags the
 release, builds credential-free, and — after you approve the protected

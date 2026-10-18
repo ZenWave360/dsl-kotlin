@@ -48,11 +48,13 @@ NOTE: JVM version includes working `ZdlParser` and `ZflParser` implementations c
 
 * JavaScript/TypeScript:
 
-NOTE: pending publishing to npm-registy
+For package build and publishing instructions, see [Publishing to npm](docs/npm-publishing.md).
 
 ```bash
-npm install @zenwave360/dsl
+npm install @zenwave360/dsl@next
 ```
+
+The `next` tag selects the opt-in prerelease train. Stable releases use `latest`.
 
 ```js
 import { parseZdl } from '@zenwave360/dsl';
@@ -64,6 +66,57 @@ const zdlModel = parseZdl(zdlContent);
 const zflContent = "...";
 const zflModel = parseZfl(zflContent);
 ```
+
+ZDL plugin option source spans are available in `model.locations` under
+`pluginsList.<n>.config.<option>` and `pluginsList.<n>.cliOptions.<option>`.
+Each declaration has a span; its `.value` span covers only the value, including
+quote delimiters. A CLI flag without a value has no `.value` span. The first two
+span entries are the start offset and exclusive end offset in the original
+source, suitable for `source.slice(span[0], span[1])`. Model values are unchanged.
+
+`model.pluginsList` is every plugin declaration in order. Each instance's
+declaration span is `locations['pluginsList.N']`.
+
+CLI options may also be declared directly inside `config`, before `plugins`,
+for consumers that apply shared command-line defaults. They are reported in
+`model.cliOptions`; their spans use `cliOptions.<option>` and
+`cliOptions.<option>.value`, with no value span for a valueless flag.
+
+These spans are implemented in shared Kotlin source. JS consumers must rebuild
+the package with `./gradlew jsProductionExecutableCompileSync` and update their
+bundled or installed artifact; an existing JS bundle does not gain them automatically.
+
+Numbers in `parseZdl` and `parseZfl` output are plain JavaScript values: an integer is a JS
+`number` (for example `maxDepth 3` gives `3`), or its exact decimal string when it lies beyond
+`Number.MAX_SAFE_INTEGER` (±(2^53 - 1)). Decimals stay strings (`ratio 1.25` gives `"1.25"`),
+as in the JVM model. Negative literals keep their sign (`neg -2` gives `-2`).
+Before 1.10.0 an integer was an opaque Kotlin `Long` object with compiler-generated field names
+(`{"h2_1":3,"i2_1":0}`) and the sign of a negative literal was dropped; JS consumers that worked
+around either should read the value directly. The JVM model is unchanged (`Long` and `String`).
+
+The repository builds three modules:
+
+| Module | Maven artifact | Content |
+| --- | --- | --- |
+| `dsl-kotlin` | `io.zenwave360.dsl:dsl-kotlin` | ZDL and ZFL parsers, semantic models, event flow view models; npm `@zenwave360/dsl` |
+| `dsl-views` | `io.zenwave360.dsl:dsl-views` | Mermaid diagrams from ZDL and ZFL models: class diagram, flows, and the architecture of several ZDL modules; see [dsl-views/README.md](dsl-views/README.md) |
+| `dsl-docs` | `io.zenwave360.dsl:dsl-docs` | Markdown documentation with those diagrams, from ZDL, ZFL, OpenAPI and AsyncAPI files; see [dsl-docs/README.md](dsl-docs/README.md) |
+
+ZDL class diagrams and ZFL flowcharts and sequence diagrams are Mermaid text from `dsl-views`:
+
+```kotlin
+val classDiagram = GenerateMermaidFromZdl().execute(zdlContent)
+val flowDiagrams = GenerateMermaidFromZfl().execute(zflContent)
+```
+
+The class diagram contains aggregates with their commands, entities with their fields, enums with their
+values, inputs, outputs and events, services with their commands, and relationships with their
+cardinality. It contains no `click`, `link` or `callback` directives and no remote references.
+`dsl-views` and `dsl-docs` are not published to npm yet.
+
+The JS package loads in browsers and Web Workers as well as in Node.js: `./gradlew check`
+runs `jsBrowserTest` in a headless Chromium-based browser (Karma; set `CHROME_BIN`, or a local
+Chrome, Chromium or Edge is used).
 
 * Further reading:
 - [ZDL Domain Language Reference](https://www.zenwave360.io/docs/event-driven-design/zenwave-domain-language/)

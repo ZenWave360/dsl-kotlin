@@ -1,0 +1,164 @@
+config {
+    id "urn:com.arcadiaeditions:orders:checkout"
+    version "0.1.0"
+    title "Arcadia Editions - Orders Checkout"
+    moduleBasePackage "com.arcadiaeditions.orders.checkout"
+    persistence jpa
+    layout CleanHexagonalProjectLayout
+
+    plugins {
+        /** Generates an OpenAPI 3.0 specification from this ZDL model. */
+        ZDLToOpenAPIPlugin {
+            idType integer
+            idTypeFormat int64
+            targetFile "./orders-checkout-openapi.yml"
+        }
+    }
+}
+
+apis {
+    zdl client PaymentsProcessingZdl "./payments-processing-domain-model.zdl"
+    zdl client CatalogInventoryZdl "./catalog-inventory-domain-model.zdl"
+}
+
+@aggregate
+@lifecycle(field: status, initial: CREATED)
+entity Order(checkout_order) {
+    orderId String required unique
+    status OrderStatus required
+    /** Customer snapshot taken at checkout (there is no customers bounded context yet). */
+    customerId String required
+    customerEmail String required maxlength(254)
+    paymentMethodId String required
+    @json items OrderItem[] required minlength(1) {
+        sku String required
+        quantity Integer required min(1)
+        unitPrice BigDecimal required
+    }
+    @json shippingAddress ShippingAddress required {
+        name String required
+        line1 String required
+        line2 String
+        city String required
+        region String
+        postalCode String required
+        country String required
+    }
+    totalAmount BigDecimal required
+    currency String required maxlength(3)
+    createdAt Instant
+    confirmedAt Instant
+    cancelledAt Instant
+    cancellationReason String
+}
+
+enum OrderStatus {
+    CREATED
+    CONFIRMED
+    CANCELLED
+}
+
+input StartOrderCheckoutInput {
+    customerId String required
+    customerEmail String required maxlength(254)
+    paymentMethodId String required
+    currency String required maxlength(3)
+    items OrderItemInput[] required minlength(1) {
+        sku String required
+        quantity Integer required min(1)
+        unitPrice BigDecimal required
+    }
+    shippingAddress ShippingAddressInput required {
+        name String required
+        line1 String required
+        line2 String
+        city String required
+        region String
+        postalCode String required
+        country String required
+    }
+}
+
+// input ConfirmOrderInput {
+//     orderId String required
+// }
+
+input CancelOrderInput {
+    // orderId String required
+    /** From StockReleased.reason (StockReleaseReason name). */
+    reason String required
+}
+
+@rest("/orders")
+service OrdersCheckoutService for (Order) {
+
+    @post("/start-checkout")
+    @transition(to: CREATED)
+    @calls(zdl: CatalogInventoryZdl, command: InventoryService.reserveStock)
+    startOrderCheckout(StartOrderCheckoutInput) Order withEvents [OrderCreated | StockUnavailable]
+
+    @listener(zdl: PaymentsProcessingZdl, event: PaymentAuthorized)
+    @transition(from: CREATED, to: CONFIRMED)
+    @calls(zdl: CatalogInventoryZdl, command: InventoryService.confirmStockReservation)
+    confirmOrder(id) Order withEvents OrderConfirmed
+
+    @listener(zdl: CatalogInventoryZdl, event: StockReleased)
+    @transition(from: [CREATED, CONFIRMED], to: CANCELLED)
+    cancelOrder(id, CancelOrderInput) Order withEvents OrderCancelled
+}
+
+// @asyncapi({ channel: "order-created-event-v1", topic: "orders-checkout.order-created.event.avro.v1" })
+event OrderCreated {
+    orderId String
+    version Integer
+    customerId String
+    customerEmail String
+    paymentMethodId String
+    /** Order total (Order.totalAmount), named to match AuthorizePaymentInput. */
+    amount BigDecimal
+    currency String
+}
+
+// @asyncapi({ channel: "stock-unavailable-event-v1", topic: "orders-checkout.stock-unavailable.event.avro.v1" })
+event StockUnavailable {
+    orderId String
+    customerId String
+    customerEmail String
+    unavailableItems StockUnavailableItem[] {
+        sku String
+        requestedQuantity Integer
+        availableQuantity Integer
+    }
+}
+
+// @asyncapi({ channel: "order-confirmed-event-v1", topic: "orders-checkout.order-confirmed.event.avro.v1" })
+event OrderConfirmed {
+    orderId String
+    version Integer
+    customerId String
+    confirmedAt Instant
+    items OrderConfirmedItem[] {
+        sku String
+        quantity Integer
+    }
+    shippingAddress OrderConfirmedShippingAddress {
+        name String
+        line1 String
+        line2 String
+        city String
+        region String
+        postalCode String
+        country String
+    }
+}
+
+// @asyncapi({ channel: "order-cancelled-event-v1", topic: "orders-checkout.order-cancelled.event.avro.v1" })
+event OrderCancelled {
+    orderId String
+    version Integer
+    customerId String
+    customerEmail String
+    /** Order.cancellationReason */
+    reason String
+    cancelledAt Instant
+}

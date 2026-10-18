@@ -1,0 +1,110 @@
+openapi: 3.0.1
+info:
+  title: "Arcadia Editions - Orders Checkout"
+  version: 0.1.0
+  description: "Arcadia Editions - Orders Checkout"
+  contact:
+    email: email@domain.com
+servers:
+  - description: localhost
+    url: http://localhost:8080/api
+  - description: custom
+    url: "{protocol}://{server}/{path}"
+    variables:
+      protocol:
+        enum: ['http', 'https']
+        default: 'http'
+      server:
+        default: 'localhost:8080'
+      path:
+        default: 'api'
+tags:
+  - name: "Default"
+  - name: "OrdersCheckout"
+
+
+paths:
+  /orders:
+    post:
+      operationId: startOrderCheckout
+      summary: "startOrderCheckout"
+      description: "startOrderCheckout"
+      tags: [OrdersCheckout]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartOrderCheckoutInput"
+      responses:
+        "201":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+components:
+  schemas:
+    StartOrderCheckoutInput:
+      type: "object"
+      x-business-entity: "StartOrderCheckoutInput"
+      properties:
+        items:
+          type: "array"
+          items:
+            type: "string"
+            minLength: 1
+    Order:
+      type: "object"
+      x-business-entity: "Order"
+      required:
+      - "orderId"
+      - "status"
+      - "items"
+      properties:
+        id:
+          type: "integer"
+          format: "int64"
+          readOnly: true
+        version:
+          type: "integer"
+          nullable: true
+          description: "Version of the document (required in PUT for concurrency control,\
+            \ should be null in POSTs)."
+        orderId:
+          type: "string"
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        items:
+          type: "array"
+          items:
+            type: "string"
+        createdAt:
+          type: "string"
+          format: "date-time"
+        confirmedAt:
+          type: "string"
+          format: "date-time"
+        cancelledAt:
+          type: "string"
+          format: "date-time"
+    OrderStatus:
+      type: "string"
+      x-business-entity: "OrderStatus"
+      enum:
+      - "CREATED"
+      - "CONFIRMED"
+      - "CANCELLED"
+
+  securitySchemes:
+    basicAuth:     # <-- arbitrary name for the security scheme
+      type: http
+      scheme: basic
+    bearerAuth:     # <-- arbitrary name for the security scheme
+      type: http
+      scheme: bearer
+      bearerFormat: JWT    # optional, arbitrary value for documentation purposes
+security:
+  - basicAuth: []  # <-- use the same name here
+  - bearerAuth: []  # <-- use the same name here

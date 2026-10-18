@@ -1,0 +1,221 @@
+config {
+    id "urn:com.arcadiaeditions:catalog:inventory"
+    version "0.1.0"
+    title "Arcadia Editions - Catalog Inventory"
+    moduleBasePackage "com.arcadiaeditions.catalog.inventory"
+    persistence jpa
+    layout LayeredProjectLayout
+
+    plugins {
+//        /** Generates an OpenAPI 3.0 specification from this ZDL model. */
+//        ZDLToOpenAPIPlugin {
+//            idType integer
+//            idTypeFormat int64
+//            targetFile "./catalog-inventory-openapi.yml"
+//        }
+    }
+}
+
+apis {
+    zdl client PaymentsProcessingZdl "./payments-processing-domain-model.zdl"
+}
+
+@aggregate
+@lifecycle(field: status, initial: RESERVED)
+entity StockReservation {
+    reservationId String required unique
+    /** One reservation per order line: an order has as many reservations as items. */
+    orderId String required
+    sku String required
+    quantity Integer required
+    status ReservationStatus required
+    reservedAt Instant required
+    expiresAt Instant required
+    confirmedAt Instant
+    releasedAt Instant
+    releaseReason StockReleaseReason
+}
+
+enum ReservationStatus {
+    RESERVED
+    RELEASED
+    CONFIRMED
+}
+
+enum StockReleaseReason {
+    PAYMENT_DECLINED
+    PAYMENT_RETRY_EXHAUSTED
+    PAYMENT_VOIDED
+    RESERVATION_EXPIRED
+}
+
+input ReserveStockInput {
+    orderId String required
+    items ReserveStockItemInput[] required minlength(1) {
+        sku String required
+        quantity Integer required min(1)
+    }
+}
+
+// /** Confirms every reservation of the order. */
+// input ConfirmStockReservationInput {
+//     orderId String required
+// }
+
+/** Releases every reservation of the order. */
+input ReleaseStockInput {
+    orderId String required
+    reason StockReleaseReason required
+}
+
+enum ReserveStockOutcome {
+    RESERVED
+    UNAVAILABLE
+}
+
+/**
+ * Wrapper for the two ZFL responses of reserveStock (ZDL has no union return type).
+ * Exactly one of `reserved` / `unavailable` is set, according to `outcome`.
+ */
+output ReserveStockResult {
+    outcome ReserveStockOutcome required
+    reserved StockReservedResult
+    unavailable StockUnavailableResult
+}
+
+output StockReservedResult {
+    orderId String
+    expiresAt Instant
+    reservations StockReservedLine[] {
+        reservationId String
+        sku String
+        quantity Integer
+        reservedAt Instant
+    }
+}
+
+output StockUnavailableResult {
+    orderId String
+    unavailableItems StockUnavailableLine[] {
+        sku String
+        requestedQuantity Integer
+        availableQuantity Integer
+    }
+}
+
+//@rest("/inventory")
+service InventoryService for (StockReservation) {
+
+//    @post("/reservations/reserve")
+    @transition(to: RESERVED)
+    reserveStock(ReserveStockInput) ReserveStockResult
+
+    @listener(zdl: PaymentsProcessingZdl, event: PaymentDeclined)
+    @listener(zdl: PaymentsProcessingZdl, event: PaymentRetryExhausted)
+    @listener(zdl: PaymentsProcessingZdl, event: PaymentVoided)
+    @timer(api: SchedulerApi, channel: "reservation-expired-event-v1")
+    @transition(from: [RESERVED, CONFIRMED], to: RELEASED)
+    releaseStock(ReleaseStockInput) StockReservation[] withEvents StockReleased
+
+//    @post("/reservations/confirm")
+    @transition(from: RESERVED, to: CONFIRMED)
+    confirmStockReservation(id) StockReservation[] withEvents StockReservationConfirmed
+}
+
+// @asyncapi({ channel: "stock-released-event-v1", topic: "catalog-inventory.stock-released.event.avro.v1" })
+event StockReleased {
+    orderId String
+    reason StockReleaseReason
+    releasedAt Instant
+    items StockReleasedItem[] {
+        reservationId String
+        sku String
+        quantity Integer
+    }
+}
+
+// @asyncapi({ channel: "stock-reservation-confirmed-event-v1", topic: "catalog-inventory.stock-reservation-confirmed.event.avro.v1" })
+event StockReservationConfirmed {
+    orderId String
+    confirmedAt Instant
+    items StockReservationConfirmedItem[] {
+        reservationId String
+        sku String
+        quantity Integer
+    }
+}
+
+//--- backoffice ----
+
+@aggregate
+entity InventoryPosition {
+    sku String required unique
+    availableQuantity Integer required
+    reservedQuantity Integer required
+    soldQuantity Integer required
+}
+
+
+input CreateInventoryPositionInput {
+    sku String required
+    initialQuantity Integer required
+}
+
+input ReceiveStockInput {
+    sku String required
+    quantity Integer required
+    reason String
+    reference String
+}
+
+input AdjustStockInput {
+    sku String required
+    quantityDelta Integer required
+    reason StockAdjustmentReason required
+    reference String
+}
+
+enum StockAdjustmentReason {
+    DAMAGED
+    LOST
+    FOUND
+    MANUAL_CORRECTION
+    RETURNED
+}
+
+@rest("/inventory")
+service InventoryBackofficeService for (InventoryPosition) {
+
+    @post("/positions")
+    createInventoryPosition(CreateInventoryPositionInput) InventoryPosition
+
+    @post("/{sku}/stock-intakes")
+    receiveStock(ReceiveStockInput) InventoryPosition withEvents StockReceived
+
+    @post("/{sku}/adjustments")
+    adjustStock(AdjustStockInput) InventoryPosition withEvents StockAdjusted
+}
+
+// @asyncapi({ channel: "stock-received-event-v1", topic: "catalog-inventory.stock-received.event.avro.v1" })
+event StockReceived {
+    sku String
+    quantity Integer
+    availableQuantity Integer
+    reservedQuantity Integer
+    soldQuantity Integer
+    reason String
+    reference String
+    receivedAt Instant
+}
+
+// @asyncapi({ channel: "stock-adjusted-event-v1", topic: "catalog-inventory.stock-adjusted.event.avro.v1" })
+event StockAdjusted {
+    sku String
+    quantityDelta Integer
+    availableQuantity Integer
+    reservedQuantity Integer
+    soldQuantity Integer
+    reason StockAdjustmentReason
+    reference String
+    adjustedAt Instant
+}

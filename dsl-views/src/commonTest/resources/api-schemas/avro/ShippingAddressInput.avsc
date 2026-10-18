@@ -1,0 +1,27 @@
+{
+  "type" : "record",
+  "name" : "ShippingAddressInput",
+  "namespace" : "com.arcadiaeditions.fulfillment.shipping.events.avro",
+  "fields" : [ {
+    "name" : "name",
+    "type" : "string"
+  }, {
+    "name" : "line1",
+    "type" : "string"
+  }, {
+    "name" : "line2",
+    "type" : [ "null", "string" ]
+  }, {
+    "name" : "city",
+    "type" : "string"
+  }, {
+    "name" : "region",
+    "type" : [ "null", "string" ]
+  }, {
+    "name" : "postalCode",
+    "type" : "string"
+  }, {
+    "name" : "country",
+    "type" : "string"
+  } ]
+}

@@ -11,3 +11,8 @@ permissions:
 jobs:
   build:
     uses: ZenWave360/release-workflows/.github/workflows/main-gradle.yml@main
+    with:
+      kover-xml-files: >-
+        ./dsl-kotlin/build/reports/kover/report.xml
+        ./dsl-views/build/reports/kover/report.xml
+        ./dsl-docs/build/reports/kover/report.xml

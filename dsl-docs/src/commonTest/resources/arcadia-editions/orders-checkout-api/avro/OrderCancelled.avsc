@@ -1,0 +1,15 @@
+{
+  "type" : "record",
+  "name" : "OrderCancelled",
+  "namespace" : "com.arcadiaeditions.orders.checkout.events.avro",
+  "fields" : [ {
+    "name" : "orderId",
+    "type" : [ "null", "string" ]
+  }, {
+    "name" : "version",
+    "type" : [ "null", "int" ]
+  }, {
+    "name" : "cancelledAt",
+    "type" : [ "null", "string" ]
+  } ]
+}

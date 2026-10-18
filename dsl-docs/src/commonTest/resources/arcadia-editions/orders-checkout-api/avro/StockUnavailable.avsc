@@ -1,0 +1,12 @@
+{
+  "type" : "record",
+  "name" : "StockUnavailable",
+  "namespace" : "com.arcadiaeditions.orders.checkout.events.avro",
+  "fields" : [ {
+    "name" : "productId",
+    "type" : [ "null", "string" ]
+  }, {
+    "name" : "requestedQuantity",
+    "type" : [ "null", "int" ]
+  } ]
+}

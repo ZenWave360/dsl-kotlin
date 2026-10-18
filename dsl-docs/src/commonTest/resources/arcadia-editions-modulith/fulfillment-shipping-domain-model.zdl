@@ -1,0 +1,115 @@
+config {
+    id "urn:com.arcadiaeditions:fulfillment:shipping"
+    version "0.1.0"
+    title "Arcadia Editions - Fulfillment Shipping"
+    moduleBasePackage "com.arcadiaeditions.fulfillment.shipping"
+    persistence jpa
+    layout SimpleDomainProjectLayout
+
+    plugins {
+//        /** Generates an OpenAPI 3.0 specification from this ZDL model. */
+//        ZDLToOpenAPIPlugin {
+//            idType integer
+//            idTypeFormat int64
+//            targetFile "./fulfillment-shipping-openapi.yml"
+//        }
+    }
+}
+
+apis {
+    zdl client OrdersCheckoutZdl "./orders-checkout-domain-model.zdl"
+}
+
+@aggregate
+@lifecycle(field: status, initial: SCHEDULED)
+entity Fulfillment {
+    fulfillmentId String required unique
+    orderId String required unique
+    customerId String required
+    status FulfillmentStatus required
+    @json shippingAddress ShippingAddress required {
+        name String required
+        line1 String required
+        line2 String
+        city String required
+        region String
+        postalCode String required
+        country String required
+    }
+    @json items FulfillmentItem[] required minlength(1) {
+        sku String required
+        quantity Integer required
+    }
+    carrierCode String
+    trackingNumber String
+    scheduledAt Instant
+    readyAt Instant
+    failedAt Instant
+    failureReason String
+}
+
+enum FulfillmentStatus {
+    SCHEDULED
+    READY_TO_SHIP
+    FAILED
+}
+
+input ScheduleFulfillmentInput {
+    orderId String required
+    customerId String required
+    shippingAddress ShippingAddressInput required
+    items FulfillmentItemInput[] required
+}
+
+input ShippingAddressInput {
+    name String required
+    line1 String required
+    line2 String
+    city String required
+    region String
+    postalCode String required
+    country String required
+}
+
+input FulfillmentItemInput {
+    sku String required
+    quantity Integer required
+}
+
+//@rest("/fulfillments")
+service FulfillmentShippingService for (Fulfillment) {
+
+    @listener(zdl: OrdersCheckoutZdl, event: OrderConfirmed)
+    @transition(to: SCHEDULED)
+    scheduleFulfillment(ScheduleFulfillmentInput) Fulfillment withEvents [FulfillmentScheduled | FulfillmentFailed]
+
+    @transition(from: SCHEDULED, to: READY_TO_SHIP)
+    markReadyToShip(id) Fulfillment withEvents FulfillmentReadyToShip
+}
+
+// @asyncapi({ channel: "fulfillment-scheduled-event-v1", topic: "fulfillment-shipping.fulfillment-scheduled.event.avro.v1" })
+event FulfillmentScheduled {
+    fulfillmentId String
+    orderId String
+    customerId String
+    scheduledAt Instant
+}
+
+// @asyncapi({ channel: "fulfillment-failed-event-v1", topic: "fulfillment-shipping.fulfillment-failed.event.avro.v1" })
+event FulfillmentFailed {
+    fulfillmentId String
+    orderId String
+    customerId String
+    reason String
+    failedAt Instant
+}
+
+// @asyncapi({ channel: "fulfillment-ready-to-ship-event-v1", topic: "fulfillment-shipping.fulfillment-ready-to-ship.event.avro.v1" })
+event FulfillmentReadyToShip {
+    fulfillmentId String
+    orderId String
+    customerId String
+    carrierCode String
+    trackingNumber String
+    readyAt Instant
+}
