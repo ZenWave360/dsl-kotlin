@@ -17,7 +17,7 @@ import kotlin.test.*
  *
  * NOTE on Unicode: The ZFL grammar ID rule is [a-zA-Z_][a-zA-Z0-9_]* (ASCII only).
  * Unicode identifiers are not valid in ZFL source and cannot be tested as successful edits.
- * This is documented as an ES-P1 finding — Unicode support would require a grammar change.
+ * Identifiers stay ASCII by owner decision (ZVE-R5).
  * CRLF line-ending preservation is still tested (ZVE-R8), with ASCII identifiers.
  *
  * spec:flows/zfl-visual-editing.md#zve-r3, #zve-r4, #zve-r5, #zve-r8, #zve-r13
@@ -640,15 +640,13 @@ class ZflEditorTest {
     }
 
     // =========================================================================
-    // Unicode limitation — documented in ES-P1 report
+    // Identifiers stay ASCII (ZVE-R5)
     // =========================================================================
 
     /**
      * The ZFL grammar ID rule is [a-zA-Z_][a-zA-Z0-9_]* (ASCII only). Unicode identifiers
-     * cause syntax errors and cannot appear in valid ZFL. This test demonstrates the rejection.
-     *
-     * NOTE: Supporting Unicode identifiers would require changing the ZFL grammar.
-     *       This is deferred and recorded as an ES-P1 finding.
+     * cause syntax errors and cannot appear in valid ZFL. This test demonstrates the rejection,
+     * which is the required behaviour.
      */
     @Test
     fun addEmission_unicodeEventName_isRejectedByZflGrammar() {
