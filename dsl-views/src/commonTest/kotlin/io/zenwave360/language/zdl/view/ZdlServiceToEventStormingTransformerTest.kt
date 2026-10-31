@@ -25,6 +25,11 @@ class ZdlServiceToEventStormingTransformerTest {
         """.trimIndent()
 
         val expected = """
+            ---
+            config:
+              themeVariables:
+                titleColor: "#111111"
+            ---
             flowchart LR
               classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
               classDef event fill:#ffb76b,stroke:#d9822b,color:#111
@@ -77,6 +82,11 @@ class ZdlServiceToEventStormingTransformerTest {
     fun modulithOrdersCheckout() {
         val zdl = readViewsTestFile("arcadia-editions-modulith/orders-checkout-domain-model.zdl")
         val expected = """
+            ---
+            config:
+              themeVariables:
+                titleColor: "#111111"
+            ---
             flowchart LR
               classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
               classDef event fill:#ffb76b,stroke:#d9822b,color:#111

@@ -15,6 +15,11 @@
 Each module with its services, the commands they handle and the events they emit.
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
   classDef service fill:#fbd3ee,stroke:#c2569b,color:#111

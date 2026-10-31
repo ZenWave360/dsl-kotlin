@@ -17,6 +17,11 @@ class ZdlModuleDiagramTest {
     // foreign pipe (partner-shipped-event-v1), referenced module (Ledger), calls out (reconcile ==> Orders),
     // the emitting command of a consumed event (placeOrder --> OrderPlaced).
     private val billing = """
+            ---
+            config:
+              themeVariables:
+                titleColor: "#111111"
+            ---
             flowchart LR
               classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
               classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
@@ -79,6 +84,11 @@ class ZdlModuleDiagramTest {
 
     // Orders: a call in (from Billing.reconcile) and a consumed external event whose emitter is in Billing.
     private val orders = """
+            ---
+            config:
+              themeVariables:
+                titleColor: "#111111"
+            ---
             flowchart LR
               classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
               classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
@@ -119,6 +129,11 @@ class ZdlModuleDiagramTest {
 
     // Ledger is a referenced module: its diagram is just what points to it.
     private val ledger = """
+            ---
+            config:
+              themeVariables:
+                titleColor: "#111111"
+            ---
             flowchart LR
               classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
               classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
@@ -142,6 +157,11 @@ class ZdlModuleDiagramTest {
     """.trimIndent() + "\n"
 
     private val ordersCheckout = """
+            ---
+            config:
+              themeVariables:
+                titleColor: "#111111"
+            ---
             flowchart LR
               classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
               classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111

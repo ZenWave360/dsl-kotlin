@@ -20,6 +20,7 @@ class ZdlArchitectureToEventStormingTransformer {
         val services = mutableListOf<String>()
         val events = mutableListOf<String>()
         return buildString {
+            append(MermaidLight.SUBGRAPH_TITLE_FRONT_MATTER)
             append("flowchart LR\n")
             append("  classDef command ").append(ZdlServiceToEventStormingTransformer.COMMAND_STYLE).append('\n')
             append("  classDef service ").append(ZdlServiceToEventStormingTransformer.AGGREGATE_STYLE).append('\n')

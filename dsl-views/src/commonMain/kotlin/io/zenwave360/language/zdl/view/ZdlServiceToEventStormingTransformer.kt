@@ -28,6 +28,7 @@ class ZdlServiceToEventStormingTransformer {
         val boxId = "agg_" + id(service.name)
         val events = commands.flatMap { it.eventNames }.distinct()
         val mermaid = buildString {
+            append(MermaidLight.SUBGRAPH_TITLE_FRONT_MATTER)
             append("flowchart LR\n")
             append("  classDef command ").append(COMMAND_STYLE).append('\n')
             append("  classDef event ").append(EVENT_STYLE).append('\n')
