@@ -10,6 +10,7 @@ import io.zenwave360.language.docs.pages.ModulePage
 import io.zenwave360.language.docs.pages.OpenApiPage
 import io.zenwave360.language.docs.pages.PageEntry
 import io.zenwave360.language.docs.pages.PreviewPage
+import io.zenwave360.language.docs.pages.ZwPreviewPage
 import io.zenwave360.language.docs.pages.SpecDocument
 import io.zenwave360.language.docs.pages.ZdlDocument
 import io.zenwave360.language.zdl.architecture.ZdlArchitectureReader
@@ -93,6 +94,25 @@ class DslDocs {
      * Runs on every platform, reads no file and gives the same text for the same input.
      */
     fun previewZdl(text: String): String = PreviewPage.zdl(normalize(text))
+
+    /**
+     * The Markdown of a single page that previews one `.zw` document (the plugin configuration of a model), for an editor that
+     * shows it beside its text. It has the global `config` with a description of it, then each plugin in document order with what
+     * it is for, its own options and the resolved sum of its options: the `config` options and command-line options the plugin
+     * inherits (unless it declares `(inherit false)`) with its own on top, and where each came from. The rules are those of the
+     * VS Code extension's command builder, see `PluginResolution`; `zdlFile`, `${this.file.path}` and Maven `--deps` are not
+     * resolved, as they depend on the file and on running.
+     *
+     * [catalogue] says what each plugin is for and what its options mean. A plugin that is not in it, or no [catalogue] at all,
+     * still shows its name and resolved options, without a description. A `.zw` file with no `config` or no plugins gives a page
+     * that says so.
+     *
+     * Everything the file or the catalogue wrote is escaped as in [previewZdl]: no HTML, images, links or remote references, and
+     * no link to anything but the page's own headings. Like [previewZdl] it never throws on a bad model: semantic problems still
+     * give the page, and a syntax error gives what the parser could read (a plugin declaration not closed is left out, as the
+     * extension does) with a `Problems` block. The output depends on the input only.
+     */
+    fun previewZw(text: String, catalogue: PluginCatalogue? = null): String = ZwPreviewPage.zw(normalize(text), catalogue)
 
     private fun normalize(text: String): String = text.replace("\r\n", "\n").replace('\r', '\n')
 

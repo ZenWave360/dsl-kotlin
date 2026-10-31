@@ -42,6 +42,12 @@ internal object Markdown {
         .replace("\\", "\\\\").replace("<", "&lt;").replace(">", "&gt;")
         .replace("[", "\\[").replace("]", "\\]").replace("://", "\\://")
 
+    /**
+     * Text shown as written, in a table cell or a line: [safeInline] and also the characters that format (`*`, `_`, backtick, `~`)
+     * escaped, so a value such as `*.java` or `my_file` reads as it is and cannot become emphasis or code.
+     */
+    fun safeLiteral(text: String?): String = safeInline(text).replace("*", "\\*").replace("_", "\\_").replace("`", "\\`").replace("~", "\\~")
+
     /** [javadoc] with the escaping of [safeInline]. */
     fun safeJavadoc(text: String?): String = safeInline(text.orEmpty().lines().joinToString("\n") { it.trim().removePrefix("*") })
 
