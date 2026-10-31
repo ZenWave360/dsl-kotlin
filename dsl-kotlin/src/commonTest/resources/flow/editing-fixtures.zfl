@@ -1,0 +1,145 @@
+/**
+ * Editing fixtures for ES-P1: prove the edit model in KMP.
+ *
+ * Covers:
+ *   - Two flows with equal command/event names (orderFlow / orderFlow2)
+ *   - Repeated command bodies (authorizePayment appears in two when-blocks)
+ *   - Two policies with equal endpoints but different @if conditions
+ *   - Mixed AND/OR trigger groups
+ *   - Actor-start flows
+ *   - Ordered calls and on-handlers
+ *   - response / emits / emits-response forms
+ *   - Comments and annotations preserved byte-for-byte
+ *   - Parallel edges (same target command, multiple trigger origins)
+ *
+ * NOTE: The ZFL grammar ID rule is [a-zA-Z_][a-zA-Z0-9_]* (ASCII only).
+ *   Unicode identifiers are therefore not supported by the ZFL lexer/grammar
+ *   and cannot be tested as valid ZFL content.
+ *   This is recorded as an ES-P1 finding: Unicode content in ZFL identifiers
+ *   would require a grammar change (deferred to a future milestone).
+ */
+
+systems {
+    OrderSystem {
+        service OrderService
+    }
+    PaymentSystem {
+        service PaymentService
+    }
+    NotificationSystem {
+        service NotificationService
+    }
+}
+
+/**
+ * Primary order flow - place and fulfil an order.
+ */
+flow orderFlow {
+
+    /** Customer submits their order. */
+    @actor(Customer)
+    start OrderPlaced {
+        orderId String
+    }
+
+    @actor(Scheduler)
+    @time("10 minutes after OrderPlaced")
+    start OrderTimeout {
+    }
+
+    // When the order is placed, create it
+    when OrderPlaced do createOrder {
+        service OrderSystem.OrderService
+        emits OrderCreated
+        emits OrderFailed
+    }
+
+    // Parallel trigger origins: authorizePayment appears for two different whens
+    when OrderCreated do authorizePayment {
+        service PaymentSystem.PaymentService
+        emits PaymentAuthorized
+        emits PaymentDeclined
+    }
+
+    // NOTE: Both policies below share the same endpoint (authorizePayment) but have different conditions.
+    // This tests the "two policies with equal endpoints but different conditions" requirement.
+    @if("less than 3 attempts")
+    when PaymentDeclined do authorizePayment {
+        service PaymentSystem.PaymentService
+        emits PaymentAuthorized
+        emits PaymentDeclined
+    }
+
+    // Ordered calls with on-handlers (response form)
+    when OrderCreated do reserveStock {
+        service OrderSystem.OrderService
+        call checkInventory
+        on InStock emits StockReserved
+        on OutOfStock response StockUnavailable
+    }
+
+    do checkInventory {
+        service OrderSystem.OrderService
+        response InStock
+        response OutOfStock
+    }
+
+    // Mixed AND/OR trigger: PaymentAuthorized and StockReserved (AND group)
+    when PaymentAuthorized and StockReserved do fulfillOrder {
+        service OrderSystem.OrderService
+        emits OrderFulfilled
+    }
+
+    @if("3 or more attempts")
+    when PaymentDeclined do cancelOrder {
+        service OrderSystem.OrderService
+        emits OrderCancelled
+    }
+
+    when OrderFailed do cancelOrder {
+        service OrderSystem.OrderService
+        emits OrderCancelled
+    }
+
+    // emits-response form
+    when OrderFulfilled do sendConfirmation {
+        service NotificationSystem.NotificationService
+        emits response OrderConfirmationSent
+    }
+
+    end {
+        completed: OrderConfirmationSent
+        cancelled: OrderCancelled
+    }
+}
+
+/**
+ * Second flow with intentionally equal command and event names to orderFlow.
+ * Ensures that equal names in different flows never share targets (ZVE-R3).
+ */
+flow orderFlow2 {
+
+    start OrderPlaced {
+        orderId String
+    }
+
+    // Same command name as in orderFlow: createOrder
+    when OrderPlaced do createOrder {
+        service OrderSystem.OrderService
+        emits OrderCreated
+    }
+
+    when OrderCreated do authorizePayment {
+        service PaymentSystem.PaymentService
+        emits PaymentAuthorized
+    }
+
+    when PaymentAuthorized do fulfillOrder {
+        service OrderSystem.OrderService
+        emits OrderFulfilled
+    }
+
+    end {
+        completed: OrderFulfilled
+    }
+}

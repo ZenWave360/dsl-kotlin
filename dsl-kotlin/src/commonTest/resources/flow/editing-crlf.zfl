@@ -1,0 +1,26 @@
+// CRLF line endings fixture for ZVE-R8 byte-for-byte preservation test.
+systems {
+    CrlfSystem {
+        service CrlfService
+    }
+}
+
+flow crlfFlow {
+
+    start CrlfStart {
+    }
+
+    when CrlfStart do processOrder {
+        service CrlfSystem.CrlfService
+        emits OrderProcessed
+    }
+
+    do processOrder {
+        service CrlfSystem.CrlfService
+        emits OrderProcessed
+    }
+
+    end {
+        completed: OrderProcessed
+    }
+}
