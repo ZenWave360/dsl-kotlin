@@ -9,6 +9,7 @@ import io.zenwave360.language.docs.pages.IndexPage
 import io.zenwave360.language.docs.pages.ModulePage
 import io.zenwave360.language.docs.pages.OpenApiPage
 import io.zenwave360.language.docs.pages.PageEntry
+import io.zenwave360.language.docs.pages.PreviewPage
 import io.zenwave360.language.docs.pages.SpecDocument
 import io.zenwave360.language.docs.pages.ZdlDocument
 import io.zenwave360.language.zdl.architecture.ZdlArchitectureReader
@@ -76,6 +77,22 @@ class DslDocs {
 
         return DocsOutput(files.sortedBy { it.path }, problems.toList())
     }
+
+    /**
+     * The Markdown of a single page that previews one ZDL document, for an editor that shows the model beside its text. [generate]
+     * is not involved: it writes a documentation folder, this gives one page whose output does not depend on other files.
+     *
+     * The page is the sections of the domain page that come from the document alone (services, aggregates and their class
+     * diagrams, domain events, commands, glossary), with Mermaid diagrams as fenced `mermaid` blocks. It has no links to other pages,
+     * names no other file, and what the user wrote in the model (descriptions, comments) is escaped, so it cannot bring raw HTML,
+     * images or links into the page; `<script>` shows as text. Same-page links, from the contents and from commands to the glossary, remain.
+     *
+     * Like [generate], it never throws on a bad model: a document with semantic problems (unknown references) still gives its
+     * page, and a syntax error gives the part of the model the parser could read, with a `Problems` block naming each error with
+     * its line. A document with nothing to show gives a page that says so. Line endings are normalized as in [generate].
+     * Runs on every platform, reads no file and gives the same text for the same input.
+     */
+    fun previewZdl(text: String): String = PreviewPage.zdl(normalize(text))
 
     private fun normalize(text: String): String = text.replace("\r\n", "\n").replace('\r', '\n')
 

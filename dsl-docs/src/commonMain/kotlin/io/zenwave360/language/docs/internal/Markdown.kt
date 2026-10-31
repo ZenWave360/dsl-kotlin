@@ -33,6 +33,18 @@ internal object Markdown {
     /** Text on one line: Javadoc and descriptions often span lines, and tables and headings cannot. */
     fun inline(text: String?): String = text.orEmpty().trim().replace(Regex("\\s+"), " ")
 
+    /**
+     * [inline] for text that must not bring markup of its own into the page, as in a preview: backslashes, `<`, `>`, `[` and `]`
+     * are escaped, so raw HTML (`<script>`, `<img src=...>`) and Markdown links and images show as plain text, and `://` is
+     * escaped so a URL is not turned into a link. The text is still readable, and the page has nothing that loads or runs.
+     */
+    fun safeInline(text: String?): String = inline(text)
+        .replace("\\", "\\\\").replace("<", "&lt;").replace(">", "&gt;")
+        .replace("[", "\\[").replace("]", "\\]").replace("://", "\\://")
+
+    /** [javadoc] with the escaping of [safeInline]. */
+    fun safeJavadoc(text: String?): String = safeInline(text.orEmpty().lines().joinToString("\n") { it.trim().removePrefix("*") })
+
     /** Javadoc text on one line. The ZDL parser keeps the leading `*` of continuation lines. */
     fun javadoc(text: String?): String = inline(text.orEmpty().lines().joinToString("\n") { it.trim().removePrefix("*") })
 

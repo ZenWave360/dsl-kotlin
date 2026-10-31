@@ -24,6 +24,9 @@ import io.zenwave360.language.zdl.view.ZdlTypeKind
  * [moduleId] is this module's id (null when the architecture has none for the file). [resolvedAdapters]
  * gives the adapters of a command with the owner module of listener and AsyncAPI events resolved (null:
  * use the unresolved ones). [modulePage] is the page of a module, relative to this page.
+ *
+ * With [safe] the text the user wrote (descriptions, names) goes through [Markdown.safeInline] and [Markdown.safeJavadoc],
+ * so it cannot add HTML, images or links to the page; see there.
  */
 internal class ModuleContent(
     private val domain: ZdlDomain,
@@ -31,7 +34,12 @@ internal class ModuleContent(
     private val moduleId: String? = null,
     private val resolvedAdapters: (service: String, method: String) -> List<CommandAdapter>? = { _, _ -> null },
     private val modulePage: (moduleId: String) -> String? = { null },
+    private val safe: Boolean = false,
 ) {
+
+    private fun inline(text: String?): String = if (safe) Markdown.safeInline(text) else Markdown.inline(text)
+
+    private fun javadoc(text: String?): String = if (safe) Markdown.safeJavadoc(text) else Markdown.javadoc(text)
 
     /** `## Architecture`: the module flowchart, or nothing when the module has no commands or events. */
     fun architecture(architecture: ZdlArchitecture, moduleId: String): String {
@@ -53,8 +61,8 @@ internal class ModuleContent(
             append(anchors.heading(2, "Services"))
             append("Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.\n\n")
             for ((service, diagram) in domain.services.zip(diagrams)) {
-                append(anchors.heading(3, Markdown.inline(service.name)))
-                service.javadoc?.let { append(Markdown.javadoc(it)).append("\n\n") }
+                append(anchors.heading(3, inline(service.name)))
+                service.javadoc?.let { append(javadoc(it)).append("\n\n") }
                 diagram.mermaid?.let { append(Markdown.mermaid(it)).append('\n') }
                 diagram.queriesLine?.let { append(it).append("\n\n") }
             }
@@ -70,7 +78,7 @@ internal class ModuleContent(
             append(anchors.heading(2, "Aggregates"))
             append("Each aggregate root with the entities and enums it owns, and how they relate.\n\n")
             for (diagram in classes.aggregates) {
-                append(anchors.heading(3, Markdown.inline(diagram.aggregate)))
+                append(anchors.heading(3, inline(diagram.aggregate)))
                 append(Markdown.mermaid(diagram.mermaid)).append('\n')
                 lifecycles[diagram.aggregate]?.let { lifecycle ->
                     append(anchors.heading(4, "Lifecycle"))
@@ -109,13 +117,13 @@ internal class ModuleContent(
             append(anchors.heading(2, "Commands"))
             append("The methods of the module's services, the events each one emits and what triggers it.\n\n")
             for (service in services) {
-                if (services.size > 1) append(anchors.heading(3, Markdown.inline(service.name)))
+                if (services.size > 1) append(anchors.heading(3, inline(service.name)))
                 val rows = service.methods.map { m ->
                     listOf(
                         m.name, input(m), returns(m),
                         m.events.joinToString(", ") { group -> group.joinToString(" | ") { anchors.link("event:$it", it) } },
                         (resolvedAdapters(service.name, m.name) ?: m.adapters).joinToString("<br>") { adapter(it) },
-                        Markdown.javadoc(m.javadoc),
+                        javadoc(m.javadoc),
                     )
                 }
                 append(Markdown.table(headers, rows)).append('\n')
@@ -170,9 +178,9 @@ internal class ModuleContent(
             if (enums.isNotEmpty()) {
                 append(anchors.heading(3, "Enums"))
                 for (e in enums) {
-                    append(anchors.heading(4, Markdown.inline(e.name), "type:${e.name}"))
-                    e.javadoc?.let { append(Markdown.javadoc(it)).append("\n\n") }
-                    val rows = domain.enumValues(e.name).map { v -> listOf(if (v.value != null) "${v.name} (${v.value})" else v.name, Markdown.javadoc(v.javadoc)) }
+                    append(anchors.heading(4, inline(e.name), "type:${e.name}"))
+                    e.javadoc?.let { append(javadoc(it)).append("\n\n") }
+                    val rows = domain.enumValues(e.name).map { v -> listOf(if (v.value != null) "${v.name} (${v.value})" else v.name, javadoc(v.javadoc)) }
                     append(Markdown.table(listOf("Value", "Description"), rows)).append('\n')
                 }
             }
@@ -187,8 +195,8 @@ internal class ModuleContent(
             if (events.isNotEmpty()) {
                 append(anchors.heading(3, "Domain events"))
                 for (event in events) {
-                    append(anchors.heading(4, Markdown.inline(event.name), "event:${event.name}"))
-                    event.javadoc?.let { append(Markdown.javadoc(it)).append("\n\n") }
+                    append(anchors.heading(4, inline(event.name), "event:${event.name}"))
+                    event.javadoc?.let { append(javadoc(it)).append("\n\n") }
                     val where = listOfNotNull(event.channel?.let { "Channel: ${Markdown.code(it)}." }, event.topic?.let { "Topic: ${Markdown.code(it)}." })
                     if (where.isNotEmpty()) append(where.joinToString(" ")).append("\n\n")
                     append(fieldTable(event.name)).append('\n')
@@ -202,14 +210,14 @@ internal class ModuleContent(
 
     /** `#### <Type>`, an optional kind line, its javadoc and its field table. */
     private fun term(type: String, kind: String?): String = buildString {
-        append(anchors.heading(4, Markdown.inline(type), "type:$type"))
+        append(anchors.heading(4, inline(type), "type:$type"))
         kind?.let { append(it).append("\n\n") }
-        domain.types[type]?.javadoc?.let { append(Markdown.javadoc(it)).append("\n\n") }
+        domain.types[type]?.javadoc?.let { append(javadoc(it)).append("\n\n") }
         append(fieldTable(type)).append('\n')
     }
 
     private fun fieldTable(type: String): String =
-        Markdown.table(listOf("Field", "Type", "Description"), domain.fieldsOf(type).map { f -> listOf(f.name, fieldType(f), Markdown.javadoc(f.javadoc)) })
+        Markdown.table(listOf("Field", "Type", "Description"), domain.fieldsOf(type).map { f -> listOf(f.name, fieldType(f), javadoc(f.javadoc)) })
 
     private fun fieldType(f: ZdlField): String = (if (f.json) "@json " else "") + typeLink(f.type, f.isArray)
 }
