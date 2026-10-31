@@ -109,11 +109,16 @@ internal object PluginResolution {
         else -> value.toString()
     }
 
+    /** The largest integer a JavaScript number holds exactly, 2^53 - 1: the boundary of `NodeJsExports.kt`, which `model.ts` reads. */
+    private const val MAX_SAFE_INTEGER = 9007199254740991L
+
     private fun toJson(value: Any?): JsonElement = when (value) {
         null -> JsonNull
         is Map<*, *> -> JsonObject(value.entries.associate { (k, v) -> k.toString() to toJson(v) })
         is List<*> -> JsonArray(value.map { toJson(it) })
         is Boolean -> JsonPrimitive(value)
+        // The client turns an integer outside JavaScript's safe range into its exact decimal string (sdk/model.ts).
+        is Long -> if (value in -MAX_SAFE_INTEGER..MAX_SAFE_INTEGER) JsonPrimitive(value) else JsonPrimitive(value.toString())
         is Number -> JsonPrimitive(value)
         else -> JsonPrimitive(value.toString())
     }

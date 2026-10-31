@@ -29,8 +29,9 @@ internal object ZwPreviewPage {
     }
 
     private fun build(document: ZdlDocument, model: PluginModel, catalogue: PluginCatalogue?, anchors: Anchors): String = buildString {
-        val title = document.title?.let { Markdown.safeInline(it) }?.takeIf { it.isNotEmpty() } ?: TITLE
-        append("# ").append(title).append("\n\n")
+        val title = document.title?.let { Markdown.safeHeading(it) }?.takeIf { it.isNotEmpty() } ?: TITLE
+        // The client numbers repeated slugs over every heading, the title included.
+        append(anchors.heading(1, title))
         document.model.string("javadoc")?.let { append(Markdown.safeJavadoc(it)).append("\n\n") }
         append(Markdown.problems(document.problems.map { Markdown.safeInline(it) }))
 
@@ -67,7 +68,7 @@ internal object ZwPreviewPage {
         append("Each plugin in the order the file declares them, with what it is for, its own options and the options it ends up with.\n\n")
         for (plugin in model.plugins) {
             val entry = catalogue?.plugin(plugin.name)
-            append(anchors.heading(3, Markdown.safeInline(plugin.name) + if (plugin.disabled) " (disabled)" else ""))
+            append(anchors.heading(3, Markdown.safeHeading(plugin.name + if (plugin.disabled) " (disabled)" else "")))
             if (plugin.disabled) append("Disabled: it does not run.\n\n")
             if (!plugin.inherit) append("Declared `(inherit false)`: it inherits nothing from the `config` block.\n\n")
             append(about(entry, catalogue))

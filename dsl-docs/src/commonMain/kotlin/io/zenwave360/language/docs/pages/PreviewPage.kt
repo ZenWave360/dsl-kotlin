@@ -27,8 +27,9 @@ internal object PreviewPage {
     }
 
     private fun build(document: ZdlDocument, domain: ZdlDomain, anchors: Anchors): String = buildString {
-        val title = document.title?.let { Markdown.safeInline(it) }?.takeIf { it.isNotEmpty() } ?: TITLE
-        append("# ").append(title).append("\n\n")
+        val title = document.title?.let { Markdown.safeHeading(it) }?.takeIf { it.isNotEmpty() } ?: TITLE
+        // The client numbers repeated slugs over every heading, the title included.
+        append(anchors.heading(1, title))
         document.model.string("javadoc")?.let { append(Markdown.safeJavadoc(it)).append("\n\n") }
         append(Markdown.problems(document.problems.map { Markdown.safeInline(it) }))
 
