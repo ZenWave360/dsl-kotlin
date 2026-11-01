@@ -1,103 +1,98 @@
 package io.zenwave360.language.zfl.editing
 
 import io.zenwave360.language.antlr.ZflBaseListener
+import io.zenwave360.language.antlr.ZflLexer
 import io.zenwave360.language.antlr.ZflParser as AntlrParser
 import io.zenwave360.language.zfl.ZflParser
-import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
 import io.zenwave360.language.zfl.semantic.Severity
-import org.antlr.v4.kotlinruntime.CommonTokenStream
+import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
+import org.antlr.v4.kotlinruntime.CharStreams
 import org.antlr.v4.kotlinruntime.ParserRuleContext
+import org.antlr.v4.kotlinruntime.Token
 import org.antlr.v4.kotlinruntime.tree.ParseTreeWalker
+import org.antlr.v4.kotlinruntime.tree.TerminalNode
 
 /**
  * Prototype edit engine for ZFL visual editing (ES-P1).
  *
- * Implements three operations over original parsed text using the ANTLR parse tree
- * and CommonTokenStream for precise character ranges. Returns [ZflEditResult] objects
- * containing non-overlapping [ZflTextEdit]s without mutating the input.
+ * Implements three operations over the original text, using the ANTLR parse tree for the
+ * source ranges. Each returns a [ZflEditResult] with non-overlapping [ZflTextEdit]s and never
+ * mutates its input. All offsets in the results are UTF-16 code-unit indexes into the source
+ * string, the indexes `String` uses in Kotlin and JavaScript.
  *
  * Supported (ES-P1):
- *   1. [addEmissionToOccurrence] – add `emits SomeEvent` to a named command occurrence.
- *   2. [changePolicyTrigger] – replace the trigger expression of a named when-block.
- *   3. [renameCommand] – rename a command throughout the flow, with identity mapping.
+ *   1. [addEmissionToOccurrence] adds an unconditional `emits SomeEvent` to a command occurrence.
+ *   2. [changePolicyTrigger] replaces the trigger of a `when` block.
+ *   3. [renameCommand] renames a command throughout one flow, with identity mapping.
  *
- * Unsupported / deferred to ES-P2:
- *   - Adding/removing commands (requires service selection: ZVE-Q2)
- *   - Creating policies atomically (requires full atomic form: ZVE-R5)
- *   - Deleting commands or events (requires cascade/reference analysis: ZVE-R7)
- *   - Adding/removing policy triggers (add/remove one event from a trigger group)
- *   - Cross-flow renames
- *   - Renaming start events or emitted events
- *   - Setting a policy's target command
- *   - Scoped renames with cascade reporting
- *   - Response form edits
- *   - Undo idempotency checks (operation-id dedup: ZVE-R4 / ES-P2)
- *   - Capability advertisement (ZVE-R12 / ES-P2)
- *   - Revision token enforcement (transport layer: ES-P4)
+ * Recorded limitations. Each is an explicit rejection, never an accepted wrong result:
+ *   - An occurrence written as `when X do Y` without a body cannot receive an emission.
+ *   - A trigger change that alters the group structure of an expression holding comments.
+ *   - A rename of a command listed in a `systems` `commands:` list (shared across flows).
+ *   - A rename onto a name already used as a command in the flow.
+ *   - A rename when a quoted `@compensates("name")` refers to the command.
  *
- * spec:flows/zfl-visual-editing.md#zve-r3, #zve-r4, #zve-r5, #zve-r8, #zve-r13
+ * Deferred to ES-P2:
+ *   - Adding/removing commands (service selection: ZVE-Q2) and creating policies atomically
+ *   - Deleting commands or events (cascade/reference analysis: ZVE-R7)
+ *   - Adding/removing single policy triggers, setting a policy's target command
+ *   - Cross-flow and scoped renames, renaming start or emitted events, response form edits
+ *   - Operation-id dedup (ZVE-R4), capability advertisement (ZVE-R12), revision tokens (ES-P4)
+ *
+ * spec:flows/zfl-visual-editing#zve-r3
+ * spec:flows/zfl-visual-editing#zve-r4
+ * spec:flows/zfl-visual-editing#zve-r5
+ * spec:flows/zfl-visual-editing#zve-r8
+ * spec:flows/zfl-visual-editing#zve-r13
  */
 class ZflEditor {
 
     // -------------------------------------------------------------------------
-    // Operation 1: Add an emission to a named command occurrence
+    // Operation 1: Add an emission to a command occurrence
     // -------------------------------------------------------------------------
 
     /**
-     * Adds `emits [eventName]` to the body of the command occurrence identified by
-     * [flowName] and [occurrenceKey].
+     * Adds `emits [eventName]` to the body of the command occurrence selected by [flowName],
+     * [occurrenceKey] and, when needed, [disambiguationIndex].
      *
-     * [occurrenceKey] must match one of the `occurrenceKey` values produced by the
-     * semantic analyzer (e.g. "doCommand@definition" or "doCommand@when[TriggerA,TriggerB]").
-     * If the occurrence already emits [eventName] the call is a no-op.
+     * [occurrenceKey] uses the analyzer's occurrence keys (`ZflCommandOccurrence.key`): `name@definition`
+     * or `name@when[A,B]` (distinct triggers, sorted), with `#2`, `#3`... for repeated blocks.
+     * A key with a `#n` suffix selects that block. A key without one selects a block only when exactly
+     * one block has that key; with several, the selection is ambiguous and is rejected unless
+     * [disambiguationIndex] (0-based, in source order among the blocks sharing the key) says which one.
      *
-     * An occurrence that has no explicit `do` body cannot receive an emission;
-     * operations on such occurrences are rejected.
+     * The emission is unconditional. An unannotated `emits` of the same event already in the body
+     * makes the call a no-op. A `response`, an `on X emits` or an `@outcome` emission does not.
      *
-     * spec:flows/zfl-visual-editing.md#zve-r4, #zve-r5, #zve-r8, #zve-r13
+     * spec:flows/zfl-visual-editing#zve-r5
+     * spec:flows/zfl-visual-editing#zve-r8
+     * spec:flows/zfl-visual-editing#zve-r13
      */
     fun addEmissionToOccurrence(
         source: String,
         flowName: String,
         occurrenceKey: String,
-        eventName: String
+        eventName: String,
+        disambiguationIndex: Int? = null
     ): ZflEditResult {
-        val parseResult = ZflParser().parse(source)
-        if (parseResult.syntaxProblems.isNotEmpty()) {
-            return ZflEditResult.rejected("Source has syntax errors; cannot apply edits.")
+        if (!isIdentifier(eventName)) return ZflEditResult.rejected(notAnIdentifier("event name", eventName))
+        val scan = scanFlow(source, flowName) ?: return syntaxRejection()
+        scan.flowRejection(flowName)?.let { return it }
+
+        val target = when (val selection = select(scan.blocks, flowName, occurrenceKey, disambiguationIndex, "Occurrence")) {
+            is Selection.Rejected -> return selection.result
+            is Selection.Chosen -> selection.block
         }
+        val body = target.body ?: return ZflEditResult.rejected(
+            "Occurrence '${target.key}' has no body; an emission cannot be added to `when X do Y` written " +
+                "without a body (unsupported until ES-P2)."
+        )
 
-        val collector = OccurrenceCollector(flowName)
-        ParseTreeWalker.DEFAULT.walk(collector, parseResult.tree)
+        // Already emitted unconditionally from this occurrence? No-op (ZVE-R8)
+        if (eventName in target.unconditionalEmits) return ZflEditResult.noOp()
 
-        val target = collector.occurrences.find { it.key == occurrenceKey }
-            ?: return ZflEditResult.rejected(
-                "Occurrence '$occurrenceKey' not found in flow '$flowName'."
-            )
-
-        if (!target.hasBody) {
-            return ZflEditResult.rejected(
-                "Occurrence '$occurrenceKey' has no explicit do-body; cannot add an emission. " +
-                "Occurrences declared only as `when X do Y` without a body block are unsupported for this operation (ES-P2)."
-            )
-        }
-
-        // Already emitting this event from this occurrence? → no-op (ZVE-R8)
-        if (eventName in target.emittedEvents) {
-            return ZflEditResult.noOp()
-        }
-
-        // Insert before the closing brace of the do-body.
-        // Preserve indentation: detect the indent used for the last statement, or default to 8 spaces.
-        val indent = detectIndent(source, target.bodyEnd)
-        val insertion = "${indent}emits $eventName\n"
-        val edit = ZflTextEdit(start = target.bodyEnd, end = target.bodyEnd, replacement = insertion)
-
-        val candidate = applyEdits(source, listOf(edit))
-        val validationResult = validateZfl(candidate)
-        if (!validationResult.accepted) return validationResult
-
-        return ZflEditResult(accepted = true, edits = listOf(edit))
+        val edit = emissionEdit(source, body, eventName)
+        return finish(source, listOf(edit), emptyList())
     }
 
     // -------------------------------------------------------------------------
@@ -105,22 +100,17 @@ class ZflEditor {
     // -------------------------------------------------------------------------
 
     /**
-     * Replaces the trigger expression of the `when` block identified by [flowName]
-     * and [policyKey] with [newTriggers].
+     * Replaces the trigger expression of the `when` block selected by [flowName], [policyKey] and,
+     * when needed, [disambiguationIndex] (selection works as in [addEmissionToOccurrence]) with
+     * [newTriggers]: groups joined by `and`, each group's events joined by its separator.
      *
-     * [policyKey] identifies the when-block to change. It is formed as
-     * `commandName@when[trigger1,trigger2,...]` (sorted triggers) matching the
-     * occurrence key produced by the semantic analyzer.  When two policies have the
-     * same command and sorted triggers (equal keys), the operation is AMBIGUOUS and
-     * is rejected; the caller must supply [disambiguationIndex] (0-based) to select
-     * the nth among them.
+     * When the new expression has the same group structure as the old one, only the event names that
+     * differ are edited, so spacing and comments between them stay. An unchanged expression is a no-op.
+     * A structural change rewrites the whole expression and is rejected if the old one holds comments.
      *
-     * [newTriggers] is the structured trigger data: a list of groups, each group
-     * being a list of event names with a separator ("," for AND-groups, "|" for OR).
-     * AND-groups joined by `and`; within a group the separator is used literally.
-     * Single flat list with no separator defaults to comma-separated in one group.
-     *
-     * spec:flows/zfl-visual-editing.md#zve-r6, #zve-r8, #zve-r13
+     * spec:flows/zfl-visual-editing#zve-r6
+     * spec:flows/zfl-visual-editing#zve-r8
+     * spec:flows/zfl-visual-editing#zve-r13
      */
     fun changePolicyTrigger(
         source: String,
@@ -129,55 +119,35 @@ class ZflEditor {
         newTriggers: List<TriggerGroup>,
         disambiguationIndex: Int? = null
     ): ZflEditResult {
-        val parseResult = ZflParser().parse(source)
-        if (parseResult.syntaxProblems.isNotEmpty()) {
-            return ZflEditResult.rejected("Source has syntax errors; cannot apply edits.")
+        triggerInputRejection(newTriggers)?.let { return it }
+        val scan = scanFlow(source, flowName) ?: return syntaxRejection()
+        scan.flowRejection(flowName)?.let { return it }
+
+        val whens = scan.blocks.filter { it.trigger != null }
+        val target = when (val selection = select(whens, flowName, policyKey, disambiguationIndex, "Policy")) {
+            is Selection.Rejected -> return selection.result
+            is Selection.Chosen -> selection.block
         }
+        val old = target.trigger!!
 
-        val collector = WhenCollector(flowName)
-        ParseTreeWalker.DEFAULT.walk(collector, parseResult.tree)
-
-        val matching = collector.whens.filter { it.key == policyKey }
-        when {
-            matching.isEmpty() -> return ZflEditResult.rejected(
-                "Policy '$policyKey' not found in flow '$flowName'."
-            )
-            matching.size > 1 && disambiguationIndex == null -> return ZflEditResult.rejected(
-                "Policy '$policyKey' is ambiguous: ${matching.size} when-blocks share this key in flow '$flowName'. " +
-                "Supply disambiguationIndex to select the intended one. " +
-                "This is required by ZVE-R13: parallel edges need explicit origin selection."
-            )
+        val sameStructure = old.groups.size == newTriggers.size && old.groups.zip(newTriggers).all { (o, n) ->
+            o.wellFormed && o.events.size == n.events.size && (o.events.size == 1 || o.separator == n.separator)
         }
-
-        val target = if (disambiguationIndex != null) {
-            matching.getOrNull(disambiguationIndex)
-                ?: return ZflEditResult.rejected(
-                    "disambiguationIndex=$disambiguationIndex out of range for policy '$policyKey' (found ${matching.size})."
-                )
+        val edits = if (sameStructure) {
+            old.groups.flatMap { it.events }.zip(newTriggers.flatMap { it.events })
+                .filter { (token, name) -> token.text != name }
+                .map { (token, name) -> ZflTextEdit(token.start, token.end, name) }
         } else {
-            matching.first()
+            if (old.hasComments) {
+                return ZflEditResult.rejected(
+                    "The trigger of '${target.key}' holds comments, and the change alters its structure; " +
+                        "rewriting it would remove them (unsupported until ES-P2)."
+                )
+            }
+            listOf(ZflTextEdit(old.start, old.end, buildTriggerText(newTriggers)))
         }
-
-        // Build the new trigger text
-        val newTriggerText = buildTriggerText(newTriggers)
-
-        // If unchanged → no-op (ZVE-R8)
-        val oldTriggerText = source.substring(target.triggerStart, target.triggerEnd)
-        if (oldTriggerText.trim() == newTriggerText.trim()) {
-            return ZflEditResult.noOp()
-        }
-
-        val edit = ZflTextEdit(
-            start = target.triggerStart,
-            end = target.triggerEnd,
-            replacement = newTriggerText
-        )
-
-        val candidate = applyEdits(source, listOf(edit))
-        val validationResult = validateZfl(candidate)
-        if (!validationResult.accepted) return validationResult
-
-        return ZflEditResult(accepted = true, edits = listOf(edit))
+        if (edits.isEmpty()) return ZflEditResult.noOp()
+        return finish(source, edits, emptyList())
     }
 
     // -------------------------------------------------------------------------
@@ -185,14 +155,17 @@ class ZflEditor {
     // -------------------------------------------------------------------------
 
     /**
-     * Renames the command [oldName] to [newName] within [flowName], updating all
-     * occurrences in do-headers, when-headers, call statements, and on-handlers.
+     * Renames the command [oldName] within [flowName], updating its `do` and `when ... do` headers,
+     * `call` and `on X call` targets and unquoted `@compensates(...)` values.
      *
-     * Returns an [ZflIdentityMapping] so visual selection survives the rename (ZVE-R3).
-     * Other flows in the same document are not touched (ZVE-R7).
-     * If [oldName] is not found in [flowName] the operation is rejected.
+     * Returns an [ZflIdentityMapping] so that selection survives the rename (ZVE-R3). Other flows are
+     * not touched (ZVE-R7). The operation is rejected when [oldName] is not a command of the flow,
+     * when [newName] is not one ASCII identifier, when [newName] already names or is called as a
+     * command in the flow, and in the recorded limitations listed on [ZflEditor].
      *
-     * spec:flows/zfl-visual-editing.md#zve-r3, #zve-r7, #zve-r8
+     * spec:flows/zfl-visual-editing#zve-r3
+     * spec:flows/zfl-visual-editing#zve-r7
+     * spec:flows/zfl-visual-editing#zve-r8
      */
     fun renameCommand(
         source: String,
@@ -200,352 +173,453 @@ class ZflEditor {
         oldName: String,
         newName: String
     ): ZflEditResult {
-        if (oldName == newName) return ZflEditResult.noOp()
+        if (!isIdentifier(newName)) return ZflEditResult.rejected(notAnIdentifier("command name", newName))
+        val scan = scanFlow(source, flowName, oldName) ?: return syntaxRejection()
+        scan.flowRejection(flowName)?.let { return it }
 
-        val parseResult = ZflParser().parse(source)
-        if (parseResult.syntaxProblems.isNotEmpty()) {
-            return ZflEditResult.rejected("Source has syntax errors; cannot apply edits.")
-        }
-
-        val collector = CommandRefCollector(flowName, oldName)
-        ParseTreeWalker.DEFAULT.walk(collector, parseResult.tree)
-
-        if (!collector.foundDeclaration) {
+        if (oldName !in scan.declared) {
             return ZflEditResult.rejected(
                 "Command '$oldName' is not declared in flow '$flowName'. " +
-                "Only flow-local commands (do-blocks) can be renamed here."
+                    "Only flow-local commands (do-blocks) can be renamed here."
+            )
+        }
+        if (oldName == newName) return ZflEditResult.noOp()
+
+        if (newName in scan.commandRefs.keys) {
+            return ZflEditResult.rejected(
+                "Command '$newName' already exists in flow '$flowName'; renaming '$oldName' onto it would merge two commands."
+            )
+        }
+        if (oldName in scan.listedCommands) {
+            return ZflEditResult.rejected(
+                "Command '$oldName' is listed in a systems `commands:` list, which is shared across flows; " +
+                    "renaming it here would leave that list stale (scoped rename: unsupported until ES-P2)."
+            )
+        }
+        if (scan.quotedCompensates) {
+            return ZflEditResult.rejected(
+                "A quoted @compensates value refers to '$oldName'; renaming it would leave that reference stale " +
+                    "(unsupported until ES-P2)."
             )
         }
 
-        if (collector.refs.isEmpty()) {
-            return ZflEditResult.noOp()
-        }
-
-        // Build non-overlapping edits sorted by start offset
-        val edits = collector.refs
-            .sortedBy { it.first }
+        val edits = scan.commandRefs.getValue(oldName).sortedBy { it.first }
             .map { (start, end) -> ZflTextEdit(start, end, newName) }
+        val mapping = ZflIdentityMapping(flowName = flowName, kind = "command", oldName = oldName, newName = newName)
+        return finish(source, edits, listOf(mapping))
+    }
 
-        val candidate = applyEdits(source, edits)
-        val validationResult = validateZfl(candidate)
-        if (!validationResult.accepted) return validationResult
+    // -------------------------------------------------------------------------
+    // Targeting
+    // -------------------------------------------------------------------------
 
-        val mapping = ZflIdentityMapping(
-            flowName = flowName,
-            kind = "command",
-            oldName = oldName,
-            newName = newName
+    /** The analyzer-compatible occurrence keys of [flowName], in source order. For tests. */
+    internal fun occurrenceKeys(source: String, flowName: String): List<String> =
+        scanFlow(source, flowName)?.blocks?.map { it.key } ?: emptyList()
+
+    private sealed class Selection {
+        class Chosen(val block: Block) : Selection()
+        class Rejected(val result: ZflEditResult) : Selection()
+    }
+
+    private fun select(
+        blocks: List<Block>,
+        flowName: String,
+        key: String,
+        index: Int?,
+        label: String
+    ): Selection {
+        if (EXPLICIT_KEY.containsMatchIn(key)) {
+            if (index != null) {
+                return Selection.Rejected(ZflEditResult.rejected(
+                    "$label '$key' already selects one block with its #n suffix; disambiguationIndex cannot be combined with it."
+                ))
+            }
+            val block = blocks.find { it.key == key }
+                ?: return Selection.Rejected(ZflEditResult.rejected("$label '$key' not found in flow '$flowName'."))
+            return Selection.Chosen(block)
+        }
+        val candidates = blocks.filter { it.baseKey == key }
+        if (candidates.isEmpty()) {
+            return Selection.Rejected(ZflEditResult.rejected("$label '$key' not found in flow '$flowName'."))
+        }
+        if (index == null) {
+            if (candidates.size > 1) {
+                return Selection.Rejected(ZflEditResult.rejected(
+                    "$label '$key' is ambiguous: ${candidates.size} blocks in flow '$flowName' share this key. " +
+                        "Select one with disambiguationIndex (0..${candidates.size - 1}, in source order) " +
+                        "or with the analyzer's '#n' key. The editor does not guess (ZVE-R13)."
+                ))
+            }
+            return Selection.Chosen(candidates.single())
+        }
+        val block = candidates.getOrNull(index)
+            ?: return Selection.Rejected(ZflEditResult.rejected(
+                "disambiguationIndex=$index is out of range for '$key' in flow '$flowName' (found ${candidates.size})."
+            ))
+        return Selection.Chosen(block)
+    }
+
+    // -------------------------------------------------------------------------
+    // Validation
+    // -------------------------------------------------------------------------
+
+    private fun syntaxRejection() = ZflEditResult.rejected("Source has syntax errors; cannot apply edits.")
+
+    private class Analysis(
+        val syntaxErrors: List<String>,
+        val errors: List<String>,
+        val warnings: List<String>,
+        val problems: Map<String, Int>
+    )
+
+    private fun analyze(text: String): Analysis {
+        val parser = ZflParser()
+        val syntax = parser.parse(text).syntaxProblems.map { it["message"]?.toString() ?: "syntax error" }
+        if (syntax.isNotEmpty()) return Analysis(syntax, emptyList(), emptyList(), emptyMap())
+        val model = parser.parseModel(text)
+        val semantic = ZflSemanticAnalyzer().analyze(model)
+        return Analysis(
+            syntaxErrors = emptyList(),
+            errors = semantic.diagnostics.filter { it.severity == Severity.ERROR }.map { it.message },
+            warnings = semantic.diagnostics.filter { it.severity == Severity.WARNING }.map { it.message },
+            problems = model.getProblems().groupingBy { "${it["message"]}|${it["value"]}" }.eachCount()
         )
-
-        return ZflEditResult(accepted = true, edits = edits, identityMappings = listOf(mapping))
     }
-
-    // -------------------------------------------------------------------------
-    // Validation helper
-    // -------------------------------------------------------------------------
-
-    /** Re-parses the candidate text and checks for syntax errors and ERROR-severity diagnostics. */
-    private fun validateZfl(candidate: String): ZflEditResult {
-        val pr = ZflParser().parse(candidate)
-        if (pr.syntaxProblems.isNotEmpty()) {
-            val msgs = pr.syntaxProblems.map { it["message"]?.toString() ?: "syntax error" }
-            return ZflEditResult.rejected("Edit produces syntax errors: ${msgs.joinToString("; ")}")
-        }
-        val semantic = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(candidate))
-        val errors = semantic.diagnostics.filter { it.severity == Severity.ERROR }
-        if (errors.isNotEmpty()) {
-            val msgs = errors.map { it.message }
-            return ZflEditResult.rejected("Edit produces semantic errors: ${msgs.joinToString("; ")}")
-        }
-        return ZflEditResult(accepted = true)
-    }
-
-    // -------------------------------------------------------------------------
-    // Indent detection
-    // -------------------------------------------------------------------------
 
     /**
-     * Scans backwards from [position] to find the indentation used on the preceding
-     * non-empty line, then returns that same prefix.  Falls back to 8 spaces.
+     * Applies [edits] to a copy of [source], re-parses and re-analyzes it, and accepts only text without
+     * syntax errors, error diagnostics or parser problems that the original did not have. Warnings the
+     * edit introduces are returned in the accepted result (ZVE-R5).
      */
-    private fun detectIndent(source: String, position: Int): String {
-        // Walk back to find the start of the previous line
-        var i = (position - 1).coerceAtLeast(0)
-        // Skip over any whitespace before position (the closing brace line)
-        while (i > 0 && source[i] in " \t") i--
-        // Skip to end of previous line content
-        while (i > 0 && source[i] != '\n') i--
-        if (i == 0) return "        " // default
-        i-- // move past the '\n'
-        while (i > 0 && source[i] != '\n') i--
-        val lineStart = if (source[i] == '\n') i + 1 else 0
-        val sb = StringBuilder()
-        var j = lineStart
-        while (j < source.length && source[j] in " \t") {
-            sb.append(source[j])
-            j++
+    private fun finish(source: String, edits: List<ZflTextEdit>, mappings: List<ZflIdentityMapping>): ZflEditResult {
+        val candidate = analyze(applyEdits(source, edits))
+        if (candidate.syntaxErrors.isNotEmpty()) {
+            return ZflEditResult.rejected("Edit produces syntax errors: ${candidate.syntaxErrors.joinToString("; ")}")
         }
-        return if (sb.isEmpty()) "        " else sb.toString()
+        if (candidate.errors.isNotEmpty()) {
+            return ZflEditResult.rejected("Edit produces semantic errors: ${candidate.errors.joinToString("; ")}")
+        }
+        val original = analyze(source)
+        val introduced = candidate.problems.filter { (message, count) -> count > (original.problems[message] ?: 0) }.keys
+        if (introduced.isNotEmpty()) {
+            return ZflEditResult.rejected(
+                "Edit produces model problems: ${introduced.joinToString("; ") { it.substringBefore('|') }}"
+            )
+        }
+        val newWarnings = candidate.warnings - original.warnings.toSet()
+        return ZflEditResult(
+            accepted = true,
+            edits = edits,
+            diagnostics = newWarnings.map { ZflEditDiagnostic(EditSeverity.WARNING, it) },
+            identityMappings = mappings
+        )
+    }
+
+    /** True when [name] is exactly one ZFL `ID` token: ASCII, not a keyword, nothing else (ZVE-R5). */
+    private fun isIdentifier(name: String): Boolean {
+        val lexer = ZflLexer(CharStreams.fromString(name))
+        lexer.removeErrorListeners()
+        val first = lexer.nextToken()
+        return first.type == ZflLexer.Tokens.ID && first.text == name && lexer.nextToken().type == Token.EOF
+    }
+
+    private fun notAnIdentifier(what: String, name: String) =
+        "'$name' is not a valid $what: ZFL identifiers are one ASCII token of letters, digits and '_', " +
+            "not starting with a digit and not a keyword."
+
+    private fun triggerInputRejection(groups: List<TriggerGroup>): ZflEditResult? {
+        if (groups.isEmpty() || groups.any { it.events.isEmpty() }) {
+            return ZflEditResult.rejected("A trigger needs at least one group, and every group at least one event.")
+        }
+        val events = groups.flatMap { it.events }
+        events.firstOrNull { !isIdentifier(it) }?.let { return ZflEditResult.rejected(notAnIdentifier("event name", it)) }
+        events.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.firstOrNull()?.let {
+            return ZflEditResult.rejected("Duplicate trigger event '$it'.")
+        }
+        return null
     }
 
     // -------------------------------------------------------------------------
-    // Trigger text builder
+    // Text builders
     // -------------------------------------------------------------------------
 
-    private fun buildTriggerText(groups: List<TriggerGroup>): String {
-        return groups.joinToString(" and ") { group ->
-            group.events.joinToString(group.separator)
+    private fun buildTriggerText(groups: List<TriggerGroup>): String =
+        groups.joinToString(" and ") { group ->
+            group.events.joinToString(if (group.separator == TriggerSeparator.OR) " | " else ", ")
         }
+
+    /**
+     * Builds the insertion of `emits [eventName]` before the closing brace of [body].
+     *
+     * When the closing brace is the first thing on its line the new statement gets its own line, before
+     * the brace line, indented like the last statement (or one level inside the brace) and ended with the
+     * file's own line break. Otherwise the body is on one line and the statement follows the last token.
+     */
+    private fun emissionEdit(source: String, body: BodyInfo, eventName: String): ZflTextEdit {
+        val rbrace = body.rbraceStart
+        var lineStart = rbrace
+        while (lineStart > 0 && source[lineStart - 1] in " \t") lineStart--
+        val braceOwnsLine = lineStart == 0 || source[lineStart - 1] == '\n'
+        if (braceOwnsLine) {
+            val braceIndent = source.substring(lineStart, rbrace)
+            val indent = body.lastStatementStart?.let { leadingIndent(source, it) }
+                ?: (braceIndent + if ('\t' in braceIndent) "\t" else "    ")
+            val eol = if (lineStart >= 2 && source[lineStart - 2] == '\r') "\r\n" else "\n"
+            return ZflTextEdit(lineStart, lineStart, "${indent}emits $eventName$eol")
+        }
+        val at = body.lastStatementEnd ?: body.lbraceEnd
+        val trailing = if (source.getOrNull(at) == '}') " " else ""
+        return ZflTextEdit(at, at, " emits $eventName$trailing")
+    }
+
+    /** The whitespace before [offset] on its line, or null when other text precedes it on that line. */
+    private fun leadingIndent(source: String, offset: Int): String? {
+        var i = offset
+        while (i > 0 && source[i - 1] in " \t") i--
+        return if (i == 0 || source[i - 1] == '\n') source.substring(i, offset) else null
+    }
+
+    private companion object {
+        val EXPLICIT_KEY = Regex("#\\d+$")
     }
 }
 
 // -------------------------------------------------------------------------
-// Data classes for structured trigger input
+// Structured trigger input
 // -------------------------------------------------------------------------
 
+/** The separator between the events of one trigger group: `A, B` or `A | B`. */
+enum class TriggerSeparator { COMMA, OR }
+
 /**
- * A group of trigger events joined by [separator] within the group.
- * Multiple groups are joined by `and` at the top level.
+ * A group of trigger events joined by [separator]. Several groups are joined by `and`.
+ * The separator of a one-event group does not matter.
  *
- * [separator] should be "," (comma/AND within group) or "|" (OR within group).
- * spec:flows/zfl-visual-editing.md#zve-r6
+ * spec:flows/zfl-visual-editing#zve-r6
  */
 data class TriggerGroup(
     val events: List<String>,
-    val separator: String = ","
+    val separator: TriggerSeparator = TriggerSeparator.COMMA
 )
 
 // -------------------------------------------------------------------------
-// ANTLR tree listeners
+// Source scan
 // -------------------------------------------------------------------------
 
-/** Collected occurrence data for operation 1. */
-private data class OccurrenceInfo(
-    val key: String,
-    val hasBody: Boolean,
-    /** Offset of the last character before the closing `}` of the do-body. */
-    val bodyEnd: Int,
-    val emittedEvents: Set<String>
+/** Maps ANTLR's code-point offsets to UTF-16 string indexes. Identity when the text has no surrogates. */
+private class Utf16Offsets(text: String) {
+    private val starts: IntArray? = if (text.none { it.isSurrogate() }) null else {
+        val list = ArrayList<Int>(text.length + 1)
+        var i = 0
+        while (i < text.length) {
+            list.add(i)
+            i += if (text[i].isHighSurrogate() && i + 1 < text.length && text[i + 1].isLowSurrogate()) 2 else 1
+        }
+        list.add(text.length)
+        list.toIntArray()
+    }
+
+    fun at(codePointIndex: Int): Int = starts?.get(codePointIndex) ?: codePointIndex
+}
+
+private class Range(val start: Int, val end: Int, val text: String)
+
+private class BodyInfo(
+    val lbraceEnd: Int,
+    val rbraceStart: Int,
+    val lastStatementStart: Int?,
+    val lastStatementEnd: Int?
 )
 
-/** Collected when-block data for operation 2. */
-private data class WhenInfo(
+private class TriggerGroupInfo(val events: List<Range>, val separator: TriggerSeparator?, val wellFormed: Boolean)
+
+private class TriggerInfo(val start: Int, val end: Int, val groups: List<TriggerGroupInfo>, val hasComments: Boolean)
+
+/** One `do` or `when ... do` block of the flow, keyed as the analyzer keys its occurrences. */
+private class Block(
     val key: String,
-    /** Start/end offsets of the trigger expression (the text between WHEN and DO). */
-    val triggerStart: Int,
-    val triggerEnd: Int
+    val baseKey: String,
+    val body: BodyInfo?,
+    val unconditionalEmits: Set<String>,
+    val trigger: TriggerInfo?
 )
 
 /**
- * Listener that walks one named flow and collects all `do` command occurrences.
- * Used by [ZflEditor.addEmissionToOccurrence].
+ * Everything the three operations need from one walk over the tree: the blocks of the target flow, the
+ * ranges of every command name written in it, and the references that rename must treat specially.
  *
- * Occurrence keys mirror [io.zenwave360.language.zfl.internal.ZflListenerImpl]:
- *   - definition: `commandName@definition`
- *   - when-body: `commandName@when[trigger1,trigger2,...]` (sorted triggers)
+ * Keys mirror `ZflListenerImpl.createOccurrence`: `name@definition` or `name@when[distinct sorted triggers]`,
+ * and `#n` from the second block with the same base key. Blocks without a body count too.
  */
-private class OccurrenceCollector(private val targetFlow: String) : ZflBaseListener() {
-
-    val occurrences = mutableListOf<OccurrenceInfo>()
-
-    private var inTargetFlow = false
-    private var currentFlowName: String? = null
-
-    // For tracking when-bodies
-    private var pendingWhenAction: String? = null
-    private var pendingWhenTriggers: List<String> = emptyList()
-
-    override fun enterFlow(ctx: AntlrParser.FlowContext) {
-        currentFlowName = ctx.flow_name()?.text
-        inTargetFlow = (currentFlowName == targetFlow)
-    }
-
-    override fun exitFlow(ctx: AntlrParser.FlowContext) {
-        inTargetFlow = false
-        currentFlowName = null
-    }
-
-    override fun enterFlow_when(ctx: AntlrParser.Flow_whenContext) {
-        if (!inTargetFlow) return
-        val actionName = ctx.flow_command_name()?.text ?: return
-        val triggers = collectTriggers(ctx.flow_when_trigger())
-        pendingWhenAction = actionName
-        pendingWhenTriggers = triggers
-
-        // A `when X do Y { ... }` with an explicit body
-        val body = ctx.flow_do_body() ?: return
-        val key = whenKey(actionName, triggers)
-        val bodyEnd = bodyEndOffset(body, ctx)
-        val emits = collectEmitsFromBody(body)
-        // Count duplicate when-keys to match ZflListenerImpl collision resolution
-        val existing = occurrences.count { it.key == key || it.key.startsWith("$key#") }
-        val finalKey = if (existing == 0) key else "$key#${existing + 1}"
-        occurrences += OccurrenceInfo(
-            key = finalKey,
-            hasBody = true,
-            bodyEnd = bodyEnd,
-            emittedEvents = emits
-        )
-    }
-
-    override fun enterFlow_do(ctx: AntlrParser.Flow_doContext) {
-        if (!inTargetFlow) return
-        val actionName = ctx.flow_command_name()?.text ?: return
-        val key = "$actionName@definition"
-        val body = ctx.flow_do_body()
-        val bodyEnd = if (body != null) bodyEndOffset(body, ctx) else -1
-        val emits = if (body != null) collectEmitsFromBody(body) else emptySet()
-        val existing = occurrences.count { it.key == key || it.key.startsWith("$key#") }
-        val finalKey = if (existing == 0) key else "$key#${existing + 1}"
-        occurrences += OccurrenceInfo(
-            key = finalKey,
-            hasBody = body != null,
-            bodyEnd = bodyEnd,
-            emittedEvents = emits
-        )
-    }
-
-    private fun collectTriggers(ctx: AntlrParser.Flow_when_triggerContext?): List<String> {
-        if (ctx == null) return emptyList()
-        val result = mutableListOf<String>()
-        ctx.flow_when_trigger_group().forEach { group ->
-            group.flow_when_event_trigger().forEach { trigger ->
-                result += trigger.text
-            }
-        }
-        return result.sorted()
-    }
-
-    private fun whenKey(actionName: String, triggers: List<String>): String =
-        "$actionName@when[${triggers.joinToString(",")}]"
-
-    /**
-     * Returns the offset just before the closing `}` of [body],
-     * which is where new statements should be inserted.
-     */
-    private fun bodyEndOffset(body: AntlrParser.Flow_do_bodyContext, parent: ParserRuleContext): Int {
-        // The do-body is inside { ... }; the `}` token belongs to the parent flow_do or flow_when.
-        // parent.stop is the `}` token; we want to insert before it.
-        val rbrace = parent.stop ?: return (body.stop?.stopIndex ?: 0) + 1
-        return rbrace.startIndex
-    }
-
-    private fun collectEmitsFromBody(body: AntlrParser.Flow_do_bodyContext): Set<String> {
-        val result = mutableSetOf<String>()
-        body.flow_do_statement().forEach { stmt ->
-            stmt.flow_do_signal()?.flow_signal_body()?.flow_event_list()?.flow_event_name()
-                ?.forEach { en -> en.text?.let(result::add) }
-            stmt.flow_do_on()?.flow_signal_body()?.flow_event_list()?.flow_event_name()
-                ?.forEach { en -> en.text?.let(result::add) }
-        }
-        return result
-    }
-}
-
-/**
- * Listener that collects when-block trigger ranges for operation 2.
- */
-private class WhenCollector(private val targetFlow: String) : ZflBaseListener() {
-
-    val whens = mutableListOf<WhenInfo>()
-
-    private var inTargetFlow = false
-
-    override fun enterFlow(ctx: AntlrParser.FlowContext) {
-        inTargetFlow = (ctx.flow_name()?.text == targetFlow)
-    }
-
-    override fun exitFlow(ctx: AntlrParser.FlowContext) {
-        inTargetFlow = false
-    }
-
-    override fun enterFlow_when(ctx: AntlrParser.Flow_whenContext) {
-        if (!inTargetFlow) return
-        val actionName = ctx.flow_command_name()?.text ?: return
-        val triggerCtx = ctx.flow_when_trigger() ?: return
-        val triggerStart = triggerCtx.start?.startIndex ?: return
-        val triggerEnd = (triggerCtx.stop?.stopIndex ?: return) + 1
-
-        // Build the key (sorted triggers)
-        val triggers = mutableListOf<String>()
-        triggerCtx.flow_when_trigger_group().forEach { group ->
-            group.flow_when_event_trigger().forEach { triggers += it.text }
-        }
-        val key = "$actionName@when[${triggers.sorted().joinToString(",")}]"
-        // Duplicate key resolution (same as OccurrenceCollector)
-        val existing = whens.count { it.key == key || it.key.startsWith("$key#") }
-        val finalKey = if (existing == 0) key else "$key#${existing + 1}"
-
-        whens += WhenInfo(key = finalKey, triggerStart = triggerStart, triggerEnd = triggerEnd)
-    }
-}
-
-/**
- * Listener that collects all character ranges for a named command in one flow.
- * Covers: do-headers, when-headers, call targets, on-call targets.
- * Used by [ZflEditor.renameCommand].
- */
-private class CommandRefCollector(
+private class FlowScan(
+    private val source: String,
     private val targetFlow: String,
-    private val commandName: String
+    private val renaming: String?,
+    private val offsets: Utf16Offsets
 ) : ZflBaseListener() {
 
-    /** Pairs of (startOffset, endOffset exclusive) for each reference to replace. */
-    val refs = mutableListOf<Pair<Int, Int>>()
-    var foundDeclaration = false
+    var flowCount = 0
+    val blocks = mutableListOf<Block>()
+    val declared = mutableSetOf<String>()
+    val commandRefs = linkedMapOf<String, MutableList<Pair<Int, Int>>>()
+    val listedCommands = mutableSetOf<String>()
+    var quotedCompensates = false
 
-    private var inTargetFlow = false
+    private var inFlow = false
+    private val keyCounts = mutableMapOf<String, Int>()
+
+    fun flowRejection(flowName: String): ZflEditResult? = when {
+        flowCount == 0 -> ZflEditResult.rejected("Flow '$flowName' not found.")
+        flowCount > 1 -> ZflEditResult.rejected("Flow name '$flowName' is used by $flowCount flows; the target is ambiguous.")
+        else -> null
+    }
+
+    private fun startOf(token: Token) = offsets.at(token.startIndex)
+    private fun endOf(token: Token) = offsets.at(token.stopIndex + 1)
+
+    private fun range(ctx: ParserRuleContext): Range? {
+        val start = startOf(ctx.start ?: return null)
+        val end = endOf(ctx.stop ?: return null)
+        return Range(start, end, source.substring(start, end))
+    }
 
     override fun enterFlow(ctx: AntlrParser.FlowContext) {
-        inTargetFlow = (ctx.flow_name()?.text == targetFlow)
+        inFlow = ctx.flow_name().text == targetFlow
+        if (inFlow) flowCount++
     }
 
     override fun exitFlow(ctx: AntlrParser.FlowContext) {
-        inTargetFlow = false
+        inFlow = false
     }
 
-    // do commandName { ... }  → standalone declaration
-    override fun enterFlow_do(ctx: AntlrParser.Flow_doContext) {
-        if (!inTargetFlow) return
-        val nameCtx = ctx.flow_command_name() ?: return
-        if (nameCtx.text == commandName) {
-            foundDeclaration = true
-            addRef(nameCtx)
-        }
+    override fun enterSystem_service_command_list(ctx: AntlrParser.System_service_command_listContext) {
+        ctx.ID().forEach { listedCommands += it.text }
     }
 
-    // when X do commandName { ... } → implicit declaration + occurrence reference
-    // A command appearing as a `when` target is a flow-local symbol even without a standalone `do` block.
     override fun enterFlow_when(ctx: AntlrParser.Flow_whenContext) {
-        if (!inTargetFlow) return
-        val nameCtx = ctx.flow_command_name() ?: return
-        if (nameCtx.text == commandName) {
-            foundDeclaration = true
-            addRef(nameCtx)
+        if (!inFlow) return
+        val name = ctx.flow_command_name()
+        declare(name)
+
+        val groups = ctx.flow_when_trigger().flow_when_trigger_group().map { group ->
+            val events = group.flow_when_event_trigger().mapNotNull { range(it) }
+            val commas = group.COMMA().size
+            val ors = group.OR().size
+            TriggerGroupInfo(
+                events = events,
+                separator = when {
+                    commas > 0 -> TriggerSeparator.COMMA
+                    ors > 0 -> TriggerSeparator.OR
+                    else -> null
+                },
+                wellFormed = commas + ors == events.size - 1 && (commas == 0 || ors == 0)
+            )
         }
+        val triggerRange = range(ctx.flow_when_trigger())!!
+        val trigger = TriggerInfo(
+            start = triggerRange.start,
+            end = triggerRange.end,
+            groups = groups,
+            hasComments = "//" in triggerRange.text || "/*" in triggerRange.text
+        )
+        val triggerNames = groups.flatMap { g -> g.events.map { it.text } }.distinct().sorted()
+        val doBody = ctx.flow_do_body()
+        addBlock(
+            baseKey = "${name.text}@when[${triggerNames.joinToString(",")}]",
+            body = doBody?.let { bodyInfo(ctx.LBRACE(), ctx.RBRACE(), it) },
+            doBody = doBody,
+            trigger = trigger
+        )
     }
 
-    // call commandName → call target
+    override fun enterFlow_do(ctx: AntlrParser.Flow_doContext) {
+        if (!inFlow) return
+        val name = ctx.flow_command_name()
+        declare(name)
+        val doBody = ctx.flow_do_body()
+        addBlock(
+            baseKey = "${name.text}@definition",
+            body = bodyInfo(ctx.LBRACE(), ctx.RBRACE(), doBody),
+            doBody = doBody,
+            trigger = null
+        )
+    }
+
     override fun enterFlow_do_call(ctx: AntlrParser.Flow_do_callContext) {
-        if (!inTargetFlow) return
-        val nameCtx = ctx.flow_command_name() ?: return
-        if (nameCtx.text == commandName) {
-            addRef(nameCtx)
-        }
+        if (inFlow) reference(ctx.flow_command_name())
     }
 
-    // on X call commandName → on-handler call target
     override fun enterFlow_do_on(ctx: AntlrParser.Flow_do_onContext) {
-        if (!inTargetFlow) return
-        val nameCtx = ctx.flow_command_name() ?: return
-        if (nameCtx.text == commandName) {
-            addRef(nameCtx)
+        if (!inFlow) return
+        ctx.flow_command_name()?.let { reference(it) }
+    }
+
+    override fun enterOption(ctx: AntlrParser.OptionContext) {
+        if (!inFlow || renaming == null) return
+        val optionName = ctx.option_name().text.replace("@", "")
+        if (optionName != "compensates" && optionName != "compensate") return
+        val value = ctx.option_value() ?: return
+        val text = value.text
+        val inner = text.trim('"', '\'')
+        if (inner != renaming) return
+        if (text == inner) {
+            range(value)?.let { commandRefs.getOrPut(inner) { mutableListOf() }.add(it.start to it.end) }
+        } else {
+            quotedCompensates = true
         }
     }
 
-    private fun addRef(ctx: ParserRuleContext) {
-        val start = ctx.start?.startIndex ?: return
-        val end = (ctx.stop?.stopIndex ?: return) + 1
-        refs += Pair(start, end)
+    private fun declare(ctx: AntlrParser.Flow_command_nameContext) {
+        declared += ctx.text
+        reference(ctx)
     }
+
+    private fun reference(ctx: AntlrParser.Flow_command_nameContext) {
+        val r = range(ctx) ?: return
+        commandRefs.getOrPut(ctx.text) { mutableListOf() }.add(r.start to r.end)
+    }
+
+    private fun addBlock(baseKey: String, body: BodyInfo?, doBody: AntlrParser.Flow_do_bodyContext?, trigger: TriggerInfo?) {
+        val seen = keyCounts.getOrElse(baseKey) { 0 }
+        keyCounts[baseKey] = seen + 1
+        blocks += Block(
+            key = if (seen == 0) baseKey else "$baseKey#${seen + 1}",
+            baseKey = baseKey,
+            body = body,
+            unconditionalEmits = doBody?.let(::unconditionalEmits) ?: emptySet(),
+            trigger = trigger
+        )
+    }
+
+    private fun bodyInfo(lbrace: TerminalNode?, rbrace: TerminalNode?, body: AntlrParser.Flow_do_bodyContext): BodyInfo? {
+        val open = lbrace?.symbol ?: return null
+        val close = rbrace?.symbol ?: return null
+        val last = body.flow_do_statement().lastOrNull()
+        return BodyInfo(
+            lbraceEnd = endOf(open),
+            rbraceStart = startOf(close),
+            lastStatementStart = last?.start?.let(::startOf),
+            lastStatementEnd = last?.stop?.let(::endOf)
+        )
+    }
+
+    /** Events of direct `emits` statements without an `@outcome` annotation. */
+    private fun unconditionalEmits(body: AntlrParser.Flow_do_bodyContext): Set<String> =
+        body.flow_do_statement().mapNotNull { it.flow_do_signal() }
+            .filter { signal ->
+                signal.flow_signal_body().EMITS() != null &&
+                    signal.annotations().option().none { it.option_name().text.replace("@", "") == "outcome" }
+            }
+            .flatMap { it.flow_signal_body().flow_event_list().flow_event_name().map { name -> name.text } }
+            .toSet()
+}
+
+/** Parses [source] and scans [flowName]; null when the source has syntax errors. */
+private fun scanFlow(source: String, flowName: String, renaming: String? = null): FlowScan? {
+    val parseResult = ZflParser().parse(source)
+    if (parseResult.syntaxProblems.isNotEmpty()) return null
+    val scan = FlowScan(source, flowName, renaming, Utf16Offsets(source))
+    ParseTreeWalker.DEFAULT.walk(scan, parseResult.tree)
+    return scan
 }

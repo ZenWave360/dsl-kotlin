@@ -2,665 +2,733 @@ package io.zenwave360.language.zfl.editing
 
 import io.zenwave360.language.readTestFile
 import io.zenwave360.language.zfl.ZflParser
-import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
 import io.zenwave360.language.zfl.semantic.Severity
+import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
+import io.zenwave360.language.zfl.semantic.ZflSemanticModel
 import kotlin.test.*
 
 /**
- * ES-P1 exit-gate tests for the ZFL visual edit prototype.
+ * ES-P1 tests for the ZFL visual edit prototype.
  *
- * Each test verifies one or more of:
- *   - Valid ZFL after edit (re-parse: no syntax errors, no error diagnostics) — ZVE-R5
- *   - Byte-for-byte preservation of unrelated text — ZVE-R8
- *   - Identity mapping continuity after rename — ZVE-R3
- *   - Ambiguous-origin rejection — ZVE-R13
+ * Accepted results are compared with the exact expected text, so a change outside the intended range
+ * fails. Fixtures read from files run on the JVM and Node only; tests with inline sources also run in
+ * the browser build through JsBrowserSmokeTest, which holds the Unicode offset test the browser runs.
  *
- * NOTE on Unicode: The ZFL grammar ID rule is [a-zA-Z_][a-zA-Z0-9_]* (ASCII only).
- * Unicode identifiers are not valid in ZFL source and cannot be tested as successful edits.
- * Identifiers stay ASCII by owner decision (ZVE-R5).
- * CRLF line-ending preservation is still tested (ZVE-R8), with ASCII identifiers.
+ * Identifiers stay ASCII (ZVE-R5); Unicode appears in strings and comments, including characters
+ * outside the BMP, which count as two UTF-16 code units in the edit offsets.
  *
- * spec:flows/zfl-visual-editing.md#zve-r3, #zve-r4, #zve-r5, #zve-r8, #zve-r13
- * spec:roadmap/event-storming-whiteboard.md#es-p1
+ * spec:flows/zfl-visual-editing#zve-r3
+ * spec:flows/zfl-visual-editing#zve-r4
+ * spec:flows/zfl-visual-editing#zve-r5
+ * spec:flows/zfl-visual-editing#zve-r8
+ * spec:flows/zfl-visual-editing#zve-r13
+ * spec:roadmap/event-storming-whiteboard#es-p1
  */
 class ZflEditorTest {
 
     private val editor = ZflEditor()
+    private val emoji = "😀"
 
     // =========================================================================
     // Helpers
     // =========================================================================
 
-    /** Asserts that [result] is accepted and the applied text is valid ZFL. */
+    /** Asserts that [result] is accepted and the applied text has no syntax errors or error diagnostics. */
     private fun assertValidZfl(source: String, result: ZflEditResult) {
         assertTrue(result.accepted, "Expected edit to be accepted. Diagnostics: ${result.diagnostics}")
         val applied = applyEdits(source, result.edits)
         val pr = ZflParser().parse(applied)
-        assertTrue(pr.syntaxProblems.isEmpty(),
-            "Edit produced syntax errors: ${pr.syntaxProblems}")
-        val sm = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(applied))
-        val errors = sm.diagnostics.filter { it.severity == Severity.ERROR }
-        assertTrue(errors.isEmpty(),
-            "Edit produced semantic errors: ${errors.map { it.message }}")
+        assertTrue(pr.syntaxProblems.isEmpty(), "Edit produced syntax errors: ${pr.syntaxProblems}")
+        val errors = analyze(applied).diagnostics.filter { it.severity == Severity.ERROR }
+        assertTrue(errors.isEmpty(), "Edit produced semantic errors: ${errors.map { it.message }}")
     }
 
-    /** Asserts that the parts of [source] outside the edited ranges are byte-for-byte identical. */
-    private fun assertUntouchedOutside(source: String, result: ZflEditResult) {
-        assertTrue(result.accepted)
-        val sorted = result.edits.sortedBy { it.start }
-        val applied = applyEdits(source, sorted)
-        var sourceOffset = 0
-        var appliedOffset = 0
-        for (edit in sorted) {
-            val before = source.substring(sourceOffset, edit.start)
-            val appliedBefore = applied.substring(appliedOffset, appliedOffset + before.length)
-            assertEquals(before, appliedBefore, "Unrelated text changed before edit at ${edit.start}")
-            sourceOffset = edit.end
-            appliedOffset += before.length + edit.replacement.length
+    /** Asserts that the accepted [result] turns [source] into exactly [expected], and that the edits are well formed. */
+    private fun assertExact(source: String, result: ZflEditResult, expected: String) {
+        assertTrue(result.accepted, "Expected edit to be accepted. Diagnostics: ${result.diagnostics}")
+        assertWellFormed(source, result.edits)
+        assertEquals(expected, applyEdits(source, result.edits))
+        assertValidZfl(source, result)
+    }
+
+    private fun assertWellFormed(source: String, edits: List<ZflTextEdit>) {
+        val sorted = edits.sortedBy { it.start }
+        sorted.forEach {
+            assertTrue(it.start in 0..it.end && it.end <= source.length, "Edit out of range: $it")
         }
-        val after = source.substring(sourceOffset)
-        val appliedAfter = applied.substring(appliedOffset)
-        assertEquals(after, appliedAfter, "Unrelated text changed after last edit")
+        sorted.zipWithNext().forEach { (a, b) -> assertTrue(a.end <= b.start, "Overlapping edits: $a $b") }
     }
 
+    private fun assertRejected(result: ZflEditResult, vararg messageParts: String) {
+        assertFalse(result.accepted, "Expected a rejection")
+        assertTrue(result.edits.isEmpty(), "A rejection must carry no edits")
+        val message = result.diagnostics.joinToString(" | ") { it.message }
+        messageParts.forEach { assertTrue(message.contains(it), "Expected '$it' in: $message") }
+    }
+
+    private fun assertNoOp(result: ZflEditResult) {
+        assertTrue(result.accepted, "Expected accepted. Diagnostics: ${result.diagnostics}")
+        assertTrue(result.edits.isEmpty(), "A no-op must return no edits: ${result.edits}")
+    }
+
+    /** Replaces the only occurrence of [old] in this text; fails when it is absent or repeated. */
+    private fun String.replaceOnce(old: String, new: String): String {
+        val first = indexOf(old)
+        assertTrue(first >= 0, "Anchor not found: $old")
+        assertEquals(-1, indexOf(old, first + 1), "Anchor is not unique: $old")
+        return substring(0, first) + new + substring(first + old.length)
+    }
+
+    /** [replaceOnce] restricted to the section of one flow, for names that other flows of the fixture repeat. */
+    private fun String.replaceOnceIn(flowName: String, old: String, new: String): String {
+        val start = indexOf("flow $flowName {")
+        assertTrue(start >= 0, "Flow not found: $flowName")
+        val next = indexOf("\nflow ", start)
+        val end = if (next < 0) length else next
+        return substring(0, start) + substring(start, end).replaceOnce(old, new) + substring(end)
+    }
+
+    private fun analyze(source: String): ZflSemanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(source))
+
+    private fun fixture(): String = readTestFile("flow/editing-fixtures.zfl").replace("\r\n", "\n")
+
+    /** A one-flow document. [body] sits between the starts and the end block. */
+    private fun flow(body: String, flowName: String = "F"): String =
+        "systems { S { service Svc } }\nflow $flowName {\n    start A {}\n    start B {}\n$body\n    end { completed: E }\n}\n"
+
+    private val whenX = "    when A do x {\n        service S.Svc\n        emits E\n    }"
+
     // =========================================================================
-    // Operation 1: Add emission to occurrence
+    // Operation 1: Add an emission
     // =========================================================================
 
     @Test
-    fun addEmission_toDefinitionOccurrence_producesValidZfl() {
+    fun addEmission_multiLineBody_newLineKeepsIndentAndBraceStays() {
+        val source = flow(whenX)
+        val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N")
+        assertExact(source, result, flow(whenX.replace("emits E\n", "emits E\n        emits N\n")))
+    }
+
+    @Test
+    fun addEmission_toDefinitionOccurrence_exactOutput() {
         val source = simpleFlow()
-        val result = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "TestFlow",
-            occurrenceKey = "createOrder@definition",
-            eventName = "OrderAuditLogged"
+        val result = editor.addEmissionToOccurrence(source, "TestFlow", "createOrder@definition", "OrderAuditLogged")
+        val lastBody = "    do createOrder {\n        service OrderSystem.OrderService\n        emits OrderCreated\n    }"
+        assertExact(source, result, source.replaceOnce(lastBody, lastBody.replace("emits OrderCreated\n", "emits OrderCreated\n        emits OrderAuditLogged\n")))
+    }
+
+    @Test
+    fun addEmission_toFixtureWhenBody_exactOutput() {
+        val source = fixture()
+        val result = editor.addEmissionToOccurrence(source, "orderFlow", "createOrder@when[OrderPlaced]", "OrderAuditLogged")
+        assertExact(source, result, source.replaceOnce(
+            "        emits OrderFailed\n    }", "        emits OrderFailed\n        emits OrderAuditLogged\n    }"
+        ))
+    }
+
+    @Test
+    fun addEmission_oneLineBody_staysOnOneLine() {
+        val source = flow("    when A do x { service S.Svc emits E }")
+        val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N")
+        assertExact(source, result, flow("    when A do x { service S.Svc emits E emits N }"))
+    }
+
+    @Test
+    fun addEmission_emptyBodies_oneLine() {
+        // the service comes from the `when` block; the `do x` block itself has an empty body
+        val spaced = flow("$whenX\n    do x { }")
+        assertExact(spaced, editor.addEmissionToOccurrence(spaced, "F", "x@definition", "N"), flow("$whenX\n    do x { emits N }"))
+        val tight = flow("$whenX\n    do x {}")
+        assertExact(tight, editor.addEmissionToOccurrence(tight, "F", "x@definition", "N"), flow("$whenX\n    do x { emits N }"))
+    }
+
+    @Test
+    fun addEmission_emptyMultiLineBody_indentsOneLevelInsideBrace() {
+        val source = flow("$whenX\n    do x {\n    }")
+        assertExact(source, editor.addEmissionToOccurrence(source, "F", "x@definition", "N"), flow("$whenX\n    do x {\n        emits N\n    }"))
+    }
+
+    @Test
+    fun addEmission_tabIndentedBody_usesTheLastStatementIndent() {
+        val source = flow("\twhen A do x {\n\t\tservice S.Svc\n\t\temits E\n\t}")
+        assertExact(
+            source, editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N"),
+            flow("\twhen A do x {\n\t\tservice S.Svc\n\t\temits E\n\t\temits N\n\t}")
         )
-        assertValidZfl(source, result)
+    }
+
+    @Test
+    fun addEmission_crlfSource_insertsCrlfAndNoBareLf() {
+        val source = flow(whenX).replace("\n", "\r\n")
+        val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N")
         val applied = applyEdits(source, result.edits)
-        assertTrue(applied.contains("emits OrderAuditLogged"), "New emission not found in output")
+        assertEquals(flow(whenX.replace("emits E\n", "emits E\n        emits N\n")).replace("\n", "\r\n"), applied)
+        assertFalse(applied.replace("\r\n", "").contains('\n'), "No bare LF may remain in a CRLF file")
+        assertEquals("\r\n", result.edits.single().replacement.takeLast(2))
     }
 
     @Test
-    fun addEmission_bytesOutsideEditPreserved() {
-        val source = simpleFlow()
-        val result = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "TestFlow",
-            occurrenceKey = "createOrder@definition",
-            eventName = "OrderAuditLogged"
-        )
-        assertUntouchedOutside(source, result)
+    fun addEmission_crlfFixtureFile_exactOutput() {
+        val source = readTestFile("flow/editing-crlf.zfl").replace("\r\n", "\n").replace("\n", "\r\n")
+        val result = editor.addEmissionToOccurrence(source, "crlfFlow", "processOrder@when[CrlfStart]", "CrlfEventAdded")
+        val anchor = "        emits OrderProcessed\r\n    }\r\n\r\n    do processOrder"
+        assertExact(source, result, source.replaceOnce(anchor, anchor.replace("OrderProcessed\r\n", "OrderProcessed\r\n        emits CrlfEventAdded\r\n")))
     }
 
     @Test
-    fun addEmission_toWhenBodyOccurrence_producesValidZfl() {
-        val source = readTestFile("flow/editing-fixtures.zfl")
-        // The `when OrderPlaced do createOrder` occurrence has a body in orderFlow
-        val result = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "orderFlow",
-            occurrenceKey = "createOrder@when[OrderPlaced]",
-            eventName = "OrderAuditLogged"
-        )
-        assertValidZfl(source, result)
-        assertUntouchedOutside(source, result)
+    fun addEmission_noOp_whenUnconditionalEmissionPresent() {
+        assertNoOp(editor.addEmissionToOccurrence(simpleFlow(), "TestFlow", "createOrder@definition", "OrderCreated"))
+        // `emits response` also publishes the event
+        val source = flow("    when A do x {\n        service S.Svc\n        emits response E\n    }")
+        assertNoOp(editor.addEmissionToOccurrence(source, "F", "x@when[A]", "E"))
     }
 
     @Test
-    fun addEmission_noOp_whenEventAlreadyPresent() {
-        val source = simpleFlow()
-        val result = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "TestFlow",
-            occurrenceKey = "createOrder@definition",
-            eventName = "OrderCreated" // already present
-        )
+    fun addEmission_retryAfterAcceptance_returnsNoEdits() {
+        val source = flow(whenX)
+        val first = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N")
+        val second = editor.addEmissionToOccurrence(applyEdits(source, first.edits), "F", "x@when[A]", "N")
+        assertNoOp(second)
+    }
+
+    @Test
+    fun addEmission_eventOnlyAResponse_isInserted() {
+        val source = flow("    when A do x {\n        service S.Svc\n        response R\n        emits E\n    }")
+        val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "R")
+        assertExact(source, result, source.replaceOnce("emits E\n", "emits E\n        emits R\n"))
+        assertTrue("R" in analyze(applyEdits(source, result.edits)).flows.single().events.map { it.name })
+    }
+
+    @Test
+    fun addEmission_eventOnlyAConditionalHandlerEmission_isInserted() {
+        val source = flow("    when A do x {\n        service S.Svc\n        emits E\n        call y\n        on Ok emits R\n    }\n    do y {\n        service S.Svc\n        response Ok\n    }")
+        val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "R")
+        assertExact(source, result, source.replaceOnce("on Ok emits R\n", "on Ok emits R\n        emits R\n"))
+    }
+
+    @Test
+    fun addEmission_mixingAnOutcomeAnnotatedEmission_returnsTheAnalyzerWarning() {
+        val source = flow("    when A do x {\n        service S.Svc\n        @outcome(ok) emits E\n    }")
+        val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N")
         assertTrue(result.accepted)
-        assertTrue(result.edits.isEmpty(), "Expected no edits for a no-op")
+        val warnings = result.diagnostics.filter { it.severity == EditSeverity.WARNING }
+        assertTrue(warnings.any { it.message.contains("mixes @outcome annotated and unannotated emits") }, "diagnostics: ${result.diagnostics}")
+        assertNoOp(editor.addEmissionToOccurrence(applyEdits(source, result.edits), "F", "x@when[A]", "N"))
+    }
+
+    @Test
+    fun addEmission_warningsAlreadyInTheSource_areNotReportedAsIntroduced() {
+        val source = flow("    when A do x {\n        service S.Svc\n        @outcome(ok) emits E\n        emits M\n    }")
+        val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N")
+        assertTrue(result.accepted)
+        assertTrue(result.diagnostics.isEmpty(), "diagnostics: ${result.diagnostics}")
+    }
+
+    @Test
+    fun addEmission_rejects_eventNamesThatAreNotOneAsciiIdentifier() {
+        val source = flow(whenX)
+        val names = listOf(
+            "Café", "Évent", "Foo#", "N1, N2", "response N", "N\n call x", "N // hi", "N /* c */",
+            "", " N", "N ", "1N", "emits", "when", "N-M"
+        )
+        for (name in names) {
+            val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", name)
+            assertRejected(result, "not a valid event name")
+        }
+    }
+
+    @Test
+    fun addEmission_unicodeEventNameThatSplitsIntoAsciiFragments_isRejected() {
+        val result = editor.addEmissionToOccurrence(simpleFlow(), "TestFlow", "createOrder@definition", "Unicode_is_fine_but_Ünïcödé_is_not")
+        assertRejected(result, "not a valid event name")
     }
 
     @Test
     fun addEmission_rejects_whenFlowNotFound() {
-        val source = simpleFlow()
-        val result = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "NonexistentFlow",
-            occurrenceKey = "createOrder@definition",
-            eventName = "Foo"
-        )
-        assertFalse(result.accepted)
-        assertTrue(result.diagnostics.any { it.message.contains("not found") })
+        assertRejected(editor.addEmissionToOccurrence(simpleFlow(), "NonexistentFlow", "createOrder@definition", "Foo"), "Flow 'NonexistentFlow' not found")
     }
 
     @Test
     fun addEmission_rejects_whenOccurrenceNotFound() {
-        val source = simpleFlow()
-        val result = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "TestFlow",
-            occurrenceKey = "nonexistentCommand@definition",
-            eventName = "Foo"
-        )
-        assertFalse(result.accepted)
-        assertTrue(result.diagnostics.any { it.message.contains("not found") })
+        assertRejected(editor.addEmissionToOccurrence(simpleFlow(), "TestFlow", "nonexistentCommand@definition", "Foo"), "not found")
     }
 
     @Test
-    fun addEmission_rejects_forOccurrenceWithoutBody() {
-        // `when X do Y` with no explicit body block
-        val source = """
-            |systems { OrderSystem { service OrderService } }
-            |flow TestFlow {
-            |    start OrderPlaced {}
-            |    when OrderPlaced do createOrder
-            |    do createOrder {
-            |        service OrderSystem.OrderService
-            |        emits OrderCreated
-            |    }
-            |    end { completed: OrderCreated }
-            |}
-        """.trimMargin()
-        val result = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "TestFlow",
-            occurrenceKey = "createOrder@when[OrderPlaced]",
-            eventName = "SomeEvent"
-        )
-        assertFalse(result.accepted)
-        assertTrue(result.diagnostics.any { it.message.contains("no explicit do-body") || it.message.contains("not found") })
+    fun addEmission_rejects_occurrenceWithoutBody_withTheExplicitReason() {
+        val source = flow("    when A do x\n    do x {\n        service S.Svc\n        emits E\n    }")
+        val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N")
+        assertRejected(result, "has no body", "unsupported until ES-P2")
     }
 
-    // ES-P1: equal command names in two different flows must not share targets (ZVE-R3)
+    @Test
+    fun addEmission_bodylessFirstBlock_secondBlockIsAddressedByTheAnalyzerKey() {
+        val source = flow("    when A do x\n    when A do x {\n        service S.Svc\n        emits E\n    }")
+        assertEquals(listOf("x@when[A]", "x@when[A]#2"), editor.occurrenceKeys(source, "F"))
+        val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]#2", "N")
+        assertExact(source, result, source.replaceOnce("emits E\n", "emits E\n        emits N\n"))
+        // the bare key now selects the bodyless block, which is a rejection and not an edit of the other one
+        assertTrue(editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N").let { !it.accepted })
+    }
+
     @Test
     fun addEmission_differentFlows_separateTargets() {
-        val source = readTestFile("flow/editing-fixtures.zfl")
-        // Add to orderFlow's createOrder
-        val r1 = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "orderFlow",
-            occurrenceKey = "createOrder@when[OrderPlaced]",
-            eventName = "FlowOneEvent"
-        )
-        assertValidZfl(source, r1)
-
-        // Add to orderFlow2's createOrder – same occurrence key but different flow
-        val r2 = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "orderFlow2",
-            occurrenceKey = "createOrder@when[OrderPlaced]",
-            eventName = "FlowTwoEvent"
-        )
+        val source = fixture()
+        val r1 = editor.addEmissionToOccurrence(source, "orderFlow", "createOrder@when[OrderPlaced]", "FlowOneEvent")
+        val r2 = editor.addEmissionToOccurrence(source, "orderFlow2", "createOrder@when[OrderPlaced]", "FlowTwoEvent")
+        assertExact(source, r1, source.replaceOnce("        emits OrderFailed\n    }", "        emits OrderFailed\n        emits FlowOneEvent\n    }"))
+        val flow2Start = source.indexOf("flow orderFlow2 {")
+        assertTrue(r2.edits.single().start > flow2Start, "orderFlow2's edit must be inside orderFlow2")
+        assertTrue(r1.edits.single().start < flow2Start, "orderFlow's edit must be inside orderFlow")
         assertValidZfl(source, r2)
-
-        // The two results must target different character ranges (different flows)
-        assertNotEquals(r1.edits.map { it.start }, r2.edits.map { it.start },
-            "Equal command names in different flows must not share edit targets")
-        // Each edit must only appear in its own flow
-        val applied1 = applyEdits(source, r1.edits)
-        val applied2 = applyEdits(source, r2.edits)
-        assertFalse(applied1.contains("FlowTwoEvent"))
-        assertFalse(applied2.contains("FlowOneEvent"))
     }
 
-    // ES-P1: response form preserved (ZVE-R8)
     @Test
-    fun addEmission_presencesResponseFormUnchanged() {
-        val source = readTestFile("flow/editing-fixtures.zfl")
-        val result = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "orderFlow",
-            occurrenceKey = "reserveStock@when[OrderCreated]",
-            eventName = "ReservationLogged"
-        )
-        assertValidZfl(source, result)
-        val applied = applyEdits(source, result.edits)
-        // The response StockUnavailable must still be there
-        assertTrue(applied.contains("response StockUnavailable"),
-            "response form must be preserved")
+    fun addEmission_responseFormUnchanged() {
+        val source = fixture()
+        val result = editor.addEmissionToOccurrence(source, "orderFlow", "reserveStock@when[OrderCreated]", "ReservationLogged")
+        assertExact(source, result, source.replaceOnce(
+            "        on OutOfStock response StockUnavailable\n", "        on OutOfStock response StockUnavailable\n        emits ReservationLogged\n"
+        ))
     }
 
-    // ES-P1: actor-start flows (ZVE-R8 – comments and annotations preserved)
     @Test
-    fun addEmission_actorStartAnnotationsPreserved() {
-        val source = readTestFile("flow/editing-fixtures.zfl")
-        val result = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "orderFlow",
-            occurrenceKey = "createOrder@when[OrderPlaced]",
-            eventName = "OrderTracked"
-        )
-        assertValidZfl(source, result)
-        val applied = applyEdits(source, result.edits)
-        // Actor annotation must be preserved byte-for-byte
-        assertTrue(applied.contains("@actor(Customer)"), "@actor annotation must be preserved")
-        assertTrue(applied.contains("@actor(Scheduler)"), "Scheduler actor must be preserved")
-        // Comments must be preserved
-        assertTrue(applied.contains("// When the order is placed, create it"),
-            "Inline comment must be preserved")
+    fun addEmission_actorStartsCommentsAndAnnotationsStayByteForByte() {
+        val source = fixture()
+        val result = editor.addEmissionToOccurrence(source, "orderFlow", "createOrder@when[OrderPlaced]", "OrderTracked")
+        assertExact(source, result, source.replaceOnce("        emits OrderFailed\n    }", "        emits OrderFailed\n        emits OrderTracked\n    }"))
+    }
+
+    // ES-P1 Unicode: one emoji earlier in the file must not shift any edit (offsets are UTF-16 indexes)
+    @Test
+    fun addEmission_afterAstralCharacters_editsTheRightPlace() {
+        val head = "// $emoji$emoji$emoji strings and comments may hold Unicode 日本\n"
+        val source = head + flow("    // keep $emoji this explanation é intact\n    @if(\"over $emoji limit\")\n$whenX")
+        val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N")
+        assertExact(source, result, source.replaceOnce("emits E\n", "emits E\n        emits N\n"))
+    }
+
+    @Test
+    fun addEmission_afterAstralCharactersInCrlfSource_editsTheRightPlace() {
+        val source = ("// $emoji$emoji\n" + flow("    /* $emoji */\n$whenX")).replace("\n", "\r\n")
+        val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N")
+        assertExact(source, result, source.replaceOnce("emits E\r\n", "emits E\r\n        emits N\r\n"))
     }
 
     // =========================================================================
-    // Operation 2: Change policy trigger
+    // Targeting: keys and ambiguity (ZVE-R3, ZVE-R13)
     // =========================================================================
 
     @Test
-    fun changePolicyTrigger_producesValidZfl() {
-        // Change trigger of `when OrderPlaced do createOrder` to `when OrderTimeout do createOrder`
-        // OrderTimeout is a start event in the same flow - a valid trigger
-        val source = readTestFile("flow/editing-fixtures.zfl")
-        val result = editor.changePolicyTrigger(
-            source = source,
-            flowName = "orderFlow",
-            policyKey = "createOrder@when[OrderPlaced]",
-            newTriggers = listOf(TriggerGroup(listOf("OrderTimeout")))
+    fun occurrenceKeys_matchTheAnalyzerKeys() {
+        val sources = listOf(
+            fixture() to listOf("orderFlow", "orderFlow2", "shippingFlow"),
+            flow("    when A do x\n    when A do x {\n        service S.Svc\n        emits E\n    }\n    do x {\n        service S.Svc\n    }\n    do x {\n        service S.Svc\n    }") to listOf("F"),
+            flow("    when A, A do x {\n        service S.Svc\n        emits E\n    }\n    when A do x {\n        service S.Svc\n    }") to listOf("F"),
+            flow("    when B, A do x {\n        service S.Svc\n        emits E\n    }\n    when A | B do x {\n        service S.Svc\n    }") to listOf("F")
         )
-        assertValidZfl(source, result)
-        val applied = applyEdits(source, result.edits)
-        assertTrue(applied.contains("when OrderTimeout do createOrder"),
-            "Expected trigger to be renamed")
+        for ((source, flows) in sources) {
+            val model = analyze(source)
+            for (flowName in flows) {
+                val analyzerKeys = model.flows.single { it.name == flowName }.commands
+                    .flatMap { c -> c.occurrences.map { it.key to it.index } }
+                    .sortedBy { it.second }.map { it.first }
+                assertEquals(analyzerKeys, editor.occurrenceKeys(source, flowName), "keys of $flowName")
+            }
+        }
     }
 
     @Test
-    fun changePolicyTrigger_bytesOutsideEditPreserved() {
-        val source = readTestFile("flow/editing-fixtures.zfl")
-        val result = editor.changePolicyTrigger(
-            source = source,
-            flowName = "orderFlow",
-            policyKey = "createOrder@when[OrderPlaced]",
-            newTriggers = listOf(TriggerGroup(listOf("OrderTimeout")))
-        )
-        assertUntouchedOutside(source, result)
+    fun ambiguousKey_isRejectedUntilTheOriginIsSelected() {
+        val source = equalEndpointsFixture()
+        val edit = { index: Int? -> editor.changePolicyTrigger(source, "F", "x@when[A]", listOf(TriggerGroup(listOf("B"))), index) }
+        val emit = { index: Int? -> editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N", index) }
+        assertRejected(edit(null), "ambiguous", "2 blocks", "disambiguationIndex")
+        assertRejected(emit(null), "ambiguous", "2 blocks", "disambiguationIndex")
+        assertRejected(edit(2), "out of range")
+        assertRejected(emit(-1), "out of range")
     }
 
     @Test
-    fun changePolicyTrigger_simpleFlow_producesValidZfl() {
-        val source = simpleFlow()
-        // Change trigger of `when OrderPlaced do createOrder` to use `OrderReady` (a start event)
-        // Actually simpleFlow only has OrderPlaced as start. Let's use a different approach:
-        // The flow starts with OrderPlaced, which triggers createOrder, which emits OrderCreated.
-        // We can change from OrderPlaced to OrderPlaced (no-op to validate the mechanism).
-        // Better: use a flow with two start events
-        val source2 = flowWithTwoStarts()
-        val result = editor.changePolicyTrigger(
-            source = source2,
-            flowName = "TwoStartFlow",
-            policyKey = "createOrder@when[OrderPlaced]",
-            newTriggers = listOf(TriggerGroup(listOf("OrderRequested")))
-        )
-        assertValidZfl(source2, result)
-        val applied = applyEdits(source2, result.edits)
-        assertTrue(applied.contains("when OrderRequested do createOrder"))
+    fun disambiguationIndex_selectsTheBlockItNames() {
+        val source = equalEndpointsFixture()
+        val trigger = listOf(TriggerGroup(listOf("B")))
+        val cheap = "    @if(\"cheap\")\n    when A do x {"
+        val costly = "    @if(\"costly\")\n    when A do x {"
+        assertExact(source, editor.changePolicyTrigger(source, "F", "x@when[A]", trigger, 0),
+            source.replaceOnce(cheap, cheap.replace("when A", "when B")))
+        assertExact(source, editor.changePolicyTrigger(source, "F", "x@when[A]", trigger, 1),
+            source.replaceOnce(costly, costly.replace("when A", "when B")))
+        // the analyzer's own key for the second block selects the same one
+        assertEquals(editor.changePolicyTrigger(source, "F", "x@when[A]", trigger, 1).edits,
+            editor.changePolicyTrigger(source, "F", "x@when[A]#2", trigger).edits)
+
+        val emitted = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N", 1)
+        val costlyBody = costly + "\n        service S.Svc\n        emits E\n"
+        assertExact(source, emitted, source.replaceOnce(costlyBody, costlyBody + "        emits N\n"))
     }
 
     @Test
-    fun changePolicyTrigger_noOp_whenTriggerUnchanged() {
-        val source = readTestFile("flow/editing-fixtures.zfl")
-        val result = editor.changePolicyTrigger(
-            source = source,
-            flowName = "orderFlow",
-            policyKey = "createOrder@when[OrderPlaced]",
-            newTriggers = listOf(TriggerGroup(listOf("OrderPlaced")))
-        )
-        assertTrue(result.accepted)
-        assertTrue(result.edits.isEmpty())
+    fun explicitHashKey_rejectsADisambiguationIndexAndUnknownSuffixes() {
+        val source = equalEndpointsFixture()
+        val trigger = listOf(TriggerGroup(listOf("B")))
+        assertRejected(editor.changePolicyTrigger(source, "F", "x@when[A]#2", trigger, 0), "already selects one block")
+        assertRejected(editor.changePolicyTrigger(source, "F", "x@when[A]#3", trigger), "not found")
     }
 
     @Test
-    fun changePolicyTrigger_disambiguationIndex_selectsCorrectBlock() {
-        // Fixture has two when-blocks targeting authorizePayment:
-        //   when OrderCreated do authorizePayment  → key "authorizePayment@when[OrderCreated]"
-        //   @if(...) when PaymentDeclined do authorizePayment → key "authorizePayment@when[PaymentDeclined]"
-        // These have DIFFERENT keys so disambiguation is not needed here.
-        // For a true duplication test, we use the duplicate occurrence.
-        // The 2nd occurrence within orderFlow with same triggers is not present in this fixture.
-        // So let's test: two blocks with the same trigger+command in a synthesized fixture.
-        val source = duplicatePolicyFixture()
-        // First block gets key "doIt@when[Evt]", second gets "doIt@when[Evt]#2"
-        // Change the second one
-        val result = editor.changePolicyTrigger(
-            source = source,
-            flowName = "ambigFlow",
-            policyKey = "doIt@when[Evt]#2",
-            newTriggers = listOf(TriggerGroup(listOf("Evt2")))
-        )
-        assertValidZfl(source, result)
-        val applied = applyEdits(source, result.edits)
-        val lines = applied.lines()
-        val whenLines = lines.filter { "do doIt" in it && "when" in it }
-        assertTrue(whenLines.any { "Evt" in it && "Evt2" !in it },
-            "First when-block must still reference Evt")
-        assertTrue(whenLines.any { "Evt2" in it },
-            "Second when-block must use new trigger Evt2")
+    fun equalEndpointsWithDifferentConditions_inTheFixture_areSeparatelyAddressable() {
+        val source = fixture()
+        val trigger = listOf(TriggerGroup(listOf("ParcelReturned")))
+        val first = "    @if(\"peso > 10 kg 📦\")\n    when ParcelReady do chooseCarrier {"
+        val second = "    @if(\"peso <= 10 kg — sin cargo\")\n    when ParcelReady do chooseCarrier {"
+        assertRejected(editor.changePolicyTrigger(source, "shippingFlow", "chooseCarrier@when[ParcelReady]", trigger), "ambiguous")
+        assertExact(source, editor.changePolicyTrigger(source, "shippingFlow", "chooseCarrier@when[ParcelReady]", trigger, 0),
+            source.replaceOnce(first, first.replace("when ParcelReady", "when ParcelReturned")))
+        assertExact(source, editor.changePolicyTrigger(source, "shippingFlow", "chooseCarrier@when[ParcelReady]", trigger, 1),
+            source.replaceOnce(second, second.replace("when ParcelReady", "when ParcelReturned")))
     }
 
-    // ES-P1: two policies with equal endpoints but different conditions stay distinguishable (ZVE-R3)
     @Test
-    fun changePolicyTrigger_twoPolicesEqualEndpointDifferentConditions_areDistinguishable() {
-        val source = readTestFile("flow/editing-fixtures.zfl")
-        // orderFlow has:
-        //   when OrderCreated do authorizePayment  → key "authorizePayment@when[OrderCreated]"
-        //   @if("less than 3 attempts") when PaymentDeclined do authorizePayment → key "authorizePayment@when[PaymentDeclined]"
-        // Change the first one's trigger to OrderTimeout (a valid start event)
-        val r1 = editor.changePolicyTrigger(
-            source = source,
-            flowName = "orderFlow",
-            policyKey = "authorizePayment@when[OrderCreated]",
-            newTriggers = listOf(TriggerGroup(listOf("OrderTimeout")))
-        )
+    fun parallelEdges_toOneCommand_areDistinguishedByTheirPolicy() {
+        val source = fixture()
+        val trigger = listOf(TriggerGroup(listOf("ParcelReturned")))
+        // ParcelReady reaches auditParcel alone and together with CarrierChosen
+        assertExact(source, editor.changePolicyTrigger(source, "shippingFlow", "auditParcel@when[ParcelReady]", trigger),
+            source.replaceOnce("when ParcelReady do auditParcel", "when ParcelReturned do auditParcel"))
+        assertExact(source, editor.changePolicyTrigger(source, "shippingFlow", "auditParcel@when[CarrierChosen,ParcelReady]", trigger),
+            source.replaceOnce("when ParcelReady and CarrierChosen do auditParcel", "when ParcelReturned do auditParcel"))
+    }
+
+    @Test
+    fun twoPoliciesToOneCommand_withDifferentTriggers_changeIndependently() {
+        val source = fixture()
+        val result = editor.changePolicyTrigger(source, "orderFlow", "authorizePayment@when[OrderCreated]", listOf(TriggerGroup(listOf("OrderTimeout"))))
+        assertExact(source, result, source.replaceOnceIn("orderFlow", "when OrderCreated do authorizePayment", "when OrderTimeout do authorizePayment"))
+    }
+
+    @Test
+    fun addEmission_twoOccurrencesOfOneCommand_targetDifferentBlocks() {
+        val source = fixture()
+        val r1 = editor.addEmissionToOccurrence(source, "orderFlow", "authorizePayment@when[OrderCreated]", "AuthAuditLogged")
+        val r2 = editor.addEmissionToOccurrence(source, "orderFlow", "authorizePayment@when[PaymentDeclined]", "RetryAuditLogged")
         assertValidZfl(source, r1)
-        val applied = applyEdits(source, r1.edits)
-        assertTrue(applied.contains("when OrderTimeout do authorizePayment"), "First policy trigger replaced")
-        // The second policy (PaymentDeclined -> authorizePayment) must be unchanged
-        assertTrue(applied.contains("when PaymentDeclined do authorizePayment"),
-            "Second policy must be preserved")
-        // Annotations on the second policy must be preserved
-        assertTrue(applied.contains("@if(\"less than 3 attempts\")"),
-            "@if annotation must be preserved")
-    }
-
-    // ES-P1: mixed AND trigger groups (ZVE-R6)
-    @Test
-    fun changePolicyTrigger_mixedAndGroups_producesValidZfl() {
-        val source = readTestFile("flow/editing-fixtures.zfl")
-        // fulfillOrder is triggered by "PaymentAuthorized and StockReserved"
-        // Change to "PaymentAuthorized and OrderTimeout" (both are valid events/starts)
-        val result = editor.changePolicyTrigger(
-            source = source,
-            flowName = "orderFlow",
-            policyKey = "fulfillOrder@when[PaymentAuthorized,StockReserved]",
-            newTriggers = listOf(
-                TriggerGroup(listOf("PaymentAuthorized"), ","),
-                TriggerGroup(listOf("OrderTimeout"), ",")
-            )
-        )
-        assertValidZfl(source, result)
-        val applied = applyEdits(source, result.edits)
-        assertTrue(applied.contains("PaymentAuthorized") && applied.contains("OrderTimeout"),
-            "New triggers must appear in output")
-        // Old StockReserved trigger must not appear in the when-line
-        val fulfillLine = applied.lines().find { "do fulfillOrder" in it }
-        assertNotNull(fulfillLine)
-        assertFalse(fulfillLine.contains("StockReserved"),
-            "Old trigger StockReserved must be replaced")
-    }
-
-    @Test
-    fun changePolicyTrigger_rejects_whenFlowNotFound() {
-        val source = simpleFlow()
-        val result = editor.changePolicyTrigger(
-            source = source,
-            flowName = "NoSuchFlow",
-            policyKey = "createOrder@when[OrderPlaced]",
-            newTriggers = listOf(TriggerGroup(listOf("X")))
-        )
-        assertFalse(result.accepted)
+        assertValidZfl(source, r2)
+        assertTrue(r1.edits.single().start < r2.edits.single().start)
+        assertTrue(applyEdits(source, r1.edits).contains("AuthAuditLogged"))
+        assertFalse(applyEdits(source, r1.edits).contains("RetryAuditLogged"))
     }
 
     // =========================================================================
-    // Operation 3: Rename command
+    // Operation 2: Change a policy trigger
     // =========================================================================
 
     @Test
-    fun renameCommand_updatesAllReferences_producesValidZfl() {
-        val source = simpleFlow()
-        val result = editor.renameCommand(
-            source = source,
-            flowName = "TestFlow",
-            oldName = "createOrder",
-            newName = "placeOrder"
-        )
-        assertValidZfl(source, result)
-        val applied = applyEdits(source, result.edits)
-        assertFalse(applied.contains("createOrder"), "Old name must not appear")
-        assertTrue(applied.contains("placeOrder"), "New name must appear")
+    fun changePolicyTrigger_exactOutputOnFixture() {
+        val source = fixture()
+        val result = editor.changePolicyTrigger(source, "orderFlow", "createOrder@when[OrderPlaced]", listOf(TriggerGroup(listOf("OrderTimeout"))))
+        assertExact(source, result, source.replaceOnceIn("orderFlow", "when OrderPlaced do createOrder", "when OrderTimeout do createOrder"))
     }
 
     @Test
-    fun renameCommand_bytesOutsideEditPreserved() {
-        val source = simpleFlow()
-        val result = editor.renameCommand(
-            source = source,
-            flowName = "TestFlow",
-            oldName = "createOrder",
-            newName = "placeOrder"
-        )
-        assertUntouchedOutside(source, result)
+    fun changePolicyTrigger_noOp_whenUnchanged() {
+        val source = fixture()
+        assertNoOp(editor.changePolicyTrigger(source, "orderFlow", "createOrder@when[OrderPlaced]", listOf(TriggerGroup(listOf("OrderPlaced")))))
+        // an AND of two groups, spelled as it is
+        assertNoOp(editor.changePolicyTrigger(source, "orderFlow", "fulfillOrder@when[PaymentAuthorized,StockReserved]",
+            listOf(TriggerGroup(listOf("PaymentAuthorized")), TriggerGroup(listOf("StockReserved")))))
     }
 
     @Test
-    fun renameCommand_identityMappingReturned() {
-        val source = simpleFlow()
-        val result = editor.renameCommand(
-            source = source,
-            flowName = "TestFlow",
-            oldName = "createOrder",
-            newName = "placeOrder"
-        )
-        assertTrue(result.accepted)
-        val mapping = result.identityMappings.firstOrNull()
-        assertNotNull(mapping, "Expected identity mapping")
-        assertEquals("TestFlow", mapping.flowName)
-        assertEquals("command", mapping.kind)
-        assertEquals("createOrder", mapping.oldName)
-        assertEquals("placeOrder", mapping.newName)
+    fun changePolicyTrigger_unchangedOrGroup_isANoOpAndKeepsTheSpelling() {
+        val source = fixture()
+        val key = "notifyCustomer@when[CarrierChosen,ParcelReturned]"
+        assertNoOp(editor.changePolicyTrigger(source, "shippingFlow", key,
+            listOf(TriggerGroup(listOf("CarrierChosen", "ParcelReturned"), TriggerSeparator.OR))))
+        // same events, different spelling of the group is a change
+        val comma = editor.changePolicyTrigger(source, "shippingFlow", key,
+            listOf(TriggerGroup(listOf("CarrierChosen", "ParcelReturned"), TriggerSeparator.COMMA)))
+        assertExact(source, comma, source.replaceOnce("when CarrierChosen | ParcelReturned do notifyCustomer", "when CarrierChosen, ParcelReturned do notifyCustomer"))
     }
 
     @Test
-    fun renameCommand_noOp_whenOldEqualsNew() {
-        val source = simpleFlow()
-        val result = editor.renameCommand(
-            source = source,
-            flowName = "TestFlow",
-            oldName = "createOrder",
-            newName = "createOrder"
-        )
-        assertTrue(result.accepted)
-        assertTrue(result.edits.isEmpty())
+    fun changePolicyTrigger_orGroup_changesOnlyTheNamedEventAndKeepsTheBar() {
+        val source = fixture()
+        val result = editor.changePolicyTrigger(source, "shippingFlow", "notifyCustomer@when[CarrierChosen,ParcelReturned]",
+            listOf(TriggerGroup(listOf("CarrierChosen", "ParcelReady"), TriggerSeparator.OR)))
+        assertExact(source, result, source.replaceOnce("when CarrierChosen | ParcelReturned do notifyCustomer", "when CarrierChosen | ParcelReady do notifyCustomer"))
+        assertEquals(1, result.edits.size)
     }
 
     @Test
-    fun renameCommand_rejects_whenNotDeclaredInFlow() {
+    fun changePolicyTrigger_mixedGroups_keepOrWithinAndAndBetween() {
+        val source = fixture()
+        val key = "closeParcel@when[CarrierChosen,ParcelAudited,ParcelReturned]"
+        val result = editor.changePolicyTrigger(source, "shippingFlow", key,
+            listOf(TriggerGroup(listOf("CarrierChosen", "ParcelReady"), TriggerSeparator.OR), TriggerGroup(listOf("ParcelAudited"))))
+        assertExact(source, result, source.replaceOnce("when CarrierChosen | ParcelReturned and ParcelAudited do closeParcel", "when CarrierChosen | ParcelReady and ParcelAudited do closeParcel"))
+        // restructuring the groups rewrites the expression with the requested separators
+        val restructured = editor.changePolicyTrigger(source, "shippingFlow", key,
+            listOf(TriggerGroup(listOf("CarrierChosen")), TriggerGroup(listOf("ParcelReturned", "ParcelAudited"), TriggerSeparator.OR)))
+        assertExact(source, restructured, source.replaceOnce("when CarrierChosen | ParcelReturned and ParcelAudited do closeParcel", "when CarrierChosen and ParcelReturned | ParcelAudited do closeParcel"))
+    }
+
+    @Test
+    fun changePolicyTrigger_andGroupsOfTheFixture_exactOutput() {
+        val source = fixture()
+        val result = editor.changePolicyTrigger(source, "orderFlow", "fulfillOrder@when[PaymentAuthorized,StockReserved]",
+            listOf(TriggerGroup(listOf("PaymentAuthorized")), TriggerGroup(listOf("OrderTimeout"))))
+        assertExact(source, result, source.replaceOnce("when PaymentAuthorized and StockReserved do fulfillOrder", "when PaymentAuthorized and OrderTimeout do fulfillOrder"))
+    }
+
+    @Test
+    fun changePolicyTrigger_sameStructure_keepsSpacingAndComments() {
+        val source = flow("    when A /* first */ ,   B do x {\n        service S.Svc\n        emits E\n    }")
+        val result = editor.changePolicyTrigger(source, "F", "x@when[A,B]", listOf(TriggerGroup(listOf("B", "A"))))
+        assertExact(source, result, source.replaceOnce("when A /* first */ ,   B do x", "when B /* first */ ,   A do x"))
+    }
+
+    @Test
+    fun changePolicyTrigger_structureChangeThroughComments_isRejected() {
+        val source = flow("    when A /* first */ , B do x {\n        service S.Svc\n        emits E\n    }")
+        val result = editor.changePolicyTrigger(source, "F", "x@when[A,B]", listOf(TriggerGroup(listOf("A"))))
+        assertRejected(result, "holds comments", "unsupported until ES-P2")
+    }
+
+    @Test
+    fun changePolicyTrigger_rejects_namesThatAreNotOneAsciiIdentifier() {
+        val source = flow(whenX)
+        val bad = listOf("Bé", "B do x { service S.Svc emits Z } when A", "", "B, C", "B | C", "response", "B\nC")
+        for (name in bad) {
+            assertRejected(editor.changePolicyTrigger(source, "F", "x@when[A]", listOf(TriggerGroup(listOf(name)))), "not a valid event name")
+        }
+    }
+
+    @Test
+    fun changePolicyTrigger_rejects_emptyAndDuplicateInput() {
+        val source = flow(whenX)
+        assertRejected(editor.changePolicyTrigger(source, "F", "x@when[A]", emptyList()), "at least one")
+        assertRejected(editor.changePolicyTrigger(source, "F", "x@when[A]", listOf(TriggerGroup(emptyList()))), "at least one")
+        assertRejected(editor.changePolicyTrigger(source, "F", "x@when[A]", listOf(TriggerGroup(listOf("A", "A")))), "Duplicate trigger event 'A'")
+        assertRejected(editor.changePolicyTrigger(source, "F", "x@when[A]", listOf(TriggerGroup(listOf("B")), TriggerGroup(listOf("B")))), "Duplicate trigger event 'B'")
+    }
+
+    @Test
+    fun changePolicyTrigger_afterAstralCharacters_editsTheRightPlace() {
+        val source = "// $emoji$emoji$emoji\n" + flow("    // keep $emoji this explanation of the policy intact please\n    @if(\"over $emoji limit\")\n$whenX")
+        val result = editor.changePolicyTrigger(source, "F", "x@when[A]", listOf(TriggerGroup(listOf("B"))))
+        assertExact(source, result, source.replaceOnce("when A do x", "when B do x"))
+    }
+
+    @Test
+    fun changePolicyTrigger_rejects_notFoundAndDefinitionKeys() {
         val source = simpleFlow()
-        val result = editor.renameCommand(
-            source = source,
-            flowName = "TestFlow",
-            oldName = "nonexistentCommand",
-            newName = "newName"
+        assertRejected(editor.changePolicyTrigger(source, "NoSuchFlow", "createOrder@when[OrderPlaced]", listOf(TriggerGroup(listOf("X")))), "not found")
+        assertRejected(editor.changePolicyTrigger(source, "TestFlow", "createOrder@definition", listOf(TriggerGroup(listOf("X")))), "not found")
+    }
+
+    // =========================================================================
+    // Operation 3: Rename a command
+    // =========================================================================
+
+    @Test
+    fun renameCommand_updatesAllReferences_exactOutput() {
+        val source = simpleFlow()
+        val result = editor.renameCommand(source, "TestFlow", "createOrder", "placeOrder")
+        assertExact(source, result, source.replace("createOrder", "placeOrder"))
+        assertEquals(2, result.edits.size)
+    }
+
+    @Test
+    fun renameCommand_updatesCallAndOnCallTargets() {
+        val source = flow(
+            "    when A do x {\n        service S.Svc\n        call y\n        on Ok call y\n        emits E\n    }\n" +
+                "    do y {\n        service S.Svc\n        emits Ok\n    }"
         )
-        assertFalse(result.accepted)
-        assertTrue(result.diagnostics.any { it.message.contains("not declared") })
+        val result = editor.renameCommand(source, "F", "y", "renamed")
+        assertExact(source, result, source.replace(" y\n", " renamed\n").replace("do y {", "do renamed {"))
+        assertEquals(3, result.edits.size)
+    }
+
+    @Test
+    fun renameCommand_fixtureCallReference_exactOutput() {
+        val source = fixture()
+        val result = editor.renameCommand(source, "orderFlow", "checkInventory", "verifyInventory")
+        assertExact(source, result, source.replaceOnce("call checkInventory", "call verifyInventory").replaceOnce("do checkInventory {", "do verifyInventory {"))
+    }
+
+    @Test
+    fun renameCommand_updatesTheCompensatesReference() {
+        val source = flow("    when A do x {\n        service S.Svc\n        emits E\n    }\n    @compensates(x)\n    when E do y {\n        service S.Svc\n    }")
+        val result = editor.renameCommand(source, "F", "x", "renamed")
+        assertExact(source, result, source.replaceOnce("when A do x {", "when A do renamed {").replaceOnce("@compensates(x)", "@compensates(renamed)"))
     }
 
     @Test
     fun renameCommand_doesNotTouchOtherFlows() {
-        val source = readTestFile("flow/editing-fixtures.zfl")
-        // Rename 'createOrder' in orderFlow only
-        val result = editor.renameCommand(
-            source = source,
-            flowName = "orderFlow",
-            oldName = "createOrder",
-            newName = "registerOrder"
-        )
-        assertValidZfl(source, result)
-        val applied = applyEdits(source, result.edits)
-        // orderFlow2 still has createOrder
-        val flow2Section = applied.substringAfter("flow orderFlow2")
-        assertTrue(flow2Section.contains("createOrder"),
-            "orderFlow2's createOrder must not be renamed")
+        val source = fixture()
+        val result = editor.renameCommand(source, "orderFlow", "createOrder", "registerOrder")
+        assertExact(source, result, source.replaceOnce("when OrderPlaced do createOrder {\n        service OrderSystem.OrderService\n        emits OrderCreated\n        emits OrderFailed",
+            "when OrderPlaced do registerOrder {\n        service OrderSystem.OrderService\n        emits OrderCreated\n        emits OrderFailed"))
+        assertTrue(applyEdits(source, result.edits).substringAfter("flow orderFlow2").contains("do createOrder"))
     }
 
     @Test
-    fun renameCommand_updatesCallReferences() {
-        // The fixture has `call checkInventory` inside reserveStock
-        val source = readTestFile("flow/editing-fixtures.zfl")
-        val result = editor.renameCommand(
-            source = source,
-            flowName = "orderFlow",
-            oldName = "checkInventory",
-            newName = "verifyInventory"
-        )
-        assertValidZfl(source, result)
-        val applied = applyEdits(source, result.edits)
-        val flowSection = applied.substringBefore("flow orderFlow2")
-        assertFalse(flowSection.contains("checkInventory"),
-            "Call reference must be renamed in orderFlow")
-        assertTrue(applied.contains("verifyInventory"))
+    fun renameCommand_ofARepeatedCommand_renamesEveryBlock() {
+        val source = fixture()
+        val result = editor.renameCommand(source, "shippingFlow", "chooseCarrier", "pickCarrier")
+        assertExact(source, result, source.replace("do chooseCarrier {", "do pickCarrier {"))
+        assertEquals(2, result.edits.size)
     }
 
-    // ES-P1: identity reconciliation preserves selection across rename (ZVE-R3)
     @Test
-    fun renameCommand_identityMappingPreservesSelection() {
-        val source = simpleFlow()
-        val result = editor.renameCommand(
-            source = source,
-            flowName = "TestFlow",
-            oldName = "createOrder",
-            newName = "placeOrder"
-        )
-        val mapping = result.identityMappings.first()
-        assertEquals("createOrder", mapping.oldName)
-        assertEquals("placeOrder", mapping.newName)
-        assertEquals("TestFlow", mapping.flowName)
+    fun renameCommand_afterAstralCharacters_editsTheRightPlace() {
+        val source = "// $emoji$emoji$emoji$emoji$emoji\n" + flow("    // keep $emoji this explanation of the policy intact please\n    @if(\"over $emoji limit\")\n$whenX")
+        val result = editor.renameCommand(source, "F", "x", "renamed")
+        assertExact(source, result, source.replaceOnce("when A do x {", "when A do renamed {"))
+        assertEquals(result.edits.single().start, source.indexOf("do x {") + 3)
     }
 
-    // ES-P1: ordered calls and on-handlers preserved (ZVE-R8)
     @Test
-    fun renameCommand_orderedCallHandlersPreserved() {
-        val source = readTestFile("flow/editing-fixtures.zfl")
-        val result = editor.renameCommand(
-            source = source,
-            flowName = "orderFlow",
-            oldName = "authorizePayment",
-            newName = "approvePayment"
+    fun renameCommand_crlfSource_exactOutput() {
+        val source = flow(whenX).replace("\n", "\r\n")
+        val result = editor.renameCommand(source, "F", "x", "renamed")
+        assertExact(source, result, source.replaceOnce("do x {", "do renamed {"))
+    }
+
+    @Test
+    fun renameCommand_returnsTheIdentityMapping() {
+        val result = editor.renameCommand(simpleFlow(), "TestFlow", "createOrder", "placeOrder")
+        assertEquals(listOf(ZflIdentityMapping("TestFlow", "command", "createOrder", "placeOrder")), result.identityMappings)
+    }
+
+    // ES-P1 exit: identity reconciliation preserves rename continuity (ZVE-R3)
+    private data class Selected(val flow: String, val kind: String, val name: String)
+
+    private fun reconcile(selection: List<Selected>, mappings: List<ZflIdentityMapping>): List<Selected> =
+        selection.map { s ->
+            mappings.find { it.flowName == s.flow && it.kind == s.kind && it.oldName == s.name }
+                ?.let { s.copy(name = it.newName) } ?: s
+        }
+
+    /** What a node of the projection is, apart from its name. */
+    private fun commandShape(model: ZflSemanticModel, s: Selected): List<Any> {
+        val command = model.flows.single { it.name == s.flow }.commands.single { it.name == s.name }
+        return listOf(command.emits.map { it.eventName }, command.occurrences.map { it.triggers }, command.steps.size, command.service.orEmpty())
+    }
+
+    @Test
+    fun renameCommand_reconciledSelectionFollowsTheSameNode() {
+        val source = fixture()
+        val before = analyze(source)
+        val selection = listOf(
+            Selected("orderFlow", "command", "authorizePayment"),
+            Selected("orderFlow2", "command", "authorizePayment"), // equal name in another flow: must not follow
+            Selected("orderFlow", "command", "reserveStock")
         )
+        val result = editor.renameCommand(source, "orderFlow", "authorizePayment", "approvePayment")
+        val after = analyze(applyEdits(source, result.edits))
+        val reconciled = reconcile(selection, result.identityMappings)
+
+        assertEquals(
+            listOf(Selected("orderFlow", "command", "approvePayment"), Selected("orderFlow2", "command", "authorizePayment"), Selected("orderFlow", "command", "reserveStock")),
+            reconciled
+        )
+        // every reconciled selection exists in the new projection and is the node that was selected before
+        for ((old, now) in selection.zip(reconciled)) {
+            assertEquals(commandShape(before, old), commandShape(after, now), "$old became a different node as $now")
+        }
+        // and the old name is gone from the renamed flow only
+        assertTrue(after.flows.single { it.name == "orderFlow" }.commands.none { it.name == "authorizePayment" })
+        assertTrue(after.flows.single { it.name == "orderFlow2" }.commands.any { it.name == "authorizePayment" })
+    }
+
+    @Test
+    fun renameCommand_noOp_whenOldEqualsNew() {
+        assertNoOp(editor.renameCommand(simpleFlow(), "TestFlow", "createOrder", "createOrder"))
+    }
+
+    @Test
+    fun renameCommand_sameName_isStillCheckedAgainstTheSource() {
+        assertRejected(editor.renameCommand("flow X { broken", "NoFlow", "a", "a"), "syntax errors")
+        assertRejected(editor.renameCommand(simpleFlow(), "NoFlow", "a", "a"), "not found")
+        assertRejected(editor.renameCommand(simpleFlow(), "TestFlow", "missing", "missing"), "not declared")
+    }
+
+    @Test
+    fun renameCommand_rejects_whenNotDeclaredInFlow() {
+        assertRejected(editor.renameCommand(simpleFlow(), "TestFlow", "nonexistentCommand", "newName"), "not declared")
+        assertRejected(editor.renameCommand(simpleFlow(), "NoFlow", "createOrder", "newName"), "Flow 'NoFlow' not found")
+    }
+
+    @Test
+    fun renameCommand_rejects_ontoAnExistingCommand() {
+        val source = flow("$whenX\n    when E do y {\n        service S.Svc\n        emits E\n    }")
+        assertRejected(editor.renameCommand(source, "F", "y", "x"), "already exists", "merge")
+        // a command that is only called also exists
+        val called = flow("    when A do x {\n        service S.Svc\n        call z\n        emits E\n    }\n    when E do y {\n        service S.Svc\n    }")
+        assertRejected(editor.renameCommand(called, "F", "y", "z"), "already exists")
+    }
+
+    @Test
+    fun renameCommand_ontoTheNameOfACommandInAnotherFlow_isAllowed() {
+        val source = fixture()
+        val result = editor.renameCommand(source, "orderFlow", "createOrder", "chooseCarrier")
         assertValidZfl(source, result)
-        assertUntouchedOutside(source, result)
+    }
+
+    @Test
+    fun renameCommand_rejects_namesThatAreNotOneAsciiIdentifier() {
+        val source = flow(whenX)
+        for (name in listOf("café", "éx", "a b", "a;b", "a\n call x", "", "1a", "when", "emits", "a-b")) {
+            assertRejected(editor.renameCommand(source, "F", "x", name), "not a valid command name")
+        }
+    }
+
+    @Test
+    fun renameCommand_rejects_whenTheSystemsBlockListsTheCommand() {
+        val source = "systems { S { service Svc { commands: x } } }\nflow F {\n    start A {}\n$whenX\n    end { completed: E }\n}\n"
+        assertRejected(editor.renameCommand(source, "F", "x", "renamed"), "commands:", "shared across flows")
+    }
+
+    @Test
+    fun renameCommand_rejects_whenAQuotedCompensatesNamesTheCommand() {
+        val source = flow("$whenX\n    @compensates(\"x\")\n    when E do y {\n        service S.Svc\n    }")
+        assertRejected(editor.renameCommand(source, "F", "x", "renamed"), "quoted @compensates")
     }
 
     // =========================================================================
-    // ES-P1: CRLF line endings preserved byte-for-byte (ZVE-R8)
-    // =========================================================================
-
-    @Test
-    fun addEmission_crlfLineEndings_preserved() {
-        val source = buildCrlfSource()
-        assertTrue(source.contains("\r\n"), "Fixture must contain CRLF")
-        val result = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "crlfFlow",
-            occurrenceKey = "processOrder@when[CrlfStart]",
-            eventName = "CrlfEventAdded"
-        )
-        assertValidZfl(source, result)
-        val applied = applyEdits(source, result.edits)
-        // Lines in the untouched parts must still use CRLF
-        val untouchedStart = applied.substringBefore("emits CrlfEventAdded")
-        assertTrue(untouchedStart.contains("\r\n"),
-            "CRLF line endings must be preserved in untouched text")
-    }
-
-    @Test
-    fun renameCommand_crlfLineEndings_preserved() {
-        val source = buildCrlfSource()
-        val result = editor.renameCommand(
-            source = source,
-            flowName = "crlfFlow",
-            oldName = "processOrder",
-            newName = "handleOrder"
-        )
-        assertValidZfl(source, result)
-        assertUntouchedOutside(source, result)
-    }
-
-    // =========================================================================
-    // ES-P1: Syntax error in source → operations rejected (ZVE-R4)
+    // Common
     // =========================================================================
 
     @Test
     fun allOperations_rejectSyntaxErrors() {
         val broken = "flow X { syntax error here "
-        assertFalse(editor.addEmissionToOccurrence(broken, "X", "foo@definition", "Bar").accepted)
-        assertFalse(editor.changePolicyTrigger(broken, "X", "foo@when[Bar]", listOf(TriggerGroup(listOf("Baz")))).accepted)
-        assertFalse(editor.renameCommand(broken, "X", "foo", "bar").accepted)
+        assertRejected(editor.addEmissionToOccurrence(broken, "X", "foo@definition", "Bar"), "syntax errors")
+        assertRejected(editor.changePolicyTrigger(broken, "X", "foo@when[Bar]", listOf(TriggerGroup(listOf("Baz")))), "syntax errors")
+        assertRejected(editor.renameCommand(broken, "X", "foo", "bar"), "syntax errors")
     }
 
-    // =========================================================================
-    // ES-P1: ZVE-R13 – ambiguous relationship requires explicit origin selection
-    // =========================================================================
-
     @Test
-    fun addEmission_twoOccurrencesOfSameCommand_usesKeyToDistinguish() {
-        // orderFlow has:
-        //   when OrderCreated do authorizePayment { ... }
-        //   @if(...) when PaymentDeclined do authorizePayment { ... }
-        // These have DIFFERENT occurrence keys (different triggers), so they are distinguishable.
-        val source = readTestFile("flow/editing-fixtures.zfl")
-        val r1 = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "orderFlow",
-            occurrenceKey = "authorizePayment@when[OrderCreated]",
-            eventName = "AuthAuditLogged"
-        )
-        assertValidZfl(source, r1)
-
-        val r2 = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "orderFlow",
-            occurrenceKey = "authorizePayment@when[PaymentDeclined]",
-            eventName = "RetryAuditLogged"
-        )
-        assertValidZfl(source, r2)
-
-        // The two edits must target different positions (ZVE-R13: occurrence-specific policies)
-        assertNotEquals(r1.edits.map { it.start }, r2.edits.map { it.start },
-            "Two occurrences with same command but different triggers must target different positions")
+    fun anAmbiguousFlowName_isRejected() {
+        val source = flow(whenX) + "flow F {\n    start A {}\n}\n"
+        assertRejected(editor.renameCommand(source, "F", "x", "y"), "2 flows")
     }
 
-    // ES-P1: parallel edges (same target command, multiple trigger origins)
     @Test
-    fun changePolicyTrigger_parallelEdges_eachOccurrenceDistinguishable() {
-        // cancelOrder is triggered by both PaymentDeclined (with @if) and OrderFailed
-        val source = readTestFile("flow/editing-fixtures.zfl")
-        // Change the OrderFailed → cancelOrder policy to use OrderTimeout instead
-        val result = editor.changePolicyTrigger(
-            source = source,
-            flowName = "orderFlow",
-            policyKey = "cancelOrder@when[OrderFailed]",
-            newTriggers = listOf(TriggerGroup(listOf("OrderTimeout")))
-        )
-        assertValidZfl(source, result)
-        val applied = applyEdits(source, result.edits)
-        // PaymentDeclined → cancelOrder must still be present
-        assertTrue(applied.contains("when PaymentDeclined do cancelOrder"),
-            "The other cancelOrder policy must be unchanged")
-        // OrderFailed trigger should now be OrderTimeout
-        assertTrue(applied.contains("when OrderTimeout do cancelOrder"),
-            "Target policy trigger must be updated")
+    fun applyEdits_rejectsRangesOutsideTheSource() {
+        assertFailsWith<IllegalArgumentException> { applyEdits("abc", listOf(ZflTextEdit(2, 9, "x"))) }
+        assertFailsWith<IllegalArgumentException> { applyEdits("abc", listOf(ZflTextEdit(0, 1, "x"), ZflTextEdit(0, 2, "y"))) }
     }
 
-    // =========================================================================
-    // Identifiers stay ASCII (ZVE-R5)
-    // =========================================================================
-
-    /**
-     * The ZFL grammar ID rule is [a-zA-Z_][a-zA-Z0-9_]* (ASCII only). Unicode identifiers
-     * cause syntax errors and cannot appear in valid ZFL. This test demonstrates the rejection,
-     * which is the required behaviour.
-     */
     @Test
-    fun addEmission_unicodeEventName_isRejectedByZflGrammar() {
-        val source = simpleFlow()
-        // Unicode identifier: not a valid ZFL ID token
-        val result = editor.addEmissionToOccurrence(
-            source = source,
-            flowName = "TestFlow",
-            occurrenceKey = "createOrder@definition",
-            eventName = "UnicodeName_is_fine_but_Ünïcödé_is_not"
-        )
-        // The ZFL grammar rejects Unicode chars in identifiers, so the edit is rejected by validation
-        assertFalse(result.accepted,
-            "Unicode identifiers are not valid ZFL; the edit must be rejected")
+    fun editsAreUtf16IndexesOfTheOriginalString() {
+        val source = flow(whenX)
+        val withEmoji = "// $emoji\n$source"
+        val plain = editor.renameCommand(source, "F", "x", "renamed").edits.single()
+        val shifted = editor.renameCommand(withEmoji, "F", "x", "renamed").edits.single()
+        // the emoji is two UTF-16 units plus ' ', '/', '/' and a newline ahead of the same text
+        assertEquals(plain.start + "// $emoji\n".length, shifted.start)
+        assertEquals("x", withEmoji.substring(shifted.start, shifted.end))
     }
 
     // =========================================================================
@@ -685,59 +753,12 @@ class ZflEditorTest {
         |        completed: OrderCreated
         |    }
         |}
+        |
     """.trimMargin()
 
-    private fun flowWithTwoStarts(): String = """
-        |systems { OrderSystem { service OrderService } }
-        |flow TwoStartFlow {
-        |    start OrderPlaced {
-        |        orderId String
-        |    }
-        |    start OrderRequested {
-        |        orderId String
-        |    }
-        |    when OrderPlaced do createOrder {
-        |        service OrderSystem.OrderService
-        |        emits OrderCreated
-        |    }
-        |    do createOrder {
-        |        service OrderSystem.OrderService
-        |        emits OrderCreated
-        |    }
-        |    end {
-        |        completed: OrderCreated
-        |    }
-        |}
-    """.trimMargin()
-
-    /**
-     * Fixture with two identical when-blocks (same trigger + same command).
-     * WhenCollector assigns them keys: "doIt@when[Evt]" and "doIt@when[Evt]#2".
-     */
-    private fun duplicatePolicyFixture(): String = """
-        |systems { S { service Svc } }
-        |flow ambigFlow {
-        |    start Evt {}
-        |    start Evt2 {}
-        |    when Evt do doIt {
-        |        service S.Svc
-        |        emits Done
-        |    }
-        |    when Evt do doIt {
-        |        service S.Svc
-        |        emits Done
-        |    }
-        |    do doIt {
-        |        service S.Svc
-        |        emits Done
-        |    }
-        |    end { completed: Done }
-        |}
-    """.trimMargin()
-
-    private fun buildCrlfSource(): String {
-        val lf = readTestFile("flow/editing-crlf.zfl")
-        // Force CRLF throughout regardless of how the file was stored on disk
-        return lf.replace("\r\n", "\n").replace("\n", "\r\n")
-    }
+    /** Two `when` blocks with the same trigger and command and different conditions: one occurrence key. */
+    private fun equalEndpointsFixture(): String = flow(
+        "    @if(\"cheap\")\n    when A do x {\n        service S.Svc\n        emits E\n    }\n" +
+            "    @if(\"costly\")\n    when A do x {\n        service S.Svc\n        emits E\n    }"
+    )
 }

@@ -5,11 +5,14 @@ import kotlinx.serialization.Serializable
 /**
  * A single non-overlapping replacement in the source text.
  *
- * [start] and [end] are zero-based character offsets into the original source string
- * (end is exclusive, i.e. source[start, end) is replaced by [replacement]).
+ * [start] and [end] are zero-based UTF-16 code-unit indexes into the original source string, the
+ * indexes `String` uses in Kotlin and JavaScript (end is exclusive, i.e. source[start, end) is replaced
+ * by [replacement]). A character outside the BMP, such as an emoji, counts as two. This is the offset
+ * encoding proposed for ZVE-Q5; it is not Unicode code points and not bytes.
  * An insertion has start == end. A deletion has replacement == "".
  *
- * spec:flows/zfl-visual-editing.md#zve-r4
+ * spec:flows/zfl-visual-editing#zve-r4
+ * spec:flows/zfl-visual-editing#zve-q5
  */
 @Serializable
 data class ZflTextEdit(
@@ -22,7 +25,7 @@ data class ZflTextEdit(
  * An identity mapping that maps an old symbol name (in a given flow) to its new name
  * after a rename, so that prior selections/placements can follow the symbol.
  *
- * spec:flows/zfl-visual-editing.md#zve-r3
+ * spec:flows/zfl-visual-editing#zve-r3
  */
 @Serializable
 data class ZflIdentityMapping(
@@ -36,7 +39,7 @@ data class ZflIdentityMapping(
  * A diagnostic produced by an edit operation – may describe rejection reasons,
  * warnings, or informational messages.
  *
- * spec:flows/zfl-visual-editing.md#zve-r4
+ * spec:flows/zfl-visual-editing#zve-r4
  */
 @Serializable
 data class ZflEditDiagnostic(
@@ -52,7 +55,8 @@ enum class EditSeverity { INFO, WARNING, ERROR }
  * non-null and can be applied to produce valid ZFL.  When [accepted] is false the
  * [diagnostics] list explains why the operation was rejected; no edit should be applied.
  *
- * spec:flows/zfl-visual-editing.md#zve-r4, #zve-r5
+ * spec:flows/zfl-visual-editing#zve-r4
+ * spec:flows/zfl-visual-editing#zve-r5
  */
 @Serializable
 data class ZflEditResult(
@@ -79,10 +83,15 @@ data class ZflEditResult(
  * Edits must be sorted by start offset; behaviour for overlapping edits is undefined.
  * Useful in tests and host adapters.
  *
- * spec:flows/zfl-visual-editing.md#zve-r8
+ * spec:flows/zfl-visual-editing#zve-r8
  */
 fun applyEdits(source: String, edits: List<ZflTextEdit>): String {
     val sorted = edits.sortedBy { it.start }
+    for (edit in sorted) {
+        require(edit.start <= edit.end && edit.end <= source.length) {
+            "Edit range ${edit.start}..${edit.end} is outside the source (length ${source.length})"
+        }
+    }
     val sb = StringBuilder()
     var cursor = 0
     for (edit in sorted) {

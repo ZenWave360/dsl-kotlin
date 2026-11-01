@@ -1,22 +1,23 @@
+// Cabecera con emoji 🚚📦😀 y acentos: every offset below sits after astral characters.
 /**
  * Editing fixtures for ES-P1: prove the edit model in KMP.
  *
  * Covers:
  *   - Two flows with equal command/event names (orderFlow / orderFlow2)
- *   - Repeated command bodies (authorizePayment appears in two when-blocks)
- *   - Two policies with equal endpoints but different @if conditions
- *   - Mixed AND/OR trigger groups
+ *   - Repeated command bodies (authorizePayment appears in several when-blocks)
+ *   - Policies with equal endpoints but different @if conditions: the two `chooseCarrier` blocks of
+ *     shippingFlow have the same trigger and command and so the same occurrence key
+ *   - Mixed trigger groups: OR within a group and AND between groups (shippingFlow)
  *   - Actor-start flows
  *   - Ordered calls and on-handlers
  *   - response / emits / emits-response forms
  *   - Comments and annotations preserved byte-for-byte
- *   - Parallel edges (same target command, multiple trigger origins)
+ *   - Parallel edges: ParcelReady reaches auditParcel through two different policies, and reaches
+ *     chooseCarrier through two blocks of one key
+ *   - Unicode in strings and comments, including characters outside the BMP (emoji), also on line 1
  *
- * NOTE: The ZFL grammar ID rule is [a-zA-Z_][a-zA-Z0-9_]* (ASCII only).
- *   Unicode identifiers are therefore not supported by the ZFL lexer/grammar
- *   and cannot be tested as valid ZFL content.
- *   This is recorded as an ES-P1 finding: Unicode content in ZFL identifiers
- *   would require a grammar change (deferred to a future milestone).
+ * NOTE: The ZFL grammar ID rule is [a-zA-Z_][a-zA-Z0-9_]* (ASCII only). Identifiers stay ASCII by
+ *   owner decision (ZVE-R5); Unicode appears only in strings and comments.
  */
 
 systems {
@@ -84,7 +85,7 @@ flow orderFlow {
         response OutOfStock
     }
 
-    // Mixed AND/OR trigger: PaymentAuthorized and StockReserved (AND group)
+    // AND between groups: PaymentAuthorized and StockReserved
     when PaymentAuthorized and StockReserved do fulfillOrder {
         service OrderSystem.OrderService
         emits OrderFulfilled
@@ -141,5 +142,58 @@ flow orderFlow2 {
 
     end {
         completed: OrderFulfilled
+    }
+}
+
+// Énvíos ✓ con emoji 🚚: a flow whose comments and strings are Unicode.
+flow shippingFlow {
+
+    start ParcelReady {
+        parcelId String
+    }
+
+    start ParcelReturned {
+        parcelId String
+    }
+
+    /** Elige transportista – «exprés» ✓ */
+    @if("peso > 10 kg 📦")
+    when ParcelReady do chooseCarrier {
+        service OrderSystem.OrderService
+        emits CarrierChosen
+    }
+
+    // Equal endpoint and trigger, different condition: same occurrence key as the block above
+    @if("peso <= 10 kg — sin cargo")
+    when ParcelReady do chooseCarrier {
+        service OrderSystem.OrderService
+        emits CarrierChosen
+    }
+
+    // OR within one group: either event triggers the notification
+    when CarrierChosen | ParcelReturned do notifyCustomer {
+        service NotificationSystem.NotificationService
+        emits CustomerNotified
+    }
+
+    // Parallel edges: ParcelReady reaches auditParcel through two policies
+    when ParcelReady do auditParcel {
+        service OrderSystem.OrderService
+        emits ParcelAudited
+    }
+
+    when ParcelReady and CarrierChosen do auditParcel {
+        service OrderSystem.OrderService
+        emits ParcelAudited
+    }
+
+    // Mixed: OR within the first group, AND between groups
+    when CarrierChosen | ParcelReturned and ParcelAudited do closeParcel {
+        service OrderSystem.OrderService
+        emits ParcelClosed
+    }
+
+    end {
+        completed: ParcelClosed
     }
 }
