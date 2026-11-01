@@ -11,6 +11,11 @@
 Each module with its services, the commands they handle and the events they emit.
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
   classDef service fill:#fbd3ee,stroke:#c2569b,color:#111
@@ -48,9 +53,15 @@ One module per ZDL file.
 Modules, the events they own and who consumes them, and direct calls between modules.
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef module fill:#e8f0fe,stroke:#4a6fa5,stroke-width:2px,color:#111
   classDef event fill:#fff4d6,stroke:#c9a227,color:#111
+  classDef box fill:#ffffde,stroke:#aaaa33,color:#111
   classDef foreign fill:#f3f3f3,stroke:#888,stroke-dasharray:5 5,color:#111
 
   subgraph sg_CatalogInventory["Catalog Inventory"]
@@ -69,6 +80,7 @@ flowchart LR
   ext_stock_released_event_v1@{ shape: h-cyl, label: "stock-released-event-v1" }
 
   class OrdersCheckout module
+  class sg_OrdersCheckout box
   class CatalogInventory,ext_payment_authorized_event_v1,ext_stock_released_event_v1,sg_CatalogInventory foreign
   class OrderCancelled,OrderConfirmed,OrderCreated,StockUnavailable event
 

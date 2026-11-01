@@ -3,6 +3,7 @@ package io.zenwave360.language.docs.pages
 import io.zenwave360.language.docs.internal.Anchors
 import io.zenwave360.language.docs.internal.Markdown
 import io.zenwave360.language.zdl.architecture.ZdlArchitecture
+import io.zenwave360.language.zdl.view.AggregateLifecycle
 import io.zenwave360.language.zdl.view.CommandAdapter
 import io.zenwave360.language.zdl.view.ZdlAggregateToMermaidClassDiagramTransformer
 import io.zenwave360.language.zdl.view.ZdlArchitectureToMermaidTransformer
@@ -24,6 +25,9 @@ import io.zenwave360.language.zdl.view.ZdlTypeKind
  * [moduleId] is this module's id (null when the architecture has none for the file). [resolvedAdapters]
  * gives the adapters of a command with the owner module of listener and AsyncAPI events resolved (null:
  * use the unresolved ones). [modulePage] is the page of a module, relative to this page.
+ *
+ * With [safe] the text the user wrote (descriptions, names) goes through [Markdown.safeInline] and [Markdown.safeJavadoc],
+ * so it cannot add HTML, images or links to the page; see there.
  */
 internal class ModuleContent(
     private val domain: ZdlDomain,
@@ -31,7 +35,20 @@ internal class ModuleContent(
     private val moduleId: String? = null,
     private val resolvedAdapters: (service: String, method: String) -> List<CommandAdapter>? = { _, _ -> null },
     private val modulePage: (moduleId: String) -> String? = { null },
+    private val safe: Boolean = false,
 ) {
+
+    /** The text of a heading. */
+    private fun inline(text: String?): String = if (safe) Markdown.safeHeading(text) else Markdown.inline(text)
+
+    /** Text the model gave (a name, a type, an annotation value) written in a cell, a link label or a line. */
+    private fun text(text: String): String = if (safe) Markdown.safeInline(text) else text
+
+    /** A code span; in a safe page one whose text has markup or a URL is written escaped instead, so the page carries neither. */
+    private fun code(text: String): String =
+        if (safe && (text.contains('<') || text.contains('>') || text.contains("://") || text.contains('['))) Markdown.safeLiteral(text) else Markdown.code(text)
+
+    private fun javadoc(text: String?): String = if (safe) Markdown.safeJavadoc(text) else Markdown.javadoc(text)
 
     /** `## Architecture`: the module flowchart, or nothing when the module has no commands or events. */
     fun architecture(architecture: ZdlArchitecture, moduleId: String): String {
@@ -53,10 +70,15 @@ internal class ModuleContent(
             append(anchors.heading(2, "Services"))
             append("Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.\n\n")
             for ((service, diagram) in domain.services.zip(diagrams)) {
-                append(anchors.heading(3, Markdown.inline(service.name)))
-                service.javadoc?.let { append(Markdown.javadoc(it)).append("\n\n") }
+                append(anchors.heading(3, inline(service.name)))
+                service.javadoc?.let { append(javadoc(it)).append("\n\n") }
                 diagram.mermaid?.let { append(Markdown.mermaid(it)).append('\n') }
-                diagram.queriesLine?.let { append(it).append("\n\n") }
+                if (safe) {
+                    // The generator's line puts names between backticks, which a name with a backtick would close.
+                    diagram.queries.takeIf { it.isNotEmpty() }?.let { append("Queries: ").append(it.joinToString(", ") { q -> code(q) }).append(".\n\n") }
+                } else {
+                    diagram.queriesLine?.let { append(it).append("\n\n") }
+                }
             }
         }
     }
@@ -70,12 +92,12 @@ internal class ModuleContent(
             append(anchors.heading(2, "Aggregates"))
             append("Each aggregate root with the entities and enums it owns, and how they relate.\n\n")
             for (diagram in classes.aggregates) {
-                append(anchors.heading(3, Markdown.inline(diagram.aggregate)))
+                append(anchors.heading(3, inline(diagram.aggregate)))
                 append(Markdown.mermaid(diagram.mermaid)).append('\n')
                 lifecycles[diagram.aggregate]?.let { lifecycle ->
                     append(anchors.heading(4, "Lifecycle"))
                     append(Markdown.mermaid(lifecycle.mermaid)).append('\n')
-                    append(lifecycle.caption).append("\n\n")
+                    append(if (safe) lifecycleCaption(lifecycle) else lifecycle.caption).append("\n\n")
                 }
             }
             classes.others?.let {
@@ -109,13 +131,13 @@ internal class ModuleContent(
             append(anchors.heading(2, "Commands"))
             append("The methods of the module's services, the events each one emits and what triggers it.\n\n")
             for (service in services) {
-                if (services.size > 1) append(anchors.heading(3, Markdown.inline(service.name)))
+                if (services.size > 1) append(anchors.heading(3, inline(service.name)))
                 val rows = service.methods.map { m ->
                     listOf(
-                        m.name, input(m), returns(m),
-                        m.events.joinToString(", ") { group -> group.joinToString(" | ") { anchors.link("event:$it", it) } },
+                        text(m.name), input(m), returns(m),
+                        m.events.joinToString(", ") { group -> group.joinToString(" | ") { anchors.link("event:$it", text(it)) } },
                         (resolvedAdapters(service.name, m.name) ?: m.adapters).joinToString("<br>") { adapter(it) },
-                        Markdown.javadoc(m.javadoc),
+                        javadoc(m.javadoc),
                     )
                 }
                 append(Markdown.table(headers, rows)).append('\n')
@@ -124,16 +146,19 @@ internal class ModuleContent(
     }
 
     private fun adapter(a: CommandAdapter): String = when (a) {
-        is CommandAdapter.Rest -> Markdown.code("${a.method} ${a.path}")
+        is CommandAdapter.Rest -> code("${a.method} ${a.path}")
         is CommandAdapter.Listener -> "listener " + listenerEvent(a)
-        is CommandAdapter.AsyncApi -> "asyncapi ${Markdown.code(a.channel)}" + (a.api?.let { " ($it)" } ?: "")
+        is CommandAdapter.AsyncApi -> "asyncapi ${code(a.channel)}" + (a.api?.let { " (${text(it)})" } ?: "")
     }
+
+    private fun lifecycleCaption(lifecycle: AggregateLifecycle): String =
+        "Field ${code(lifecycle.field)}" + (lifecycle.initial?.let { ", initial ${code(it)}" } ?: "") + "."
 
     private fun listenerEvent(a: CommandAdapter.Listener): String {
         val own = if (a.module != null) a.module == moduleId else a.zdl == null
-        if (own) return anchors.link("event:${a.event}", a.event)
-        val page = a.module?.let(modulePage) ?: return a.event
-        return "[${a.event}]($page)"
+        if (own) return anchors.link("event:${a.event}", text(a.event))
+        val page = a.module?.let(modulePage) ?: return text(a.event)
+        return "[${text(a.event)}]($page)"
     }
 
     private fun input(m: ZdlCommand): String =
@@ -141,7 +166,7 @@ internal class ModuleContent(
 
     private fun returns(m: ZdlCommand): String? = m.returnType?.let { typeLink(it, m.returnIsArray) }
 
-    private fun typeLink(type: String, array: Boolean): String = anchors.link("type:$type", type) + if (array) "[]" else ""
+    private fun typeLink(type: String, array: Boolean): String = anchors.link("type:$type", text(type)) + if (array) "[]" else ""
 
     /** `## Glossary`: aggregates with their entities, enums, inputs, outputs and domain events. No services. */
     fun glossary(): String {
@@ -163,16 +188,16 @@ internal class ModuleContent(
                 append(anchors.heading(3, "Aggregates"))
                 for (root in roots) {
                     append(term(root, "Aggregate root"))
-                    for (entity in entitiesOf.getValue(root)) append(term(entity, "${embedded(entity)}entity of ${Markdown.code(root)}".replaceFirstChar { it.uppercase() }))
+                    for (entity in entitiesOf.getValue(root)) append(term(entity, "${embedded(entity)}entity of ${code(root)}".replaceFirstChar { it.uppercase() }))
                 }
                 for (entity in loose) append(term(entity, "${embedded(entity)}entity".replaceFirstChar { it.uppercase() }))
             }
             if (enums.isNotEmpty()) {
                 append(anchors.heading(3, "Enums"))
                 for (e in enums) {
-                    append(anchors.heading(4, Markdown.inline(e.name), "type:${e.name}"))
-                    e.javadoc?.let { append(Markdown.javadoc(it)).append("\n\n") }
-                    val rows = domain.enumValues(e.name).map { v -> listOf(if (v.value != null) "${v.name} (${v.value})" else v.name, Markdown.javadoc(v.javadoc)) }
+                    append(anchors.heading(4, inline(e.name), "type:${e.name}"))
+                    e.javadoc?.let { append(javadoc(it)).append("\n\n") }
+                    val rows = domain.enumValues(e.name).map { v -> listOf(v.value?.let { "${text(v.name)} (${text(it)})" } ?: text(v.name), javadoc(v.javadoc)) }
                     append(Markdown.table(listOf("Value", "Description"), rows)).append('\n')
                 }
             }
@@ -187,9 +212,9 @@ internal class ModuleContent(
             if (events.isNotEmpty()) {
                 append(anchors.heading(3, "Domain events"))
                 for (event in events) {
-                    append(anchors.heading(4, Markdown.inline(event.name), "event:${event.name}"))
-                    event.javadoc?.let { append(Markdown.javadoc(it)).append("\n\n") }
-                    val where = listOfNotNull(event.channel?.let { "Channel: ${Markdown.code(it)}." }, event.topic?.let { "Topic: ${Markdown.code(it)}." })
+                    append(anchors.heading(4, inline(event.name), "event:${event.name}"))
+                    event.javadoc?.let { append(javadoc(it)).append("\n\n") }
+                    val where = listOfNotNull(event.channel?.let { "Channel: ${code(it)}." }, event.topic?.let { "Topic: ${code(it)}." })
                     if (where.isNotEmpty()) append(where.joinToString(" ")).append("\n\n")
                     append(fieldTable(event.name)).append('\n')
                     for (nested in domain.nestedTypesOf(event.name)) append(term(nested, null))
@@ -202,14 +227,14 @@ internal class ModuleContent(
 
     /** `#### <Type>`, an optional kind line, its javadoc and its field table. */
     private fun term(type: String, kind: String?): String = buildString {
-        append(anchors.heading(4, Markdown.inline(type), "type:$type"))
+        append(anchors.heading(4, inline(type), "type:$type"))
         kind?.let { append(it).append("\n\n") }
-        domain.types[type]?.javadoc?.let { append(Markdown.javadoc(it)).append("\n\n") }
+        domain.types[type]?.javadoc?.let { append(javadoc(it)).append("\n\n") }
         append(fieldTable(type)).append('\n')
     }
 
     private fun fieldTable(type: String): String =
-        Markdown.table(listOf("Field", "Type", "Description"), domain.fieldsOf(type).map { f -> listOf(f.name, fieldType(f), Markdown.javadoc(f.javadoc)) })
+        Markdown.table(listOf("Field", "Type", "Description"), domain.fieldsOf(type).map { f -> listOf(text(f.name), fieldType(f), javadoc(f.javadoc)) })
 
     private fun fieldType(f: ZdlField): String = (if (f.json) "@json " else "") + typeLink(f.type, f.isArray)
 }

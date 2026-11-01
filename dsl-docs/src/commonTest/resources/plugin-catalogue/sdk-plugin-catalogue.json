@@ -1,0 +1,3054 @@
+{
+  "source": "ZenWave SDK 2.8.0-SNAPSHOT",
+  "version": "2.8.0-SNAPSHOT",
+  "plugins": [
+    {
+      "name": "AsyncAPIGeneratorPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.AsyncAPIGeneratorPlugin",
+      "title": "AsyncAPI and Spring Cloud Stream Generator with DTOs",
+      "summary": "Generates strongly typed SpringCloudStreams3 producer/consumer classes for AsyncAPI with Avro and JSON DTOs",
+      "options": {
+        "apiFile": {
+          "name": "apiFile",
+          "description": "API Specification File",
+          "type": "URI",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiOverlayFiles": {
+          "name": "apiOverlayFiles",
+          "description": "Ordered list of API overlay YAML files applied before dereferencing and allOf merge.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "role": {
+          "name": "role",
+          "description": "Project role: provider/client",
+          "type": "AsyncapiRoleType",
+          "defaultValue": "`provider`",
+          "values": [
+            "provider",
+            "client"
+          ]
+        },
+        "templates": {
+          "name": "templates",
+          "description": "Templates to use for code generation.",
+          "type": "String",
+          "defaultValue": "`SpringCloudStream`",
+          "values": [
+            "SpringCloudStream",
+            "SpringKafka",
+            "FQ Class Name"
+          ]
+        },
+        "modelPackage": {
+          "name": "modelPackage",
+          "description": "Java Models package name",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "producerApiPackage": {
+          "name": "producerApiPackage",
+          "description": "Java API package name for outbound (producer) services. It can override apiPackage for producers.",
+          "type": "String",
+          "defaultValue": "`{{apiPackage}}`",
+          "values": []
+        },
+        "consumerApiPackage": {
+          "name": "consumerApiPackage",
+          "description": "Java API package name for inbound (consumer) services. It can override apiPackage for consumer.",
+          "type": "String",
+          "defaultValue": "`{{apiPackage}}`",
+          "values": []
+        },
+        "apiPackage": {
+          "name": "apiPackage",
+          "description": "Java API package, if `producerApiPackage` and `consumerApiPackage` are not set.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "operationIds": {
+          "name": "operationIds",
+          "description": "Operation ids to include in code generation. Generates code for ALL if left empty",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "excludeOperationIds": {
+          "name": "excludeOperationIds",
+          "description": "Operation ids to exclude in code generation. Skips code generation if is not included or is excluded.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "transactionalOutbox": {
+          "name": "transactionalOutbox",
+          "description": "Transactional outbox type for message producers.",
+          "type": "TransactionalOutboxType",
+          "defaultValue": "`none`",
+          "values": [
+            "none",
+            "modulith"
+          ]
+        },
+        "jsonschema2pojo": {
+          "name": "jsonschema2pojo",
+          "description": "JsonSchema2Pojo settings for downstream library [(docs)](https://github.com/ZenWave360/zenwave-sdk/blob/main/plugins/asyncapi-jsonschema2pojo/src/main/java/io/zenwave360/sdk/plugins/JsonSchema2PojoConfiguration.java)",
+          "type": "Map",
+          "defaultValue": "`{}`",
+          "values": [],
+          "documentation": "https://github.com/ZenWave360/zenwave-sdk/blob/main/plugins/asyncapi-jsonschema2pojo/src/main/java/io/zenwave360/sdk/plugins/JsonSchema2PojoConfiguration.java"
+        },
+        "avroCompilerProperties": {
+          "name": "avroCompilerProperties",
+          "description": "Avro Compiler Properties",
+          "type": "AvroCompilerProperties",
+          "defaultValue": "See [AvroCompilerProperties](https://github.com/ZenWave360/zenwave-sdk/blob/main/plugins/avro-schema-compiler/src/main/java/io/zenwave360/sdk/plugins/AvroCompilerProperties.java)",
+          "values": []
+        },
+        "avroCompilerProperties.sourceDirectory": {
+          "name": "avroCompilerProperties.sourceDirectory",
+          "description": "Avro schema file or folder containing avro schemas",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "avroCompilerProperties.imports": {
+          "name": "avroCompilerProperties.imports",
+          "description": "Avro schema files or folders containing avro schemas. It supports local files/folders, `classpath:` files/folders or `https://` file resources.",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "avroCompilerProperties.includes": {
+          "name": "avroCompilerProperties.includes",
+          "description": "A set of Ant-like inclusion patterns used to select files from the source tree that are to be processed. By default, the pattern **\\/*.avsc is used to include all avro schema files.",
+          "type": "List",
+          "defaultValue": "`[**/*.avsc]`",
+          "values": []
+        },
+        "avroCompilerProperties.excludes": {
+          "name": "avroCompilerProperties.excludes",
+          "description": "A set of Ant-like exclusion patterns used to prevent certain files from being processed. By default, this set is empty such that no files are excluded.",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "avroCompilerProperties.customLogicalTypeFactories": {
+          "name": "avroCompilerProperties.customLogicalTypeFactories",
+          "description": "Custom Logical Type Factories",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "avroCompilerProperties.customConversions": {
+          "name": "avroCompilerProperties.customConversions",
+          "description": "Custom Conversions",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "generatedAnnotationClass": {
+          "name": "generatedAnnotationClass",
+          "description": "Annotation class to mark generated code (e.g. `org.springframework.aot.generate.Generated`). When retained at runtime, this prevents code coverage tools like Jacoco from including generated classes in coverage reports.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to. If left empty, it will print to stdout.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "modelNamePrefix": {
+          "name": "modelNamePrefix",
+          "description": "Sets the prefix for model classes and enums",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "modelNameSuffix": {
+          "name": "modelNameSuffix",
+          "description": "Sets the suffix for model classes and enums",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "runtimeHeadersProperty": {
+          "name": "runtimeHeadersProperty",
+          "description": "AsyncAPI extension property name for runtime auto-configuration of headers.",
+          "type": "String",
+          "defaultValue": "`x-runtime-expression`",
+          "values": []
+        },
+        "messageNames": {
+          "name": "messageNames",
+          "description": "Message names to include in code generation (combined with operationIds). Generates code for ALL if left empty",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "generateMessageKeys": {
+          "name": "generateMessageKeys",
+          "description": "Generate POJOs for message binding keys (e.g. Kafka `bindings.kafka.key`) declared in selected messages.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "generateMessageHeaders": {
+          "name": "generateMessageHeaders",
+          "description": "Generate POJOs for application headers declared on selected messages or inherited from message traits.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "generateBindingHeaders": {
+          "name": "generateBindingHeaders",
+          "description": "Generate POJOs for protocol binding header schemas (HTTP/JMS/MQTT) declared in selected messages.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "sourceFolder": {
+          "name": "sourceFolder",
+          "description": "Source folder inside folder to generate code to.",
+          "type": "String",
+          "defaultValue": "`src/main/java`",
+          "values": []
+        },
+        "bindingTypes": {
+          "name": "bindingTypes",
+          "description": "Binding names to include in code generation. Generates code for ALL bindings if left empty",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "avroFiles": {
+          "name": "avroFiles",
+          "description": "List of avro schema files to generate code for. It is alternative to sourceDirectory and imports.",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "exposeMessage": {
+          "name": "exposeMessage",
+          "description": "Whether to expose underlying spring Message to consumers or not.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "useEnterpriseEnvelope": {
+          "name": "useEnterpriseEnvelope",
+          "description": "Include support for enterprise envelop wrapping/unwrapping.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "envelopeJavaTypeExtensionName": {
+          "name": "envelopeJavaTypeExtensionName",
+          "description": "AsyncAPI Message extension name for the envelop java type for wrapping/unwrapping.",
+          "type": "String",
+          "defaultValue": "`x-envelope-java-type`",
+          "values": []
+        },
+        "methodAndMessageSeparator": {
+          "name": "methodAndMessageSeparator",
+          "description": "To avoid method erasure conflicts, when exposeMessage or reactive style this character will be used as separator to append message payload type to method names in consumer interfaces.",
+          "type": "String",
+          "defaultValue": "`$`",
+          "values": []
+        },
+        "componentPrefix": {
+          "name": "componentPrefix",
+          "description": "Prefix used in to reference this component in @Component and application.yml",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "componentSuffix": {
+          "name": "componentSuffix",
+          "description": "Suffix used in to reference this component in @Component and application.yml",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "consumerPrefix": {
+          "name": "consumerPrefix",
+          "description": "Consumer object class name prefix",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "consumerSuffix": {
+          "name": "consumerSuffix",
+          "description": "Consumer object class name suffix",
+          "type": "String",
+          "defaultValue": "`Consumer`",
+          "values": []
+        },
+        "consumerServicePrefix": {
+          "name": "consumerServicePrefix",
+          "description": "Business/Service interface prefix",
+          "type": "String",
+          "defaultValue": "`I`",
+          "values": []
+        },
+        "consumerServiceSuffix": {
+          "name": "consumerServiceSuffix",
+          "description": "Business/Service interface suffix",
+          "type": "String",
+          "defaultValue": "`ConsumerService`",
+          "values": []
+        },
+        "formatter": {
+          "name": "formatter",
+          "description": "Code formatter implementation",
+          "type": "Formatters",
+          "defaultValue": "`palantir`",
+          "values": [
+            "palantir",
+            "spring",
+            "google"
+          ]
+        },
+        "skipFormatting": {
+          "name": "skipFormatting",
+          "description": "Skip java sources output formatting",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "haltOnFailFormatting": {
+          "name": "haltOnFailFormatting",
+          "description": "Halt on formatting errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "AsyncApiJsonSchema2PojoPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.AsyncApiJsonSchema2PojoPlugin",
+      "summary": "Generate Plain Old Java Objects from OpenAPI/AsyncAPI schemas or full JSON-Schema files.",
+      "description": "Command line usage example:\n\n```shell\njbang zw -p io.zenwave360.sdk.plugins.AsyncApiJsonSchema2PojoPlugin \\\n    apiFile=src/main/resources/model/asyncapi.yml \\\n    modelPackage=io.zenwave360.example.core.domain.events \\\n    jsonschema2pojo.includeTypeInfo=true \\\n    targetFolder=.\n```\n",
+      "options": {
+        "apiFile": {
+          "name": "apiFile",
+          "description": "API Specification File",
+          "type": "URI",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFiles": {
+          "name": "apiFiles",
+          "description": "API Spec files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiOverlayFiles": {
+          "name": "apiOverlayFiles",
+          "description": "Ordered list of API overlay YAML files applied before dereferencing and allOf merge.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "modelPackage": {
+          "name": "modelPackage",
+          "description": "Java Models package name",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "generatedAnnotationClass": {
+          "name": "generatedAnnotationClass",
+          "description": "Annotation class to mark generated code (e.g. `org.springframework.aot.generate.Generated`). When retained at runtime, this prevents code coverage tools like Jacoco from including generated classes in coverage reports.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "jsonschema2pojo": {
+          "name": "jsonschema2pojo",
+          "description": "JsonSchema2Pojo settings for downstream library [(docs)](https://github.com/ZenWave360/zenwave-sdk/blob/main/plugins/asyncapi-jsonschema2pojo/src/main/java/io/zenwave360/sdk/plugins/JsonSchema2PojoConfiguration.java)",
+          "type": "Map",
+          "defaultValue": "`{}`",
+          "values": [],
+          "documentation": "https://github.com/ZenWave360/zenwave-sdk/blob/main/plugins/asyncapi-jsonschema2pojo/src/main/java/io/zenwave360/sdk/plugins/JsonSchema2PojoConfiguration.java"
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "modelNamePrefix": {
+          "name": "modelNamePrefix",
+          "description": "Sets the prefix for model classes and enums",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "modelNameSuffix": {
+          "name": "modelNameSuffix",
+          "description": "Sets the suffix for model classes and enums",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "messageNames": {
+          "name": "messageNames",
+          "description": "Message names to include in code generation (combined with operationIds). Generates code for ALL if left empty",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "generateMessageKeys": {
+          "name": "generateMessageKeys",
+          "description": "Generate POJOs for message binding keys (e.g. Kafka `bindings.kafka.key`) declared in selected messages.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "generateMessageHeaders": {
+          "name": "generateMessageHeaders",
+          "description": "Generate POJOs for application headers declared on selected messages or inherited from message traits.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "generateBindingHeaders": {
+          "name": "generateBindingHeaders",
+          "description": "Generate POJOs for protocol binding header schemas (HTTP/JMS/MQTT) declared in selected messages.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "bindingTypes": {
+          "name": "bindingTypes",
+          "description": "Binding names to include in code generation. Generates code for ALL bindings if left empty",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "operationIds": {
+          "name": "operationIds",
+          "description": "Operation ids to include in code generation. Generates code for ALL if left empty",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "excludeOperationIds": {
+          "name": "excludeOperationIds",
+          "description": "Operation ids to exclude in code generation. Skips code generation if is not included or is excluded.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "AsyncAPIOpsGeneratorPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.AsyncAPIOpsGeneratorPlugin",
+      "title": "AsyncAPI to Terraform Generator",
+      "summary": "Generates Terraform HCL (topics, schemas, ACLs) from AsyncAPI specs to prevent API drift.",
+      "options": {
+        "apiFile": {
+          "name": "apiFile",
+          "description": "AsyncAPI Specification File",
+          "type": "URI",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiOverlayFiles": {
+          "name": "apiOverlayFiles",
+          "description": "Ordered list of API overlay YAML files applied to each loaded spec before dereferencing and allOf merge.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "avroImports": {
+          "name": "avroImports",
+          "description": "Additional Avro schema files or folders available while bundling owned message schemas. Sibling .avsc files are discovered automatically for local and classpath schemas.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "server": {
+          "name": "server",
+          "description": "Target server/environment name matching a key in asyncapi servers (e.g. dev, staging, production). Used to merge x-env-server-overrides/env-server-overrides from channel and error-topic bindings.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "parameterValues": {
+          "name": "parameterValues",
+          "description": "Selects which values a channel address parameter expands to, as parameterValues.<name>=v1,v2 (every channel using that name, enum required) or parameterValues.<channelKey>.<name>=v1 (that channel only, also accepted for parameters with no enum). Values are validated against each channel's own enum.",
+          "type": "Map",
+          "defaultValue": "`{}`",
+          "values": []
+        },
+        "templates": {
+          "name": "templates",
+          "description": "Templates to use for code generation.",
+          "type": "String",
+          "defaultValue": "`TerraformKafka`",
+          "values": [
+            "TerraformKafka",
+            "TerraformConfluent",
+            "TerraformConfluentHybrid",
+            "FQ Class Name"
+          ]
+        },
+        "serviceAccountMode": {
+          "name": "serviceAccountMode",
+          "description": "How Confluent service accounts are resolved: existing looks them up by display name; managed provisions them.",
+          "type": "String",
+          "defaultValue": "`existing`",
+          "values": [
+            "existing",
+            "managed"
+          ]
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to. If left empty, it will print to stdout.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "sourceProperty": {
+          "name": "sourceProperty",
+          "description": "Context key holding the list of AsyncAPI models loaded by AsyncAPIOpsSpecLoader.",
+          "type": "String",
+          "defaultValue": "`apis`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "AvroSchemaGeneratorPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.AvroSchemaGeneratorPlugin",
+      "summary": "Generates Java classes from Avro schemas using Avro Compiler.",
+      "description": "Generates Java classes from Avro schemas using your provided Avro Compiler version. Compatible with Avro versions from 1.8.0 to 1.12.0.\n",
+      "options": {
+        "avroFiles": {
+          "name": "avroFiles",
+          "description": "List of avro schema files to generate code for. It is alternative to sourceDirectory and imports.",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "avroCompilerProperties": {
+          "name": "avroCompilerProperties",
+          "description": "Avro Compiler Properties",
+          "type": "AvroCompilerProperties",
+          "defaultValue": "See [AvroCompilerProperties](https://github.com/ZenWave360/zenwave-sdk/blob/main/plugins/avro-schema-compiler/src/main/java/io/zenwave360/sdk/plugins/AvroCompilerProperties.java)",
+          "values": []
+        },
+        "avroCompilerProperties.sourceDirectory": {
+          "name": "avroCompilerProperties.sourceDirectory",
+          "description": "Avro schema file or folder containing avro schemas",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "avroCompilerProperties.imports": {
+          "name": "avroCompilerProperties.imports",
+          "description": "Avro schema files or folders containing avro schemas. It supports local files/folders, `classpath:` files/folders or `https://` file resources.",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "avroCompilerProperties.includes": {
+          "name": "avroCompilerProperties.includes",
+          "description": "A set of Ant-like inclusion patterns used to select files from the source tree that are to be processed. By default, the pattern **\\/*.avsc is used to include all avro schema files.",
+          "type": "List",
+          "defaultValue": "`[**/*.avsc]`",
+          "values": []
+        },
+        "avroCompilerProperties.excludes": {
+          "name": "avroCompilerProperties.excludes",
+          "description": "A set of Ant-like exclusion patterns used to prevent certain files from being processed. By default, this set is empty such that no files are excluded.",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "avroCompilerProperties.customLogicalTypeFactories": {
+          "name": "avroCompilerProperties.customLogicalTypeFactories",
+          "description": "Custom Logical Type Factories",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "avroCompilerProperties.customConversions": {
+          "name": "avroCompilerProperties.customConversions",
+          "description": "Custom Conversions",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "sourceFolder": {
+          "name": "sourceFolder",
+          "description": "Source folder inside folder to generate code to.",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to.",
+          "type": "File",
+          "defaultValue": "`target\\generated-sources\\avro`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "BackendApplicationDefaultPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.BackendApplicationDefaultPlugin",
+      "summary": "Generates a full backend application using the provided 'layout' property",
+      "description": "Sample configuration:\n\n```zdl\nconfig {\n    basePackage \"com.example\"\n    persistence jpa\n    databaseType postgresql\n    layout CleanHexagonalProjectLayout\n\n    // The IDE will automatically use the active .zdl file\n    // Alternatively, specify the path here to maintain separation between models and plugins\n    zdlFile \"models/example.zdl\"\n\n    plugins {\n        BackendApplicationDefaultPlugin {\n            useLombok true\n            --force // overwrite all files\n        }\n    }\n}\n```\n\nVisit https://www.zenwave360.io/docs/zenwave-sdk/backend-application for complete documentation.\n\n",
+      "options": {
+        "layout": {
+          "name": "layout",
+          "description": "Project organization and package structure [(docs)](https://github.com/zenwave360/zenwave-sdk/tree/main/plugins/backend-application-default#project-layout)",
+          "type": "ProjectLayout",
+          "defaultValue": "`DefaultProjectLayout`",
+          "values": [
+            "DefaultProjectLayout",
+            "CleanHexagonalProjectLayout",
+            "LayeredProjectLayout",
+            "SimpleDomainProjectLayout",
+            "HexagonalProjectLayout",
+            "CleanArchitectureProjectLayout"
+          ],
+          "documentation": "https://github.com/zenwave360/zenwave-sdk/tree/main/plugins/backend-application-default#project-layout"
+        },
+        "zdlFile": {
+          "name": "zdlFile",
+          "description": "ZDL file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "basePackage": {
+          "name": "basePackage",
+          "description": "Applications base package",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "persistence": {
+          "name": "persistence",
+          "description": "Persistence",
+          "type": "PersistenceType",
+          "defaultValue": "`mongodb`",
+          "values": [
+            "mongodb",
+            "jpa"
+          ]
+        },
+        "databaseType": {
+          "name": "databaseType",
+          "description": "SQL database flavor",
+          "type": "DatabaseType",
+          "defaultValue": "`postgresql`",
+          "values": [
+            "generic",
+            "postgresql",
+            "mysql",
+            "mariadb",
+            "oracle"
+          ]
+        },
+        "style": {
+          "name": "style",
+          "description": "Programming style. Only imperative listener contracts are currently implemented.",
+          "type": "ProgrammingStyle",
+          "defaultValue": "`imperative`",
+          "values": [
+            "imperative",
+            "reactive"
+          ]
+        },
+        "useLombok": {
+          "name": "useLombok",
+          "description": "Use @Getter and @Setter annotations from Lombok",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "useJSpecify": {
+          "name": "useJSpecify",
+          "description": "Whether to add JSpecify nullability annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "useJMolecules": {
+          "name": "useJMolecules",
+          "description": "Whether to add jMolecules DDD and architecture annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "addRelationshipsById": {
+          "name": "addRelationshipsById",
+          "description": "Controls whether to add a read/write relationship by id when mapping relationships between aggregate (not recommended) keeping the relationship by object readonly.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "idJavaType": {
+          "name": "idJavaType",
+          "description": "Specifies the Java data type for the ID fields of entities. Defaults to Long for JPA and String for MongoDB if not explicitly set.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "includeEmitEventsImplementation": {
+          "name": "includeEmitEventsImplementation",
+          "description": "Whether to add AsyncAPI/ApplicationEventPublisher as service dependencies. Depends on the naming convention of zenwave-asyncapi plugin to work.",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "implementEventListeners": {
+          "name": "implementEventListeners",
+          "description": "Whether to generate implementations for methods annotated with @asyncapi",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "consumerApiPackage": {
+          "name": "consumerApiPackage",
+          "description": "Java API package name for inbound (consumer) services. It can override apiPackage for consumer.",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}.client.{{apiId}}.events.consumer`",
+          "values": []
+        },
+        "modelPackage": {
+          "name": "modelPackage",
+          "description": "Java Models package name",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}.client.{{apiId}}.events.dtos`",
+          "values": []
+        },
+        "zdlFiles": {
+          "name": "zdlFiles",
+          "description": "ZDL files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to. If left empty, it will print to stdout.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "continueOnZdlError": {
+          "name": "continueOnZdlError",
+          "description": "Continue even when ZDL contains fatal errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "useSpringModulith": {
+          "name": "useSpringModulith",
+          "description": "Whether to use Spring Modulith annotations and features",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "consumerServicePrefix": {
+          "name": "consumerServicePrefix",
+          "description": "Consumer interface prefix; must match asyncapi-generator.",
+          "type": "String",
+          "defaultValue": "`I`",
+          "values": []
+        },
+        "consumerServiceSuffix": {
+          "name": "consumerServiceSuffix",
+          "description": "Consumer interface suffix; must match asyncapi-generator.",
+          "type": "String",
+          "defaultValue": "`ConsumerService`",
+          "values": []
+        },
+        "modelNamePrefix": {
+          "name": "modelNamePrefix",
+          "description": "Model class prefix; must match asyncapi-generator.",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "modelNameSuffix": {
+          "name": "modelNameSuffix",
+          "description": "Model class suffix; must match asyncapi-generator.",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "apiPackage": {
+          "name": "apiPackage",
+          "description": "Java API package, if `producerApiPackage` and `consumerApiPackage` are not set.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "producerApiPackage": {
+          "name": "producerApiPackage",
+          "description": "Java API package name for outbound (producer) services. It can override apiPackage for producers.",
+          "type": "String",
+          "defaultValue": "`{{apiPackage}}`",
+          "values": []
+        },
+        "bindingTypes": {
+          "name": "bindingTypes",
+          "description": "Binding names to include in code generation. Generates code for ALL bindings if left empty",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "role": {
+          "name": "role",
+          "description": "Project role: provider/client",
+          "type": "AsyncapiRoleType",
+          "defaultValue": "`provider`",
+          "values": [
+            "provider",
+            "client"
+          ]
+        },
+        "operationIds": {
+          "name": "operationIds",
+          "description": "Operation ids to include in code generation. Generates code for ALL if left empty",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "excludeOperationIds": {
+          "name": "excludeOperationIds",
+          "description": "Operation ids to exclude in code generation. Skips code generation if is not included or is excluded.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "formatter": {
+          "name": "formatter",
+          "description": "Code formatter implementation",
+          "type": "Formatters",
+          "defaultValue": "`palantir`",
+          "values": [
+            "palantir",
+            "spring",
+            "google"
+          ]
+        },
+        "skipFormatting": {
+          "name": "skipFormatting",
+          "description": "Skip kotlin sources output formatting",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "haltOnFailFormatting": {
+          "name": "haltOnFailFormatting",
+          "description": "Halt on formatting errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "EventCatalogImporterPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.EventCatalogImporterPlugin",
+      "title": "Event Catalog Importer",
+      "summary": "Imports an EventCatalog source tree into a ZenWave architecture manifest.",
+      "options": {
+        "inputFolder": {
+          "name": "inputFolder",
+          "description": "Path to the EventCatalog source tree.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "outputFile": {
+          "name": "outputFile",
+          "description": "Path to the generated zenwave-architecture.yml file.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "layout": {
+          "name": "layout",
+          "description": "Project organization and package structure [(docs)](https://github.com/zenwave360/zenwave-sdk/tree/main/plugins/backend-application-default#project-layout)",
+          "type": "ProjectLayout",
+          "defaultValue": "`DefaultProjectLayout`",
+          "values": [
+            "DefaultProjectLayout",
+            "CleanHexagonalProjectLayout",
+            "LayeredProjectLayout",
+            "SimpleDomainProjectLayout",
+            "HexagonalProjectLayout",
+            "CleanArchitectureProjectLayout"
+          ],
+          "documentation": "https://github.com/zenwave360/zenwave-sdk/tree/main/plugins/backend-application-default#project-layout"
+        },
+        "zdlFile": {
+          "name": "zdlFile",
+          "description": "ZDL file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "zdlFiles": {
+          "name": "zdlFiles",
+          "description": "ZDL files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFile": {
+          "name": "apiFile",
+          "description": "API Spec file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFiles": {
+          "name": "apiFiles",
+          "description": "API Spec files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder for generated importer files.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "EventCatalogPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.EventCatalogPlugin",
+      "title": "Event Catalog Generator",
+      "summary": "Generates an EventCatalog source tree from a zenwave-architecture.yml master file.",
+      "options": {
+        "inputFile": {
+          "name": "inputFile",
+          "description": "URI of the zenwave-architecture.yml master file.",
+          "type": "URI",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "outputFolder": {
+          "name": "outputFolder",
+          "description": "Output folder for the EventCatalog source tree.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "docsTemplate": {
+          "name": "docsTemplate",
+          "description": "Custom Handlebars template for docs body rendering.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "preferredSource": {
+          "name": "preferredSource",
+          "description": "Preferred artifact source for build-time content loading.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "allowFallback": {
+          "name": "allowFallback",
+          "description": "Allow source fallback for build-time content loading.",
+          "type": "Boolean",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "linkSource": {
+          "name": "linkSource",
+          "description": "Preferred source for generated frontmatter links.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "publishInternalOperations": {
+          "name": "publishInternalOperations",
+          "description": "Publish unbound ZDL operations as synthesized EventCatalog command/query pages.",
+          "type": "Boolean",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "JDLToAsyncAPIPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.JDLToAsyncAPIPlugin",
+      "title": "JDL To AsyncAPI Generator",
+      "summary": "Generates a full AsyncAPI definitions for CRUD operations from JDL models",
+      "description": "- One channel for each entity update events\n- Messages and payloads for each entity:\n  - Supported Schema Formats: AVRO and AsyncAPI schema\n  - Supported Payload Styles: Entity and State Transfer (for Create/Update/Delete events)\n\nJDL Example:\n\n```jdl\n@aggregate\nentity Customer {\n  username String required minlength(3) maxlength(250)\n  password String required minlength(3) maxlength(250)\n  email String required minlength(3) maxlength(250)\n  firstName String required minlength(3) maxlength(250)\n  lastName String required minlength(3) maxlength(250)\n}\n```\n\nThen run:\n\n```shell\njbang zw -p io.zenwave360.sdk.plugins.JDLToAsyncAPIPlugin \\\n    includeCommands=true \\\n    specFile=src/main/resources/model/orders-model.jdl \\\n    idType=integer \\\n    idTypeFormat=int64 \\\n    annotations=aggregate \\\n    payloadStyle=event \\\n    targetFile=src/main/resources/model/asyncapi.yml\n```\n",
+      "options": {
+        "zdlFile": {
+          "name": "zdlFile",
+          "description": "ZDL file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "zdlFiles": {
+          "name": "zdlFiles",
+          "description": "ZDL files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "basePackage": {
+          "name": "basePackage",
+          "description": "Java Models package name",
+          "type": "String",
+          "defaultValue": "`io.example.domain.model`",
+          "values": []
+        },
+        "avroPackage": {
+          "name": "avroPackage",
+          "description": "Package name for generated Avro Schemas (.avsc)",
+          "type": "String",
+          "defaultValue": "`io.example.domain.model`",
+          "values": []
+        },
+        "schemaFormat": {
+          "name": "schemaFormat",
+          "description": "Schema format for messages' payload",
+          "type": "SchemaFormat",
+          "defaultValue": "`schema`",
+          "values": [
+            "schema",
+            "avro"
+          ]
+        },
+        "includeEvents": {
+          "name": "includeEvents",
+          "description": "Include channels and messages to publish domain events",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "includeCommands": {
+          "name": "includeCommands",
+          "description": "Include channels and messages to listen for async command requests",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "idType": {
+          "name": "idType",
+          "description": "JsonSchema type for id fields and parameters.",
+          "type": "String",
+          "defaultValue": "`string`",
+          "values": []
+        },
+        "idTypeFormat": {
+          "name": "idTypeFormat",
+          "description": "JsonSchema type format for id fields and parameters.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "payloadStyle": {
+          "name": "payloadStyle",
+          "description": "Payload Style for messages' payload",
+          "type": "PayloadStyle",
+          "defaultValue": "`entity`",
+          "values": [
+            "entity",
+            "event"
+          ]
+        },
+        "asyncapiVersion": {
+          "name": "asyncapiVersion",
+          "description": "Target AsyncAPI version.",
+          "type": "AsyncapiVersionType",
+          "defaultValue": "`v2`",
+          "values": [
+            "v2",
+            "v3"
+          ]
+        },
+        "targetFile": {
+          "name": "targetFile",
+          "description": "Target file",
+          "type": "String",
+          "defaultValue": "`asyncapi.yml`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to. If left empty, it will print to stdout.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "continueOnZdlError": {
+          "name": "continueOnZdlError",
+          "description": "Continue even when ZDL contains fatal errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "useJSpecify": {
+          "name": "useJSpecify",
+          "description": "Whether to add JSpecify nullability annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "useJMolecules": {
+          "name": "useJMolecules",
+          "description": "Whether to add jMolecules DDD and architecture annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "entities": {
+          "name": "entities",
+          "description": "Entities to generate code for",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "skipEntities": {
+          "name": "skipEntities",
+          "description": "Entities to skip code generation for",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "annotations": {
+          "name": "annotations",
+          "description": "Annotations to generate code for (ex. aggregate)",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "skipForAnnotations": {
+          "name": "skipForAnnotations",
+          "description": "Skip generating operations for entities annotated with these",
+          "type": "List",
+          "defaultValue": "`[vo, embedded, skip]`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "OpenAPIControllersPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.OpenAPIControllersPlugin",
+      "summary": "Generates implementations based on ZDL models and OpenAPI definitions SpringMVC generated OpenAPI interfaces.",
+      "options": {
+        "layout": {
+          "name": "layout",
+          "description": "Project layout",
+          "type": "ProjectLayout",
+          "defaultValue": "`DefaultProjectLayout`",
+          "values": []
+        },
+        "zdlFile": {
+          "name": "zdlFile",
+          "description": "ZDL file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "zdlFiles": {
+          "name": "zdlFiles",
+          "description": "ZDL files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFile": {
+          "name": "apiFile",
+          "description": "API Specification File",
+          "type": "URI",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFiles": {
+          "name": "apiFiles",
+          "description": "API Spec files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to. If left empty, it will print to stdout.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiOverlayFiles": {
+          "name": "apiOverlayFiles",
+          "description": "Ordered list of API overlay YAML files applied before dereferencing and allOf merge.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "continueOnZdlError": {
+          "name": "continueOnZdlError",
+          "description": "Continue even when ZDL contains fatal errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "useJSpecify": {
+          "name": "useJSpecify",
+          "description": "Whether to add JSpecify nullability annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "useJMolecules": {
+          "name": "useJMolecules",
+          "description": "Whether to add jMolecules DDD and architecture annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "style": {
+          "name": "style",
+          "description": "Programming Style",
+          "type": "ProgrammingStyle",
+          "defaultValue": "`imperative`",
+          "values": [
+            "imperative",
+            "reactive"
+          ]
+        },
+        "includeControllerTests": {
+          "name": "includeControllerTests",
+          "description": "Include Controller Unit tests (using ServicesInMemoryConfig)",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "paginatedDtoItemsJsonPath": {
+          "name": "paginatedDtoItemsJsonPath",
+          "description": "JSONPath list to search for response DTO schemas for list or paginated results. User '$.items' for lists or '`$.properties.<content property>.items`' for paginated results.",
+          "type": "List",
+          "defaultValue": "`[$.items, $.properties.content.items]`",
+          "values": []
+        },
+        "openapiFile": {
+          "name": "openapiFile",
+          "description": "OpenAPI specification file. Overrides `specFile`",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "basePackage": {
+          "name": "basePackage",
+          "description": "Applications base package",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}`",
+          "values": []
+        },
+        "openApiApiPackage": {
+          "name": "openApiApiPackage",
+          "description": "The package to used by OpenAPI-Generator for generated api objects/classes",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}.adapters.web`",
+          "values": []
+        },
+        "openApiModelPackage": {
+          "name": "openApiModelPackage",
+          "description": "The package to used by OpenAPI-Generator for generated model objects/classes",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}.adapters.web.dtos`",
+          "values": []
+        },
+        "openApiModelNamePrefix": {
+          "name": "openApiModelNamePrefix",
+          "description": "Sets the prefix for model enums and classes used by OpenAPI-Generator",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "openApiModelNameSuffix": {
+          "name": "openApiModelNameSuffix",
+          "description": "Sets the suffix for model enums and classes used by OpenAPI-Generator",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "operationIds": {
+          "name": "operationIds",
+          "description": "OpenAPI operationIds to generate code for",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "statusCodes": {
+          "name": "statusCodes",
+          "description": "Status codes to generate code for",
+          "type": "List",
+          "defaultValue": "`[200, 201, 202, 400]`",
+          "values": []
+        },
+        "formatter": {
+          "name": "formatter",
+          "description": "Code formatter implementation",
+          "type": "Formatters",
+          "defaultValue": "`palantir`",
+          "values": [
+            "palantir",
+            "spring",
+            "google"
+          ]
+        },
+        "skipFormatting": {
+          "name": "skipFormatting",
+          "description": "Skip java sources output formatting",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "haltOnFailFormatting": {
+          "name": "haltOnFailFormatting",
+          "description": "Halt on formatting errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "OpenAPIKaratePlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.OpenAPIKaratePlugin",
+      "summary": "Generates test for KarateDSL based on OpenAPI specification.",
+      "options": {
+        "layout": {
+          "name": "layout",
+          "description": "Project layout",
+          "type": "ProjectLayout",
+          "defaultValue": "`DefaultProjectLayout`",
+          "values": []
+        },
+        "zdlFile": {
+          "name": "zdlFile",
+          "description": "ZDL file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "zdlFiles": {
+          "name": "zdlFiles",
+          "description": "ZDL files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFile": {
+          "name": "apiFile",
+          "description": "API Specification File",
+          "type": "URI",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFiles": {
+          "name": "apiFiles",
+          "description": "API Spec files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to. If left empty, it will print to stdout.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiOverlayFiles": {
+          "name": "apiOverlayFiles",
+          "description": "Ordered list of API overlay YAML files applied before dereferencing and allOf merge.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "testsPackage": {
+          "name": "testsPackage",
+          "description": "Package name for generated Karate tests",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}.adapters.web`",
+          "values": []
+        },
+        "groupBy": {
+          "name": "groupBy",
+          "description": "Generate features grouped by",
+          "type": "GroupByType",
+          "defaultValue": "`service`",
+          "values": [
+            "service",
+            "operation",
+            "businessFlow"
+          ]
+        },
+        "businessFlowTestName": {
+          "name": "businessFlowTestName",
+          "description": "Business Flow Feature name",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "openapiFile": {
+          "name": "openapiFile",
+          "description": "OpenAPI specification file. Overrides `specFile`",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "basePackage": {
+          "name": "basePackage",
+          "description": "Applications base package",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}`",
+          "values": []
+        },
+        "openApiApiPackage": {
+          "name": "openApiApiPackage",
+          "description": "The package to used by OpenAPI-Generator for generated api objects/classes",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}.adapters.web`",
+          "values": []
+        },
+        "openApiModelPackage": {
+          "name": "openApiModelPackage",
+          "description": "The package to used by OpenAPI-Generator for generated model objects/classes",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}.adapters.web.dtos`",
+          "values": []
+        },
+        "openApiModelNamePrefix": {
+          "name": "openApiModelNamePrefix",
+          "description": "Sets the prefix for model enums and classes used by OpenAPI-Generator",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "openApiModelNameSuffix": {
+          "name": "openApiModelNameSuffix",
+          "description": "Sets the suffix for model enums and classes used by OpenAPI-Generator",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "operationIds": {
+          "name": "operationIds",
+          "description": "OpenAPI operationIds to generate code for",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "statusCodes": {
+          "name": "statusCodes",
+          "description": "Status codes to generate code for",
+          "type": "List",
+          "defaultValue": "`[200, 201, 202, 400]`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "OpenAPIToJDLPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.OpenAPIToJDLPlugin",
+      "summary": "Generates JDL model from OpenAPI schemas",
+      "options": {
+        "layout": {
+          "name": "layout",
+          "description": "Project organization and package structure [(docs)](https://github.com/zenwave360/zenwave-sdk/tree/main/plugins/backend-application-default#project-layout)",
+          "type": "ProjectLayout",
+          "defaultValue": "`DefaultProjectLayout`",
+          "values": [
+            "DefaultProjectLayout",
+            "CleanHexagonalProjectLayout",
+            "LayeredProjectLayout",
+            "SimpleDomainProjectLayout",
+            "HexagonalProjectLayout",
+            "CleanArchitectureProjectLayout"
+          ],
+          "documentation": "https://github.com/zenwave360/zenwave-sdk/tree/main/plugins/backend-application-default#project-layout"
+        },
+        "zdlFile": {
+          "name": "zdlFile",
+          "description": "ZDL file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "zdlFiles": {
+          "name": "zdlFiles",
+          "description": "ZDL files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFile": {
+          "name": "apiFile",
+          "description": "API Specification File",
+          "type": "URI",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFiles": {
+          "name": "apiFiles",
+          "description": "API Spec files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to. If left empty, it will print to stdout.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiOverlayFiles": {
+          "name": "apiOverlayFiles",
+          "description": "Ordered list of API overlay YAML files applied before dereferencing and allOf merge.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "entities": {
+          "name": "entities",
+          "description": "Entities to generate code for",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFile": {
+          "name": "targetFile",
+          "description": "Target file",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "useRelationships": {
+          "name": "useRelationships",
+          "description": "Whether to use JDL relationships or plain field",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "basePackage": {
+          "name": "basePackage",
+          "description": "Java Models package name",
+          "type": "String",
+          "defaultValue": "`io.example.domain.model`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "SpringCloudStreams3AdaptersPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.SpringCloudStreams3AdaptersPlugin",
+      "title": "Spring Cloud Streams Adapters",
+      "summary": "Generates Spring Cloud Streams Consumers from AsyncAPI definitions.",
+      "options": {
+        "apiFile": {
+          "name": "apiFile",
+          "description": "API Specification File",
+          "type": "URI",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFiles": {
+          "name": "apiFiles",
+          "description": "API Spec files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "modelPackage": {
+          "name": "modelPackage",
+          "description": "Java Models package name",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "consumerApiPackage": {
+          "name": "consumerApiPackage",
+          "description": "Java API package name for inbound (consumer) services. It can override apiPackage for consumer.",
+          "type": "String",
+          "defaultValue": "`{{apiPackage}}`",
+          "values": []
+        },
+        "role": {
+          "name": "role",
+          "description": "Project role: provider/client",
+          "type": "AsyncapiRoleType",
+          "defaultValue": "`provider`",
+          "values": [
+            "provider",
+            "client"
+          ]
+        },
+        "style": {
+          "name": "style",
+          "description": "Programming style",
+          "type": "ProgrammingStyle",
+          "defaultValue": "`imperative`",
+          "values": [
+            "imperative",
+            "reactive"
+          ]
+        },
+        "basePackage": {
+          "name": "basePackage",
+          "description": "Applications base package",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "adaptersPackage": {
+          "name": "adaptersPackage",
+          "description": "The package to generate Async Inbound Adapters in",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}.adapters.events.{{apiId}}`",
+          "values": []
+        },
+        "inboundDtosPackage": {
+          "name": "inboundDtosPackage",
+          "description": "Package where your inbound dtos are",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}.core.inbound.dtos`",
+          "values": []
+        },
+        "runtimeHeadersProperty": {
+          "name": "runtimeHeadersProperty",
+          "description": "AsyncAPI extension property name for runtime auto-configuration of headers.",
+          "type": "String",
+          "defaultValue": "`x-runtime-expression`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to. If left empty, it will print to stdout.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiOverlayFiles": {
+          "name": "apiOverlayFiles",
+          "description": "Ordered list of API overlay YAML files applied before dereferencing and allOf merge.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "modelNamePrefix": {
+          "name": "modelNamePrefix",
+          "description": "Sets the prefix for model classes and enums",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "modelNameSuffix": {
+          "name": "modelNameSuffix",
+          "description": "Sets the suffix for model classes and enums",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "continueOnZdlError": {
+          "name": "continueOnZdlError",
+          "description": "Continue even when ZDL contains fatal errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "useJSpecify": {
+          "name": "useJSpecify",
+          "description": "Whether to add JSpecify nullability annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "useJMolecules": {
+          "name": "useJMolecules",
+          "description": "Whether to add jMolecules DDD and architecture annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "apiId": {
+          "name": "apiId",
+          "description": "Unique identifier of each AsyncAPI that you consume as a client or provider. It will become the last package token for generated adapters",
+          "type": "String",
+          "defaultValue": "`commands`",
+          "values": []
+        },
+        "servicesPackage": {
+          "name": "servicesPackage",
+          "description": "Package where your domain services/usecases interfaces are",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}.core.inbound`",
+          "values": []
+        },
+        "baseTestClassName": {
+          "name": "baseTestClassName",
+          "description": "BaseConsumerTest class name",
+          "type": "String",
+          "defaultValue": "`BaseConsumerTest`",
+          "values": []
+        },
+        "baseTestClassPackage": {
+          "name": "baseTestClassPackage",
+          "description": "BaseConsumerTest package",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}.adapters.events`",
+          "values": []
+        },
+        "transactional": {
+          "name": "transactional",
+          "description": "Annotate tests as @Transactional",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "transactionalAnnotationClass": {
+          "name": "transactionalAnnotationClass",
+          "description": "@Transactional annotation class name",
+          "type": "String",
+          "defaultValue": "`org.springframework.transaction.annotation.Transactional`",
+          "values": []
+        },
+        "transactionalOutbox": {
+          "name": "transactionalOutbox",
+          "description": "Transactional outbox type for message producers.",
+          "type": "TransactionalOutboxType",
+          "defaultValue": "`none`",
+          "values": [
+            "none",
+            "modulith",
+            "mongodb",
+            "jdbc"
+          ]
+        },
+        "includeApplicationEventListener": {
+          "name": "includeApplicationEventListener",
+          "description": "Include ApplicationEvent listener for consuming messages within the modulith.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "skipProducerImplementation": {
+          "name": "skipProducerImplementation",
+          "description": "Generate only the producer interface and skip the implementation.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "exposeMessage": {
+          "name": "exposeMessage",
+          "description": "Whether to expose underlying spring Message to consumers or not.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "useEnterpriseEnvelope": {
+          "name": "useEnterpriseEnvelope",
+          "description": "Include support for enterprise envelop wrapping/unwrapping.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "envelopeJavaTypeExtensionName": {
+          "name": "envelopeJavaTypeExtensionName",
+          "description": "AsyncAPI Message extension name for the envelop java type for wrapping/unwrapping.",
+          "type": "String",
+          "defaultValue": "`x-envelope-java-type`",
+          "values": []
+        },
+        "methodAndMessageSeparator": {
+          "name": "methodAndMessageSeparator",
+          "description": "To avoid method erasure conflicts, when exposeMessage or reactive style this character will be used as separator to append message payload type to method names in consumer interfaces.",
+          "type": "String",
+          "defaultValue": "`$`",
+          "values": []
+        },
+        "bindingPrefix": {
+          "name": "bindingPrefix",
+          "description": "SC Streams Binding Name Prefix (used in @Component name)",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "consumerPrefix": {
+          "name": "consumerPrefix",
+          "description": "SC Streams Binder class prefix",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "consumerSuffix": {
+          "name": "consumerSuffix",
+          "description": "SC Streams Binder class suffix",
+          "type": "String",
+          "defaultValue": "`Consumer`",
+          "values": []
+        },
+        "consumerServicePrefix": {
+          "name": "consumerServicePrefix",
+          "description": "Business/Service interface prefix",
+          "type": "String",
+          "defaultValue": "`I`",
+          "values": []
+        },
+        "consumerServiceSuffix": {
+          "name": "consumerServiceSuffix",
+          "description": "Business/Service interface suffix",
+          "type": "String",
+          "defaultValue": "`ConsumerService`",
+          "values": []
+        },
+        "bindingSuffix": {
+          "name": "bindingSuffix",
+          "description": "Spring-Boot binding suffix. It will be appended to the operation name kebab-cased. E.g. `<operation-id>-in-0`",
+          "type": "String",
+          "defaultValue": "`-0`",
+          "values": []
+        },
+        "generatedAnnotationClass": {
+          "name": "generatedAnnotationClass",
+          "description": "Annotation class to mark generated code (e.g. `org.springframework.aot.generate.Generated`). When retained at runtime, this prevents code coverage tools like Jacoco from including generated classes in coverage reports.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiPackage": {
+          "name": "apiPackage",
+          "description": "Java API package, if `producerApiPackage` and `consumerApiPackage` are not set.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "producerApiPackage": {
+          "name": "producerApiPackage",
+          "description": "Java API package name for outbound (producer) services. It can override apiPackage for producers.",
+          "type": "String",
+          "defaultValue": "`{{apiPackage}}`",
+          "values": []
+        },
+        "bindingTypes": {
+          "name": "bindingTypes",
+          "description": "Binding names to include in code generation. Generates code for ALL bindings if left empty",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "operationIds": {
+          "name": "operationIds",
+          "description": "Operation ids to include in code generation. Generates code for ALL if left empty",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "excludeOperationIds": {
+          "name": "excludeOperationIds",
+          "description": "Operation ids to exclude in code generation. Skips code generation if is not included or is excluded.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "formatter": {
+          "name": "formatter",
+          "description": "Code formatter implementation",
+          "type": "Formatters",
+          "defaultValue": "`palantir`",
+          "values": [
+            "palantir",
+            "spring",
+            "google"
+          ]
+        },
+        "skipFormatting": {
+          "name": "skipFormatting",
+          "description": "Skip java sources output formatting",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "haltOnFailFormatting": {
+          "name": "haltOnFailFormatting",
+          "description": "Halt on formatting errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "SpringCloudStreams3Plugin",
+      "configClassName": "io.zenwave360.sdk.plugins.SpringCloudStreams3Plugin",
+      "title": "AsyncAPI and Spring Cloud Stream Generator",
+      "summary": "Generates strongly typed SpringCloudStreams3 producer/consumer classes for AsyncAPI",
+      "options": {
+        "apiFile": {
+          "name": "apiFile",
+          "description": "API Specification File",
+          "type": "URI",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFiles": {
+          "name": "apiFiles",
+          "description": "API Spec files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "role": {
+          "name": "role",
+          "description": "Project role: provider/client",
+          "type": "AsyncapiRoleType",
+          "defaultValue": "`provider`",
+          "values": [
+            "provider",
+            "client"
+          ]
+        },
+        "style": {
+          "name": "style",
+          "description": "Programming style",
+          "type": "ProgrammingStyle",
+          "defaultValue": "`imperative`",
+          "values": [
+            "imperative",
+            "reactive"
+          ]
+        },
+        "modelPackage": {
+          "name": "modelPackage",
+          "description": "Java Models package name",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "producerApiPackage": {
+          "name": "producerApiPackage",
+          "description": "Java API package name for outbound (producer) services. It can override apiPackage for producers.",
+          "type": "String",
+          "defaultValue": "`{{apiPackage}}`",
+          "values": []
+        },
+        "consumerApiPackage": {
+          "name": "consumerApiPackage",
+          "description": "Java API package name for inbound (consumer) services. It can override apiPackage for consumer.",
+          "type": "String",
+          "defaultValue": "`{{apiPackage}}`",
+          "values": []
+        },
+        "apiPackage": {
+          "name": "apiPackage",
+          "description": "Java API package, if `producerApiPackage` and `consumerApiPackage` are not set.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "transactionalOutbox": {
+          "name": "transactionalOutbox",
+          "description": "Transactional outbox type for message producers.",
+          "type": "TransactionalOutboxType",
+          "defaultValue": "`none`",
+          "values": [
+            "none",
+            "modulith",
+            "mongodb",
+            "jdbc"
+          ]
+        },
+        "bindingPrefix": {
+          "name": "bindingPrefix",
+          "description": "SC Streams Binding Name Prefix (used in @Component name)",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "bindingSuffix": {
+          "name": "bindingSuffix",
+          "description": "Spring-Boot binding suffix. It will be appended to the operation name kebab-cased. E.g. `<operation-id>-in-0`",
+          "type": "String",
+          "defaultValue": "`-0`",
+          "values": []
+        },
+        "generatedAnnotationClass": {
+          "name": "generatedAnnotationClass",
+          "description": "Annotation class to mark generated code (e.g. `org.springframework.aot.generate.Generated`). When retained at runtime, this prevents code coverage tools like Jacoco from including generated classes in coverage reports.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to. If left empty, it will print to stdout.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiOverlayFiles": {
+          "name": "apiOverlayFiles",
+          "description": "Ordered list of API overlay YAML files applied before dereferencing and allOf merge.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "modelNamePrefix": {
+          "name": "modelNamePrefix",
+          "description": "Sets the prefix for model classes and enums",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "modelNameSuffix": {
+          "name": "modelNameSuffix",
+          "description": "Sets the suffix for model classes and enums",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "runtimeHeadersProperty": {
+          "name": "runtimeHeadersProperty",
+          "description": "AsyncAPI extension property name for runtime auto-configuration of headers.",
+          "type": "String",
+          "defaultValue": "`x-runtime-expression`",
+          "values": []
+        },
+        "includeApplicationEventListener": {
+          "name": "includeApplicationEventListener",
+          "description": "Include ApplicationEvent listener for consuming messages within the modulith.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "skipProducerImplementation": {
+          "name": "skipProducerImplementation",
+          "description": "Generate only the producer interface and skip the implementation.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "exposeMessage": {
+          "name": "exposeMessage",
+          "description": "Whether to expose underlying spring Message to consumers or not.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "useEnterpriseEnvelope": {
+          "name": "useEnterpriseEnvelope",
+          "description": "Include support for enterprise envelop wrapping/unwrapping.",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "envelopeJavaTypeExtensionName": {
+          "name": "envelopeJavaTypeExtensionName",
+          "description": "AsyncAPI Message extension name for the envelop java type for wrapping/unwrapping.",
+          "type": "String",
+          "defaultValue": "`x-envelope-java-type`",
+          "values": []
+        },
+        "methodAndMessageSeparator": {
+          "name": "methodAndMessageSeparator",
+          "description": "To avoid method erasure conflicts, when exposeMessage or reactive style this character will be used as separator to append message payload type to method names in consumer interfaces.",
+          "type": "String",
+          "defaultValue": "`$`",
+          "values": []
+        },
+        "consumerPrefix": {
+          "name": "consumerPrefix",
+          "description": "SC Streams Binder class prefix",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "consumerSuffix": {
+          "name": "consumerSuffix",
+          "description": "SC Streams Binder class suffix",
+          "type": "String",
+          "defaultValue": "`Consumer`",
+          "values": []
+        },
+        "consumerServicePrefix": {
+          "name": "consumerServicePrefix",
+          "description": "Business/Service interface prefix",
+          "type": "String",
+          "defaultValue": "`I`",
+          "values": []
+        },
+        "consumerServiceSuffix": {
+          "name": "consumerServiceSuffix",
+          "description": "Business/Service interface suffix",
+          "type": "String",
+          "defaultValue": "`ConsumerService`",
+          "values": []
+        },
+        "bindingTypes": {
+          "name": "bindingTypes",
+          "description": "Binding names to include in code generation. Generates code for ALL bindings if left empty",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "operationIds": {
+          "name": "operationIds",
+          "description": "Operation ids to include in code generation. Generates code for ALL if left empty",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "excludeOperationIds": {
+          "name": "excludeOperationIds",
+          "description": "Operation ids to exclude in code generation. Skips code generation if is not included or is excluded.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "formatter": {
+          "name": "formatter",
+          "description": "Code formatter implementation",
+          "type": "Formatters",
+          "defaultValue": "`palantir`",
+          "values": [
+            "palantir",
+            "spring",
+            "google"
+          ]
+        },
+        "skipFormatting": {
+          "name": "skipFormatting",
+          "description": "Skip java sources output formatting",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "haltOnFailFormatting": {
+          "name": "haltOnFailFormatting",
+          "description": "Halt on formatting errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "SpringWebTestClientPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.SpringWebTestClientPlugin",
+      "summary": "Generates test for SpringMVC or Spring WebFlux using WebTestClient based on OpenAPI specification.",
+      "options": {
+        "layout": {
+          "name": "layout",
+          "description": "Project layout",
+          "type": "ProjectLayout",
+          "defaultValue": "`DefaultProjectLayout`",
+          "values": []
+        },
+        "zdlFile": {
+          "name": "zdlFile",
+          "description": "ZDL file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "zdlFiles": {
+          "name": "zdlFiles",
+          "description": "ZDL files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFile": {
+          "name": "apiFile",
+          "description": "API Specification File",
+          "type": "URI",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFiles": {
+          "name": "apiFiles",
+          "description": "API Spec files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to. If left empty, it will print to stdout.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "continueOnZdlError": {
+          "name": "continueOnZdlError",
+          "description": "Continue even when ZDL contains fatal errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "apiOverlayFiles": {
+          "name": "apiOverlayFiles",
+          "description": "Ordered list of API overlay YAML files applied before dereferencing and allOf merge.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "testsPackage": {
+          "name": "testsPackage",
+          "description": "Package name for generated tests",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}.adapters.web`",
+          "values": []
+        },
+        "groupBy": {
+          "name": "groupBy",
+          "description": "Generate test classes grouped by",
+          "type": "GroupByType",
+          "defaultValue": "`service`",
+          "values": [
+            "service",
+            "operation",
+            "partial",
+            "businessFlow"
+          ]
+        },
+        "testSuffix": {
+          "name": "testSuffix",
+          "description": "Class name suffix for generated test classes",
+          "type": "String",
+          "defaultValue": "`IntegrationTest`",
+          "values": []
+        },
+        "businessFlowTestName": {
+          "name": "businessFlowTestName",
+          "description": "Business Flow Test name",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "transactional": {
+          "name": "transactional",
+          "description": "Annotate tests as @Transactional",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "transactionalAnnotationClass": {
+          "name": "transactionalAnnotationClass",
+          "description": "@Transactional annotation class name",
+          "type": "String",
+          "defaultValue": "`org.springframework.transaction.annotation.Transactional`",
+          "values": []
+        },
+        "requestPayloadType": {
+          "name": "requestPayloadType",
+          "description": "Whether to use a JSON string or instantiate a java DTO as request payload",
+          "type": "RequestPayloadType",
+          "defaultValue": "`json`",
+          "values": [
+            "json",
+            "dto"
+          ]
+        },
+        "openapiFile": {
+          "name": "openapiFile",
+          "description": "OpenAPI specification file. Overrides `specFile`",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "basePackage": {
+          "name": "basePackage",
+          "description": "Applications base package",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}`",
+          "values": []
+        },
+        "openApiApiPackage": {
+          "name": "openApiApiPackage",
+          "description": "The package to used by OpenAPI-Generator for generated api objects/classes",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}.adapters.web`",
+          "values": []
+        },
+        "openApiModelPackage": {
+          "name": "openApiModelPackage",
+          "description": "The package to used by OpenAPI-Generator for generated model objects/classes",
+          "type": "String",
+          "defaultValue": "`{{basePackage}}.adapters.web.dtos`",
+          "values": []
+        },
+        "openApiModelNamePrefix": {
+          "name": "openApiModelNamePrefix",
+          "description": "Sets the prefix for model enums and classes used by OpenAPI-Generator",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "openApiModelNameSuffix": {
+          "name": "openApiModelNameSuffix",
+          "description": "Sets the suffix for model enums and classes used by OpenAPI-Generator",
+          "type": "String",
+          "defaultValue": "``",
+          "values": []
+        },
+        "operationIds": {
+          "name": "operationIds",
+          "description": "OpenAPI operationIds to generate code for",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "statusCodes": {
+          "name": "statusCodes",
+          "description": "Status codes to generate code for",
+          "type": "List",
+          "defaultValue": "`[200, 201, 202, 400]`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "ZDLToAsyncAPIClientPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.ZDLToAsyncAPIClientPlugin",
+      "summary": "Generates an AsyncAPI client file for ZDL service methods consuming external AsyncAPI channels.",
+      "options": {
+        "layout": {
+          "name": "layout",
+          "description": "Project organization and package structure [(docs)](https://github.com/zenwave360/zenwave-sdk/tree/main/plugins/backend-application-default#project-layout)",
+          "type": "ProjectLayout",
+          "defaultValue": "`DefaultProjectLayout`",
+          "values": [
+            "DefaultProjectLayout",
+            "CleanHexagonalProjectLayout",
+            "LayeredProjectLayout",
+            "SimpleDomainProjectLayout",
+            "HexagonalProjectLayout",
+            "CleanArchitectureProjectLayout"
+          ],
+          "documentation": "https://github.com/zenwave360/zenwave-sdk/tree/main/plugins/backend-application-default#project-layout"
+        },
+        "zdlFile": {
+          "name": "zdlFile",
+          "description": "ZDL file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "zdlFiles": {
+          "name": "zdlFiles",
+          "description": "ZDL files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFile": {
+          "name": "apiFile",
+          "description": "API Spec file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFiles": {
+          "name": "apiFiles",
+          "description": "API Spec files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to. If left empty, it will print to stdout.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "continueOnZdlError": {
+          "name": "continueOnZdlError",
+          "description": "Continue even when ZDL contains fatal errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "useJSpecify": {
+          "name": "useJSpecify",
+          "description": "Whether to add JSpecify nullability annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "useJMolecules": {
+          "name": "useJMolecules",
+          "description": "Whether to add jMolecules DDD and architecture annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "targetFile": {
+          "name": "targetFile",
+          "description": "Target AsyncAPI client file",
+          "type": "String",
+          "defaultValue": "`./asyncapi-client.yml`",
+          "values": []
+        },
+        "id": {
+          "name": "id",
+          "description": "AsyncAPI document id",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "title": {
+          "name": "title",
+          "description": "AsyncAPI document title",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "version": {
+          "name": "version",
+          "description": "AsyncAPI document version",
+          "type": "String",
+          "defaultValue": "`1.0.0`",
+          "values": []
+        },
+        "basePackage": {
+          "name": "basePackage",
+          "description": "Java Models package name",
+          "type": "String",
+          "defaultValue": "`io.example.domain.model`",
+          "values": []
+        },
+        "asyncapiMergeFile": {
+          "name": "asyncapiMergeFile",
+          "description": "AsyncAPI file to be merged on top of the generated AsyncAPI file",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "asyncapiOverlayFiles": {
+          "name": "asyncapiOverlayFiles",
+          "description": "Ordered list of overlay resources to apply on top of the generated AsyncAPI file",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "ZDLToAsyncAPIPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.ZDLToAsyncAPIPlugin",
+      "summary": "Generates a draft AsyncAPI file with events from your ZDL services.",
+      "options": {
+        "layout": {
+          "name": "layout",
+          "description": "Project organization and package structure [(docs)](https://github.com/zenwave360/zenwave-sdk/tree/main/plugins/backend-application-default#project-layout)",
+          "type": "ProjectLayout",
+          "defaultValue": "`DefaultProjectLayout`",
+          "values": [
+            "DefaultProjectLayout",
+            "CleanHexagonalProjectLayout",
+            "LayeredProjectLayout",
+            "SimpleDomainProjectLayout",
+            "HexagonalProjectLayout",
+            "CleanArchitectureProjectLayout"
+          ],
+          "documentation": "https://github.com/zenwave360/zenwave-sdk/tree/main/plugins/backend-application-default#project-layout"
+        },
+        "zdlFile": {
+          "name": "zdlFile",
+          "description": "ZDL file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "zdlFiles": {
+          "name": "zdlFiles",
+          "description": "ZDL files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFile": {
+          "name": "apiFile",
+          "description": "API Spec file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFiles": {
+          "name": "apiFiles",
+          "description": "API Spec files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to. If left empty, it will print to stdout.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "continueOnZdlError": {
+          "name": "continueOnZdlError",
+          "description": "Continue even when ZDL contains fatal errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "useJSpecify": {
+          "name": "useJSpecify",
+          "description": "Whether to add JSpecify nullability annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "useJMolecules": {
+          "name": "useJMolecules",
+          "description": "Whether to add jMolecules DDD and architecture annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "asyncapiVersion": {
+          "name": "asyncapiVersion",
+          "description": "Target AsyncAPI version.",
+          "type": "AsyncapiVersionType",
+          "defaultValue": "`v3`",
+          "values": [
+            "v2",
+            "v3"
+          ]
+        },
+        "targetFile": {
+          "name": "targetFile",
+          "description": "Target file",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "schemaFormat": {
+          "name": "schemaFormat",
+          "description": "Schema format for messages' payload",
+          "type": "SchemaFormat",
+          "defaultValue": "`schema`",
+          "values": [
+            "schema",
+            "avro"
+          ]
+        },
+        "idType": {
+          "name": "idType",
+          "description": "JsonSchema type for id fields and parameters.",
+          "type": "String",
+          "defaultValue": "`string`",
+          "values": []
+        },
+        "idTypeFormat": {
+          "name": "idTypeFormat",
+          "description": "JsonSchema type format for id fields and parameters.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "avroPackage": {
+          "name": "avroPackage",
+          "description": "Package name for generated Avro Schemas (.avsc)",
+          "type": "String",
+          "defaultValue": "`io.example.domain.model`",
+          "values": []
+        },
+        "includeKafkaCommonHeaders": {
+          "name": "includeKafkaCommonHeaders",
+          "description": "Include Kafka common headers (kafka_messageKey)",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "includeCloudEventsHeaders": {
+          "name": "includeCloudEventsHeaders",
+          "description": "Include CloudEvents headers (ce-*)",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "basePackage": {
+          "name": "basePackage",
+          "description": "Java Models package name",
+          "type": "String",
+          "defaultValue": "`io.example.domain.model`",
+          "values": []
+        },
+        "asyncapiMergeFile": {
+          "name": "asyncapiMergeFile",
+          "description": "AsyncAPI file to be merged on top of the generated AsyncAPI file",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "asyncapiOverlayFiles": {
+          "name": "asyncapiOverlayFiles",
+          "description": "Ordered list of overlay resources to apply on top of the generated AsyncAPI file",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "ZdlToJsonPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.ZdlToJsonPlugin",
+      "summary": "Prints to StdOut ZDL Model as JSON",
+      "options": {
+        "layout": {
+          "name": "layout",
+          "description": "Project organization and package structure [(docs)](https://github.com/zenwave360/zenwave-sdk/tree/main/plugins/backend-application-default#project-layout)",
+          "type": "ProjectLayout",
+          "defaultValue": "`DefaultProjectLayout`",
+          "values": [
+            "DefaultProjectLayout",
+            "CleanHexagonalProjectLayout",
+            "LayeredProjectLayout",
+            "SimpleDomainProjectLayout",
+            "HexagonalProjectLayout",
+            "CleanArchitectureProjectLayout"
+          ],
+          "documentation": "https://github.com/zenwave360/zenwave-sdk/tree/main/plugins/backend-application-default#project-layout"
+        },
+        "zdlFile": {
+          "name": "zdlFile",
+          "description": "ZDL file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "zdlFiles": {
+          "name": "zdlFiles",
+          "description": "ZDL files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFile": {
+          "name": "apiFile",
+          "description": "API Spec file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFiles": {
+          "name": "apiFiles",
+          "description": "API Spec files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder for generated output",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "continueOnZdlError": {
+          "name": "continueOnZdlError",
+          "description": "Continue even when ZDL contains fatal errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "useJSpecify": {
+          "name": "useJSpecify",
+          "description": "Whether to add JSpecify nullability annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "useJMolecules": {
+          "name": "useJMolecules",
+          "description": "Whether to add jMolecules DDD and architecture annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "ZdlToMarkdownPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.ZdlToMarkdownPlugin",
+      "summary": "Generates Markdown glossary from Zdl Models",
+      "options": {
+        "zdlFile": {
+          "name": "zdlFile",
+          "description": "ZDL file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "zdlFiles": {
+          "name": "zdlFiles",
+          "description": "ZDL files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "continueOnZdlError": {
+          "name": "continueOnZdlError",
+          "description": "Continue even when ZDL contains fatal errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "useJSpecify": {
+          "name": "useJSpecify",
+          "description": "Whether to add JSpecify nullability annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "useJMolecules": {
+          "name": "useJMolecules",
+          "description": "Whether to add jMolecules DDD and architecture annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "outputFormat": {
+          "name": "outputFormat",
+          "description": "Template type",
+          "type": "OutputFormat",
+          "defaultValue": "`glossary`",
+          "values": [
+            "glossary",
+            "aggregate",
+            "plantuml"
+          ]
+        },
+        "aggregateName": {
+          "name": "aggregateName",
+          "description": "Aggregate name",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "targetFile": {
+          "name": "targetFile",
+          "description": "Target file",
+          "type": "String",
+          "defaultValue": "`zdl-glossary.md`",
+          "values": []
+        }
+      }
+    },
+    {
+      "name": "ZDLToOpenAPIPlugin",
+      "configClassName": "io.zenwave360.sdk.plugins.ZDLToOpenAPIPlugin",
+      "summary": "Generates a draft OpenAPI definitions from your ZDL entities and services.",
+      "options": {
+        "layout": {
+          "name": "layout",
+          "description": "Project organization and package structure [(docs)](https://github.com/zenwave360/zenwave-sdk/tree/main/plugins/backend-application-default#project-layout)",
+          "type": "ProjectLayout",
+          "defaultValue": "`DefaultProjectLayout`",
+          "values": [
+            "DefaultProjectLayout",
+            "CleanHexagonalProjectLayout",
+            "LayeredProjectLayout",
+            "SimpleDomainProjectLayout",
+            "HexagonalProjectLayout",
+            "CleanArchitectureProjectLayout"
+          ],
+          "documentation": "https://github.com/zenwave360/zenwave-sdk/tree/main/plugins/backend-application-default#project-layout"
+        },
+        "zdlFile": {
+          "name": "zdlFile",
+          "description": "ZDL file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "zdlFiles": {
+          "name": "zdlFiles",
+          "description": "ZDL files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFile": {
+          "name": "apiFile",
+          "description": "API Spec file to parse",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "apiFiles": {
+          "name": "apiFiles",
+          "description": "API Spec files to parse (comma separated)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "authentication": {
+          "name": "authentication",
+          "description": "Authentication configuration values for fetching remote resources.",
+          "type": "List",
+          "defaultValue": "`[]`",
+          "values": []
+        },
+        "targetFolder": {
+          "name": "targetFolder",
+          "description": "Target folder to generate code to. If left empty, it will print to stdout.",
+          "type": "File",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "continueOnZdlError": {
+          "name": "continueOnZdlError",
+          "description": "Continue even when ZDL contains fatal errors",
+          "type": "boolean",
+          "defaultValue": "`true`",
+          "values": []
+        },
+        "useJSpecify": {
+          "name": "useJSpecify",
+          "description": "Whether to add JSpecify nullability annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "useJMolecules": {
+          "name": "useJMolecules",
+          "description": "Whether to add jMolecules DDD and architecture annotations to generated code",
+          "type": "boolean",
+          "defaultValue": "`false`",
+          "values": []
+        },
+        "idType": {
+          "name": "idType",
+          "description": "JsonSchema type for id fields and parameters.",
+          "type": "String",
+          "defaultValue": "`string`",
+          "values": []
+        },
+        "idTypeFormat": {
+          "name": "idTypeFormat",
+          "description": "JsonSchema type format for id fields and parameters.",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "title": {
+          "name": "title",
+          "description": "API Title",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "dtoPatchSuffix": {
+          "name": "dtoPatchSuffix",
+          "description": "DTO Suffix used for schemas in PATCH operations",
+          "type": "String",
+          "defaultValue": "`Patch`",
+          "values": []
+        },
+        "targetFile": {
+          "name": "targetFile",
+          "description": "Target file",
+          "type": "String",
+          "defaultValue": "`openapi.yml`",
+          "values": []
+        },
+        "operationIdsToInclude": {
+          "name": "operationIdsToInclude",
+          "description": "Operation IDs to include. If empty, all operations will be included. (Supports Ant-style wildcards)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "operationIdsToExclude": {
+          "name": "operationIdsToExclude",
+          "description": "Operation IDs to exclude. If not empty it will be applied to the processed operationIds to include. (Supports Ant-style wildcards)",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "openapiMergeFile": {
+          "name": "openapiMergeFile",
+          "description": "OpenAPI file to be merged on top of the generated OpenAPI file",
+          "type": "String",
+          "defaultValue": "`null`",
+          "values": []
+        },
+        "openapiOverlayFiles": {
+          "name": "openapiOverlayFiles",
+          "description": "Ordered list of overlay resources to apply on top of the generated OpenAPI file",
+          "type": "List",
+          "defaultValue": "`null`",
+          "values": []
+        }
+      }
+    }
+  ]
+}

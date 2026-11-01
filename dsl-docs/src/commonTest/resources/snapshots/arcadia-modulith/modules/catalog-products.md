@@ -30,6 +30,11 @@ Back to the [architecture](../architecture.md).
 This module's commands and events, and the commands and events of other modules that connect to them.
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
@@ -67,6 +72,11 @@ Each service with its commands (blue) and the events they emit (orange), inside 
 ### ProductCatalogService
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
@@ -103,6 +113,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class Product {
@@ -144,6 +156,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 stateDiagram-v2
     [*] --> DRAFT : createProduct
@@ -168,6 +182,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class ProductPublished {

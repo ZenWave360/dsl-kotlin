@@ -1,0 +1,140 @@
+package io.zenwave360.language.docs.pages
+
+import io.zenwave360.language.docs.CatalogueOption
+import io.zenwave360.language.docs.CataloguePlugin
+import io.zenwave360.language.docs.DocsSource
+import io.zenwave360.language.docs.PluginCatalogue
+import io.zenwave360.language.docs.SourceKind
+import io.zenwave360.language.docs.internal.Anchors
+import io.zenwave360.language.docs.internal.Markdown
+import io.zenwave360.language.docs.internal.string
+
+/**
+ * The preview of one `.zw` document: the global `config` with a description of it, then each plugin in document order with
+ * what it is for (from the [PluginCatalogue]), its own options and what they come to once the `config` is applied
+ * ([PluginResolution]). Like [PreviewPage] it has no links but to its own headings, names no other file, and escapes
+ * everything the user or the catalogue wrote ([Markdown.safeInline], [Markdown.safeLiteral]).
+ */
+internal object ZwPreviewPage {
+
+    const val TITLE = "Plugin configuration"
+
+    fun zw(text: String, catalogue: PluginCatalogue?): String {
+        val document = ZdlDocument(DocsSource(SourceKind.ZDL, "preview.zw", text))
+        val model = PluginModel.of(document.model, text)
+        // First pass collects the headings, second pass links to them, as in ModulePage.
+        val first = Anchors()
+        build(document, model, catalogue, first)
+        return build(document, model, catalogue, first.resolve())
+    }
+
+    private fun build(document: ZdlDocument, model: PluginModel, catalogue: PluginCatalogue?, anchors: Anchors): String = buildString {
+        val title = document.title?.let { Markdown.safeHeading(it) }?.takeIf { it.isNotEmpty() } ?: TITLE
+        // The client numbers repeated slugs over every heading, the title included.
+        append(anchors.heading(1, title))
+        document.model.string("javadoc")?.let { append(Markdown.safeJavadoc(it)).append("\n\n") }
+        append(Markdown.problems(document.problems.map { Markdown.safeInline(it) }))
+
+        // Before the sections, so its heading is numbered in page order, as the client numbers it.
+        val toc = anchors.toc()
+        val sections = StringBuilder()
+        if (model.config.isNotEmpty() || model.cliOptions.isNotEmpty()) sections.append(configuration(model, anchors))
+        if (model.plugins.isNotEmpty()) sections.append(plugins(model, catalogue, anchors))
+        if (sections.isEmpty()) {
+            append("This file has no `config` block and declares no plugins.\n")
+            return@buildString
+        }
+        append(toc)
+        if (catalogue != null && catalogue.plugins.isNotEmpty()) {
+            append("Plugin descriptions come from the plugin catalogue: ").append(Markdown.safeInline(catalogue.source)).append(".\n\n")
+        }
+        append(sections)
+        if (model.config.isEmpty() && model.cliOptions.isEmpty()) append("This file has no `config` block, so plugins inherit nothing.\n\n")
+        if (model.plugins.isEmpty()) append("No plugins are declared.\n")
+    }
+
+    private fun configuration(model: PluginModel, anchors: Anchors): String = buildString {
+        append(anchors.heading(2, "Configuration"))
+        append("The options of the `config` block. Every plugin inherits them, and the command-line options, unless it declares `(inherit false)`; an option the plugin sets itself replaces the inherited one.\n\n")
+        append(Markdown.table(listOf("Property", "Value"), model.config.map { (name, value) -> listOf(Markdown.safeLiteral(name), Markdown.safeLiteral(PluginResolution.formatValue(value))) }))
+        if (model.config.isNotEmpty()) append('\n')
+        if (model.cliOptions.isNotEmpty()) {
+            append("Command-line options:\n\n")
+            append(Markdown.table(listOf("Option", "Value"), model.cliOptions.map { listOf(Markdown.safeLiteral("--${it.name}"), cliText(PluginResolution.cliValue(it))) }))
+            append('\n')
+        }
+    }
+
+    private fun plugins(model: PluginModel, catalogue: PluginCatalogue?, anchors: Anchors): String = buildString {
+        append(anchors.heading(2, "Plugins"))
+        append("Each plugin in the order the file declares them, with what it is for, its own options and the options it ends up with.\n\n")
+        for (plugin in model.plugins) {
+            val entry = catalogue?.plugin(plugin.name)
+            append(anchors.heading(3, Markdown.safeHeading(plugin.name + if (plugin.disabled) " (disabled)" else "")))
+            if (plugin.disabled) append("Disabled: it does not run.\n\n")
+            if (!plugin.inherit) append("Declared `(inherit false)`: it inherits nothing from the `config` block.\n\n")
+            append(about(entry, catalogue))
+
+            append(anchors.heading(4, "Own configuration"))
+            if (plugin.config.isEmpty() && plugin.cliOptions.isEmpty()) append("Declares no options of its own.\n\n")
+            if (plugin.config.isNotEmpty()) {
+                append(Markdown.table(listOf("Property", "Value", "Description"), plugin.config.map { (name, value) ->
+                    listOf(Markdown.safeLiteral(name), Markdown.safeLiteral(PluginResolution.formatValue(value)), optionText(entry?.options?.get(name)))
+                }))
+                append('\n')
+            }
+            if (plugin.cliOptions.isNotEmpty()) {
+                append(Markdown.table(listOf("Option", "Value"), plugin.cliOptions.map { listOf(Markdown.safeLiteral("--${it.name}"), cliText(PluginResolution.cliValue(it))) }))
+                append('\n')
+            }
+
+            val resolved = PluginResolution.resolve(model, plugin)
+            append(anchors.heading(4, "Resolved configuration"))
+            if (resolved.properties.isEmpty() && resolved.cliOptions.isEmpty()) append("Nothing is set.\n\n")
+            if (resolved.properties.isNotEmpty()) {
+                append(Markdown.table(listOf("Property", "Value", "From", "Description"), resolved.properties.map {
+                    listOf(Markdown.safeLiteral(it.name), Markdown.safeLiteral(it.value), from(it.origin, it.overrides), optionText(entry?.options?.get(it.name)))
+                }))
+                append('\n')
+            }
+            if (resolved.cliOptions.isNotEmpty()) {
+                append(Markdown.table(listOf("Option", "Value", "From"), resolved.cliOptions.map {
+                    listOf(Markdown.safeLiteral("--${it.name}"), cliText(it.value), from(it.origin, it.overrides))
+                }))
+                append('\n')
+            }
+        }
+    }
+
+    /** What the plugin is for: the catalogue's title, summary, description and documentation, or why there is none. */
+    private fun about(entry: CataloguePlugin?, catalogue: PluginCatalogue?): String = buildString {
+        if (entry == null) {
+            if (catalogue != null) append("This plugin is not in the plugin catalogue, so it has no description.\n\n")
+            return@buildString
+        }
+        entry.title?.let { append("**").append(Markdown.safeInline(it)).append("**\n\n") }
+        entry.summary?.let { append(Markdown.safeJavadoc(it)).append("\n\n") }
+        entry.description?.takeIf { it != entry.summary }?.let { append(Markdown.safeJavadoc(it)).append("\n\n") }
+        entry.documentation?.let { append("Documentation: ").append(Markdown.safeInline(it)).append("\n\n") }
+    }
+
+    private fun from(origin: Origin, overrides: Boolean) = when {
+        origin == Origin.GLOBAL -> "config"
+        overrides -> "plugin, replaces config"
+        else -> "plugin"
+    }
+
+    private fun cliText(value: String?) = value?.let { Markdown.safeLiteral(it) }.orEmpty()
+
+    /** What the catalogue says about an option: what it is for, its type, default and allowed values. */
+    private fun optionText(option: CatalogueOption?): String {
+        option ?: return ""
+        val facts = listOfNotNull(
+            option.type,
+            option.defaultValue?.let { "default $it" },
+            option.values.takeIf { it.isNotEmpty() }?.let { "one of ${it.joinToString(", ")}" },
+        )
+        val text = listOfNotNull(option.description, facts.takeIf { it.isNotEmpty() }?.joinToString(", ", "(", ")")).joinToString(" ")
+        return Markdown.safeInline(text)
+    }
+}

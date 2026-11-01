@@ -33,6 +33,37 @@ internal object Markdown {
     /** Text on one line: Javadoc and descriptions often span lines, and tables and headings cannot. */
     fun inline(text: String?): String = text.orEmpty().trim().replace(Regex("\\s+"), " ")
 
+    /**
+     * [inline] for text that must not bring markup of its own into the page, as in a preview: backslashes, `<`, `>`, `[` and `]`
+     * are escaped, so raw HTML (`<script>`, `<img src=...>`) and Markdown links and images show as plain text, and `://` is
+     * escaped so a URL is not turned into a link. The text is still readable, and the page has nothing that loads or runs.
+     */
+    fun safeInline(text: String?): String = inline(text)
+        .replace("\\", "\\\\").replace("<", "&lt;").replace(">", "&gt;")
+        .replace("[", "\\[").replace("]", "\\]").replace("://", "\\://")
+
+    /**
+     * Text shown as written, in a table cell or a line: [safeInline] and also the characters that format (`*`, `_`, backtick, `~`)
+     * escaped, so a value such as `*.java` or `my_file` reads as it is and cannot become emphasis or code.
+     */
+    fun safeLiteral(text: String?): String = safeInline(text).replace("*", "\\*").replace("_", "\\_").replace("`", "\\`").replace("~", "\\~")
+
+    /**
+     * [javadoc] with the escaping of [safeInline]. The text is a paragraph of its own, so a start that would make it a heading,
+     * a list, a quote, a rule or a fence (`# x`, `- x`, `> x`, `1. x`, a run of backticks) is escaped: the page has the headings
+     * and blocks the generator wrote and no others.
+     */
+    fun safeJavadoc(text: String?): String {
+        val line = safeInline(text.orEmpty().lines().joinToString("\n") { it.trim().removePrefix("*") })
+        return line.replace(BLOCK_START) { "\\" + it.value }.replace(LIST_NUMBER) { it.groupValues[1] + "\\" + it.groupValues[2] }
+    }
+
+    /**
+     * [safeInline] for the text of a heading. A closing run of `#` is escaped: the client reads it as the end of the heading and
+     * would number the heading by the text without it.
+     */
+    fun safeHeading(text: String?): String = safeInline(text).replace(Regex("#+$")) { "\\" + it.value }
+
     /** Javadoc text on one line. The ZDL parser keeps the leading `*` of continuation lines. */
     fun javadoc(text: String?): String = inline(text.orEmpty().lines().joinToString("\n") { it.trim().removePrefix("*") })
 
@@ -45,6 +76,10 @@ internal object Markdown {
             append('\n')
         }
     }
+
+    // What can open a block at the start of a paragraph: a marker character, or the number of a list item (its `.` or `)` is escaped).
+    private val BLOCK_START = Regex("^[#>+=~`*_-]")
+    private val LIST_NUMBER = Regex("^(\\d+)([.)])")
 
     // Same slug rule as GitHub and VS Code headings.
     fun anchor(heading: String): String =
