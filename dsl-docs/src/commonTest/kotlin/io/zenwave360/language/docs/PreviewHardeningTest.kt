@@ -157,6 +157,61 @@ class PreviewHardeningTest {
         }
     }
 
+    /** Level and text of the heading a Commands row's input link lands on, and of the section it is under, by the client's numbering. */
+    private fun commandInputTarget(page: String): Triple<Int, String, String> {
+        val all = headings(page)
+        val slugs = clientSlugs(all.map { it.second })
+        val anchor = Regex("\\| run \\| \\[[^\\]]*\\]\\(#([^)]*)\\)").find(page)?.groupValues?.get(1)
+        val index = slugs.indexOf(anchor)
+        assertTrue(index >= 0, "no heading for #$anchor in $page")
+        val section = all.take(index + 1).last { it.first == 2 }.second
+        return Triple(all[index].first, all[index].second, section)
+    }
+
+    @Test
+    fun aTypeNamedContentsLinksToItsDefinitionAndNotToTheTableOfContents() {
+        val page = zdl(
+            """
+            config { title "Contents" }
+            @aggregate
+            entity Order { id UUID }
+            entity Contents { id UUID }
+            service S for (Order) { run(Contents) Contents }
+            """.trimIndent(),
+        )
+
+        assertEquals(Triple(4, "Contents", "Glossary"), commandInputTarget(page), page)
+    }
+
+    @Test
+    fun anAggregateNamedContentsLinksLikeAnyOtherAggregate() {
+        fun page(name: String) = zdl("@aggregate\nentity $name { id UUID }\nservice S for ($name) { run($name) $name }")
+
+        val contents = commandInputTarget(page("Contents"))
+        val other = commandInputTarget(page("Basket"))
+
+        assertEquals(other.first to other.third, contents.first to contents.third, page("Contents"))
+    }
+
+    @Test
+    fun anAggregateNamedContentsIsStillInTheTableOfContents() {
+        val page = zdl("@aggregate\nentity Contents { id UUID }\nservice S for (Contents) { run(Contents) Contents }")
+
+        val list = page.substringAfter("## Contents\n\n").substringBefore("\n\n")
+        assertTrue(list.contains(Regex("  - \\[Contents\\]\\(#")), page)
+    }
+
+    @Test
+    fun aZwTitleNamedContentsDoesNotShiftTheSections() {
+        val page = zw("config { title \"Contents\"\n  basePackage \"io.example\"\n}")
+
+        assertEquals(1, Regex("- \\[Configuration\\]\\(#configuration\\)").findAll(page).count(), page)
+        val all = headings(page)
+        assertEquals(listOf(1 to "Contents", 2 to "Contents", 2 to "Configuration"), all, page)
+        val contents = clientSlugs(all.map { it.second })
+        assertEquals(listOf("contents", "contents-1", "configuration"), contents)
+    }
+
     @Test
     fun aTitleWithAClosingHashSequenceKeepsItsSlug() {
         val page = zdl("config { title \"Commands #\" }\n@aggregate\nentity Order { id UUID }\nservice S for (Order) { run(Order) Order }")

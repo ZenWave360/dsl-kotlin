@@ -35,6 +35,8 @@ internal object ZwPreviewPage {
         document.model.string("javadoc")?.let { append(Markdown.safeJavadoc(it)).append("\n\n") }
         append(Markdown.problems(document.problems.map { Markdown.safeInline(it) }))
 
+        // Before the sections, so its heading is numbered in page order, as the client numbers it.
+        val toc = anchors.toc()
         val sections = StringBuilder()
         if (model.config.isNotEmpty() || model.cliOptions.isNotEmpty()) sections.append(configuration(model, anchors))
         if (model.plugins.isNotEmpty()) sections.append(plugins(model, catalogue, anchors))
@@ -42,7 +44,7 @@ internal object ZwPreviewPage {
             append("This file has no `config` block and declares no plugins.\n")
             return@buildString
         }
-        append(anchors.toc())
+        append(toc)
         if (catalogue != null && catalogue.plugins.isNotEmpty()) {
             append("Plugin descriptions come from the plugin catalogue: ").append(Markdown.safeInline(catalogue.source)).append(".\n\n")
         }

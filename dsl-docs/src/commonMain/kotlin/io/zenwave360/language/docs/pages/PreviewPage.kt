@@ -33,13 +33,15 @@ internal object PreviewPage {
         document.model.string("javadoc")?.let { append(Markdown.safeJavadoc(it)).append("\n\n") }
         append(Markdown.problems(document.problems.map { Markdown.safeInline(it) }))
 
+        // Before the sections, so its heading is numbered in page order, as the client numbers it.
+        val toc = anchors.toc()
         val content = ModuleContent(domain, anchors, safe = true)
         val sections = content.services() + content.aggregates() + content.domainEvents() + content.commands() + content.glossary()
         if (sections.isEmpty()) {
             append("This model has no services, entities or events to show yet.\n")
             return@buildString
         }
-        append(anchors.toc())
+        append(toc)
         append(sections)
     }
 }
