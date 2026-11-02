@@ -542,6 +542,32 @@ class ZflEditorTest {
     }
 
     @Test
+    fun changePolicyTrigger_changingAnotherGroupKeepsNullSeparatorTokens() {
+        for ((firstGroup, events) in listOf(
+            "A, B | C" to listOf("A", "B", "C"),
+            "A, B," to listOf("A", "B"),
+            "A," to listOf("A")
+        )) {
+            val source = flow("    start C {}\n    start D {}\n    when $firstGroup and D, E do x {\n        service S.Svc\n        emits E\n    }")
+            val key = "x@when[${(events + listOf("D", "E")).sorted().joinToString(",")}]"
+            val result = editor.changePolicyTrigger(source, "F", key,
+                listOf(TriggerGroup(events), TriggerGroup(listOf("D", "E"), TriggerSeparator.OR)))
+            assertExact(source, result, source.replaceOnce("and D, E do x", "and D | E do x"))
+        }
+    }
+
+    @Test
+    fun changePolicyTrigger_unchangedSingleEventTrailingGroupWithExplicitSeparator_isANoOp() {
+        for (expression in listOf("A,", "A |")) {
+            val source = flow(whenX.replace("when A do x", "when $expression do x"))
+            for (separator in TriggerSeparator.entries) {
+                assertNoOp(editor.changePolicyTrigger(source, "F", "x@when[A]",
+                    listOf(TriggerGroup(listOf("A"), separator))))
+            }
+        }
+    }
+
+    @Test
     fun changePolicyTrigger_orGroup_changesOnlyTheNamedEventAndKeepsTheBar() {
         val source = fixture()
         val result = editor.changePolicyTrigger(source, "shippingFlow", "notifyCustomer@when[CarrierChosen,ParcelReturned]",
@@ -896,6 +922,14 @@ class ZflEditorTest {
             "Edit produces semantic errors",
             "unknown trigger 'A2'"
         )
+    }
+
+    @Test
+    fun changePolicyTrigger_rejectsWhenAnOverflowingAnnotationPreventsSemanticValidation() {
+        val source = "@foo(9223372036854775808)\n" + flow(whenX)
+        assertTrue(ZflParser().parse(source).syntaxProblems.isEmpty())
+        assertRejected(editor.changePolicyTrigger(source, "F", "x@when[A]",
+            listOf(TriggerGroup(listOf("Missing")))))
     }
 
     @Test

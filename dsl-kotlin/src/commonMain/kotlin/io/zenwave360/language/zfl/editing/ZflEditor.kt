@@ -38,6 +38,9 @@ import org.antlr.v4.kotlinruntime.tree.TerminalNode
  *   - Adding an emission to an occurrence that has its own statements but inherits only its
  *     emissions is accepted; the inherited emissions are not kept, and linting should report
  *     the inconsistent ZFL.
+ *   - A document that does not build a model, or whose parser reports a fatal problem, is
+ *     rejected for every operation. The message says the document could not be analysed and
+ *     includes the construction failure. The edit is not checked against an empty model.
  *
  * Deferred to ES-P2:
  *   - Adding/removing commands (service selection: ZVE-Q2) and creating policies atomically
@@ -117,11 +120,12 @@ class ZflEditor {
      * when needed, [disambiguationIndex] (selection works as in [addEmissionToOccurrence]) with
      * [newTriggers]: groups joined by `and`, each group's events joined by its separator.
      *
-     * When the new expression has the same group structure as the old one, only the event names that
-     * differ are edited, so spacing and comments between them stay. An unchanged expression is a no-op.
-     * A null separator keeps the separator tokens already in a group of the same length, including a
-     * trailing or mixed separator. A structural change rewrites the whole expression and is rejected
-     * if the old one holds comments.
+     * When a group keeps its separator tokens, only the event names that differ are edited, so spacing
+     * and comments inside it stay. An unchanged expression is a no-op. A null separator keeps the
+     * tokens already written, including a trailing or mixed separator, and a group the caller did not
+     * change keeps them even when another group is rewritten. The separator of a one-event group does
+     * not matter. Rewriting a group, or the expression because the number of groups changed, is
+     * rejected when the expression holds comments.
      *
      * spec:flows/zfl-visual-editing#zve-r6
      * spec:flows/zfl-visual-editing#zve-r8
@@ -153,25 +157,20 @@ class ZflEditor {
             )
         }
 
-        val sameStructure = old.groups.size == newTriggers.size && old.groups.zip(newTriggers).all { (o, n) ->
-            o.events.size == n.events.size && when {
-                // A null separator keeps the tokens already written, even when they trail or mix.
-                n.separator == null -> true
-                o.events.size == 1 -> o.wellFormed
-                else -> o.wellFormed && o.separator == n.separator
+        // Same number of groups: rewrite only the groups whose separators the caller changed.
+        // A group that keeps its tokens, including one passed with a null separator, is left
+        // character for character apart from event names that differ.
+        val edits = if (old.groups.size == newTriggers.size) {
+            val rewritesAGroup = old.groups.zip(newTriggers).any { (group, requested) ->
+                !keepsSeparatorTokens(group, requested)
             }
-        }
-        val edits = if (sameStructure) {
-            old.groups.flatMap { it.events }.zip(newTriggers.flatMap { it.events })
-                .filter { (token, name) -> token.text != name }
-                .map { (token, name) -> ZflTextEdit(token.start, token.end, name) }
+            if (rewritesAGroup && old.hasComments) return commentRewriteRejection(target.key)
+            old.groups.zip(newTriggers).flatMap { (group, requested) ->
+                if (keepsSeparatorTokens(group, requested)) eventNameEdits(group, requested)
+                else listOf(ZflTextEdit(group.start, group.end, renderGroup(requested)))
+            }
         } else {
-            if (old.hasComments) {
-                return ZflEditResult.rejected(
-                    "The trigger of '${target.key}' holds comments, and the change alters its structure; " +
-                        "rewriting it would remove them (unsupported until ES-P2)."
-                )
-            }
+            if (old.hasComments) return commentRewriteRejection(target.key)
             listOf(ZflTextEdit(old.start, old.end, buildTriggerText(newTriggers)))
         }
         if (edits.isEmpty()) return ZflEditResult.noOp()
@@ -299,14 +298,44 @@ class ZflEditor {
         val syntaxErrors: List<String>,
         val errors: List<String>,
         val warnings: List<String>,
-        val problems: Map<String, Int>
+        val problems: Map<String, Int>,
+        val constructionFailure: String? = null
     )
 
     private fun analyze(text: String): Analysis {
         val parser = ZflParser()
         val syntax = parser.parse(text).syntaxProblems.map { it["message"]?.toString() ?: "syntax error" }
         if (syntax.isNotEmpty()) return Analysis(syntax, emptyList(), emptyList(), emptyMap())
-        val model = parser.parseModel(text)
+        // Construction can abort after the grammar has accepted the text, for example an integer
+        // outside Long range. The parser records that as a fatal problem and returns whatever it
+        // built, which may contain no flows. Semantic results from that model must not decide an edit.
+        val model = try {
+            parser.parseModel(text)
+        } catch (e: Exception) {
+            return Analysis(
+                syntaxErrors = emptyList(),
+                errors = emptyList(),
+                warnings = emptyList(),
+                problems = emptyMap(),
+                constructionFailure = e.message?.takeIf { it.isNotBlank() }
+                    ?: e::class.simpleName
+                    ?: "model construction failed"
+            )
+        }
+        val fatal = model.getProblems().mapNotNull { problem ->
+            if (problem["path"] as? String != "parser") return@mapNotNull null
+            problem["message"]?.toString()?.takeIf { it.isNotBlank() }
+                ?: "Parser failed while building ZFL model"
+        }
+        if (fatal.isNotEmpty()) {
+            return Analysis(
+                syntaxErrors = emptyList(),
+                errors = emptyList(),
+                warnings = emptyList(),
+                problems = emptyMap(),
+                constructionFailure = fatal.joinToString("; ")
+            )
+        }
         val semantic = ZflSemanticAnalyzer().analyze(model)
         return Analysis(
             syntaxErrors = emptyList(),
@@ -318,14 +347,16 @@ class ZflEditor {
 
     /**
      * Applies [edits] to a copy of [source], re-parses and re-analyzes it, and accepts only text without
-     * syntax errors, error diagnostics or parser problems that the original did not have. Warnings the
-     * edit introduces are returned in the accepted result (ZVE-R5).
+     * syntax errors, error diagnostics or parser problems that the original did not have. A document that
+     * does not build a model, or whose parser reports a fatal problem, is rejected instead of compared.
+     * Warnings the edit introduces are returned in the accepted result (ZVE-R5).
      */
     private fun finish(source: String, edits: List<ZflTextEdit>, mappings: List<ZflIdentityMapping>): ZflEditResult {
         val original = analyze(source)
         if (original.syntaxErrors.isNotEmpty()) {
             return ZflEditResult.rejected("Source has syntax errors; cannot apply edits: ${original.syntaxErrors.joinToString("; ")}")
         }
+        original.constructionFailure?.let { return constructionRejection(it, edited = false) }
         if (original.errors.isNotEmpty()) {
             return ZflEditResult.rejected("Source has semantic errors; cannot apply edits: ${original.errors.joinToString("; ")}")
         }
@@ -333,6 +364,7 @@ class ZflEditor {
         if (candidate.syntaxErrors.isNotEmpty()) {
             return ZflEditResult.rejected("Edit produces syntax errors: ${candidate.syntaxErrors.joinToString("; ")}")
         }
+        candidate.constructionFailure?.let { return constructionRejection(it, edited = true) }
         if (candidate.errors.isNotEmpty()) {
             return ZflEditResult.rejected("Edit produces semantic errors: ${candidate.errors.joinToString("; ")}")
         }
@@ -390,6 +422,35 @@ class ZflEditor {
         "'$name' is not a valid $what: ZFL identifiers are one ASCII token of letters, digits and '_', " +
             "not starting with a digit and not a keyword."
 
+    private fun constructionRejection(failure: String, edited: Boolean) = ZflEditResult.rejected(
+        if (edited) "The edited document could not be analysed: $failure"
+        else "The document could not be analysed: $failure"
+    )
+
+    private fun commentRewriteRejection(key: String) = ZflEditResult.rejected(
+        "The trigger of '$key' holds comments, and the change alters its structure; " +
+            "rewriting it would remove them (unsupported until ES-P2)."
+    )
+
+    /**
+     * True when [requested] can be applied by editing event names and leaving every separator token
+     * where it is. A null separator means keep what is there. A one-event group's separator is
+     * immaterial, including a trailing one. A different event count has to be rewritten.
+     */
+    private fun keepsSeparatorTokens(group: TriggerGroupInfo, requested: TriggerGroup): Boolean {
+        if (group.events.size != requested.events.size) return false
+        return when {
+            requested.separator == null -> true
+            group.events.size == 1 -> true
+            else -> group.wellFormed && group.separator == requested.separator
+        }
+    }
+
+    private fun eventNameEdits(group: TriggerGroupInfo, requested: TriggerGroup): List<ZflTextEdit> =
+        group.events.zip(requested.events)
+            .filter { (token, name) -> token.text != name }
+            .map { (token, name) -> ZflTextEdit(token.start, token.end, name) }
+
     private fun triggerInputRejection(groups: List<TriggerGroup>): ZflEditResult? {
         if (groups.isEmpty() || groups.any { it.events.isEmpty() }) {
             return ZflEditResult.rejected("A trigger needs at least one group, and every group at least one event.")
@@ -406,10 +467,11 @@ class ZflEditor {
     // Text builders
     // -------------------------------------------------------------------------
 
+    private fun renderGroup(group: TriggerGroup): String =
+        group.events.joinToString(if (group.separator == TriggerSeparator.OR) " | " else ", ")
+
     private fun buildTriggerText(groups: List<TriggerGroup>): String =
-        groups.joinToString(" and ") { group ->
-            group.events.joinToString(if (group.separator == TriggerSeparator.OR) " | " else ", ")
-        }
+        groups.joinToString(" and ", transform = ::renderGroup)
 
     /**
      * Builds the insertion of `emits [eventName]` before the closing brace of [body].
@@ -456,8 +518,9 @@ enum class TriggerSeparator { COMMA, OR }
 
 /**
  * A group of trigger events joined by [separator]. Several groups are joined by `and`.
- * The separator of a one-event group does not matter. Null keeps the separator tokens already
- * written when the group has the same number of events.
+ * The separator of a one-event group does not matter, including a trailing separator, so an
+ * unchanged one-event group is a no-op whatever separator is requested. Null keeps the separator
+ * tokens already written when the group has the same number of events.
  *
  * spec:flows/zfl-visual-editing#zve-r6
  */
@@ -495,7 +558,13 @@ private class BodyInfo(
     val lastStatementEnd: Int?
 )
 
-private class TriggerGroupInfo(val events: List<Range>, val separator: TriggerSeparator?, val wellFormed: Boolean)
+private class TriggerGroupInfo(
+    val events: List<Range>,
+    val separator: TriggerSeparator?,
+    val wellFormed: Boolean,
+    val start: Int,
+    val end: Int
+)
 
 private class TriggerInfo(val start: Int, val end: Int, val groups: List<TriggerGroupInfo>, val hasComments: Boolean)
 
@@ -571,6 +640,7 @@ private class FlowScan(
             val events = group.flow_when_event_trigger().mapNotNull { range(it) }
             val commas = group.COMMA().size
             val ors = group.OR().size
+            val span = range(group)!!
             TriggerGroupInfo(
                 events = events,
                 separator = when {
@@ -578,7 +648,9 @@ private class FlowScan(
                     ors > 0 -> TriggerSeparator.OR
                     else -> null
                 },
-                wellFormed = commas + ors == events.size - 1 && (commas == 0 || ors == 0)
+                wellFormed = commas + ors == events.size - 1 && (commas == 0 || ors == 0),
+                start = span.start,
+                end = span.end
             )
         }
         val triggerRange = range(ctx.flow_when_trigger())!!
