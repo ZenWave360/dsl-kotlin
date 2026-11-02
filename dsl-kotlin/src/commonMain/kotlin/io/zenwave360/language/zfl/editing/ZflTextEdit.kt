@@ -80,7 +80,8 @@ data class ZflEditResult(
 
 /**
  * Applies a list of non-overlapping [ZflTextEdit]s to [source] and returns the result.
- * Edits must be sorted by start offset; behaviour for overlapping edits is undefined.
+ * Edits are sorted by start offset. An edit outside the source, or one that overlaps another,
+ * throws [IllegalArgumentException].
  * Useful in tests and host adapters.
  *
  * spec:flows/zfl-visual-editing#zve-r8

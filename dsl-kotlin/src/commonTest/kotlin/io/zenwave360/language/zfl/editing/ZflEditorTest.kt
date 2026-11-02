@@ -229,6 +229,33 @@ class ZflEditorTest {
     }
 
     @Test
+    fun addEmission_toAnOccurrenceThatInheritsOnlyItsEmissions_dropsTheInheritedOnes() {
+        val source = flow(
+            "    when A do x {\n" +
+                "        service S.Svc\n" +
+                "    }\n" +
+                "    do x {\n" +
+                "        service S.Svc\n" +
+                "        emits E\n" +
+                "    }"
+        )
+        val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N")
+        val expected = source.replaceOnce(
+            "    when A do x {\n        service S.Svc\n    }",
+            "    when A do x {\n        service S.Svc\n        emits N\n    }"
+        )
+        assertExact(source, result, expected)
+        assertEquals(1, result.edits.size)
+        assertTrue(result.diagnostics.isEmpty(), "diagnostics: ${result.diagnostics}")
+        val command = analyze(expected).flows.single().commands.single { it.name == "x" }
+        val edited = command.occurrences.single { it.key == "x@when[A]" }
+        val definition = command.occurrences.single { it.key == "x@definition" }
+        assertEquals(2, edited.steps.size)
+        assertEquals(listOf("N"), edited.emissions.map { it.eventName })
+        assertEquals(listOf("E"), definition.emissions.map { it.eventName })
+    }
+
+    @Test
     fun addEmission_mixingAnOutcomeAnnotatedEmission_returnsTheAnalyzerWarning() {
         val source = flow("    when A do x {\n        service S.Svc\n        @outcome(ok) emits E\n    }")
         val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N")
@@ -484,6 +511,34 @@ class ZflEditorTest {
     fun changePolicyTrigger_rejectsStructuralMultiEventGroupWithoutASeparator() {
         val source = flow("    when A do x {\n        service S.Svc\n        emits E\n    }")
         assertRejected(editor.changePolicyTrigger(source, "F", "x@when[A]", listOf(TriggerGroup(listOf("A", "B")))), "explicit separator")
+    }
+
+    @Test
+    fun changePolicyTrigger_nullSeparatorKeepsTrailingAndMixedSeparatorTokens() {
+        val trailing = "systems { S { service Svc } }\n" +
+            "flow F {\n" +
+            "    start A {}\n    start B {}\n    start C {}\n" +
+            "    when A, B, do x {\n        service S.Svc\n        emits E\n    }\n" +
+            "    end { completed: E }\n}\n"
+        val trailingChanged = editor.changePolicyTrigger(trailing, "F", "x@when[A,B]", listOf(TriggerGroup(listOf("A", "C"))))
+        assertExact(trailing, trailingChanged, trailing.replaceOnce("when A, B, do x", "when A, C, do x"))
+
+        val mixed = "systems { S { service Svc } }\n" +
+            "flow F {\n" +
+            "    start A {}\n    start B {}\n    start C {}\n    start D {}\n" +
+            "    when A, B | C do x {\n        service S.Svc\n        emits E\n    }\n" +
+            "    end { completed: E }\n}\n"
+        val mixedChanged = editor.changePolicyTrigger(mixed, "F", "x@when[A,B,C]", listOf(TriggerGroup(listOf("A", "B", "D"))))
+        assertExact(mixed, mixedChanged, mixed.replaceOnce("when A, B | C do x", "when A, B | D do x"))
+    }
+
+    @Test
+    fun changePolicyTrigger_unchangedTrailingOrMixedGroup_isANoOp() {
+        val trailing = flow("    when A, B, do x {\n        service S.Svc\n        emits E\n    }")
+        assertNoOp(editor.changePolicyTrigger(trailing, "F", "x@when[A,B]", listOf(TriggerGroup(listOf("A", "B")))))
+
+        val mixed = flow("    when A, B | E do x {\n        service S.Svc\n        emits E\n    }")
+        assertNoOp(editor.changePolicyTrigger(mixed, "F", "x@when[A,B,E]", listOf(TriggerGroup(listOf("A", "B", "E")))))
     }
 
     @Test
@@ -772,6 +827,16 @@ class ZflEditorTest {
         assertTrue(result.diagnostics.isEmpty(), "diagnostics: ${result.diagnostics}")
     }
 
+    @Test
+    fun renameCommand_doesNotReportAWarningThatAlreadyExistsInAnotherFlow() {
+        val command = "    when A do x {\n        service S.Svc\n        @outcome(ok) emits E\n        emits N\n    }"
+        val source = flow(command, "F") + flow(command, "G").substringAfter("systems { S { service Svc } }\n")
+        val result = editor.renameCommand(source, "F", "x", "renamed")
+        assertTrue(result.accepted, "diagnostics: ${result.diagnostics}")
+        assertTrue(result.diagnostics.isEmpty(), "diagnostics: ${result.diagnostics}")
+        assertTrue(applyEdits(source, result.edits).substringAfter("flow G").contains("do x {"))
+    }
+
     // =========================================================================
     // Common
     // =========================================================================
@@ -786,23 +851,34 @@ class ZflEditorTest {
 
     @Test
     fun operations_rejectAnalyzerFailuresInsteadOfThrowingOrAccepting() {
+        // These used to be rejected. The analyzer now reads scalar annotation values as text on both targets.
         val source = flow("    @if(true)\n$whenX")
-        assertRejected(editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N"), "non-string annotation value")
-        assertRejected(editor.changePolicyTrigger(source, "F", "x@when[A]", listOf(TriggerGroup(listOf("B")))), "non-string annotation value")
-        assertRejected(editor.renameCommand(source, "F", "x", "renamed"), "non-string annotation value")
+        assertExact(source, editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N"), source.replaceOnce("emits E\n", "emits E\n        emits N\n"))
+        assertExact(source, editor.changePolicyTrigger(source, "F", "x@when[A]", listOf(TriggerGroup(listOf("B")))), source.replaceOnce("when A do x", "when B do x"))
+        assertExact(source, editor.renameCommand(source, "F", "x", "renamed"), source.replaceOnce("when A do x {", "when A do renamed {"))
 
-        // A quoted "true" is a string. The non-string guard must not reject it.
         val quoted = flow("    @if(\"true\")\n$whenX")
-        val added = editor.addEmissionToOccurrence(quoted, "F", "x@when[A]", "N")
-        val changed = editor.changePolicyTrigger(quoted, "F", "x@when[A]", listOf(TriggerGroup(listOf("B"))))
-        val renamed = editor.renameCommand(quoted, "F", "x", "renamed")
-        for (result in listOf(added, changed, renamed)) {
-            assertTrue(result.accepted, "Quoted \"true\" must not be rejected. Diagnostics: ${result.diagnostics}")
-            assertTrue(
-                result.diagnostics.none { "non-string annotation value" in it.message },
-                "diagnostics: ${result.diagnostics}"
-            )
-        }
+        assertExact(quoted, editor.addEmissionToOccurrence(quoted, "F", "x@when[A]", "N"), quoted.replaceOnce("emits E\n", "emits E\n        emits N\n"))
+        assertExact(quoted, editor.changePolicyTrigger(quoted, "F", "x@when[A]", listOf(TriggerGroup(listOf("B")))), quoted.replaceOnce("when A do x", "when B do x"))
+        assertExact(quoted, editor.renameCommand(quoted, "F", "x", "renamed"), quoted.replaceOnce("when A do x {", "when A do renamed {"))
+
+        val maxlength = "systems { S { service Svc } }\n" +
+            "flow F {\n" +
+            "    start A {\n" +
+            "        @maxlength(10) name String\n" +
+            "    }\n" +
+            "    when A do x {\n" +
+            "        service S.Svc\n" +
+            "        emits E\n" +
+            "    }\n" +
+            "    end { completed: E }\n" +
+            "}\n"
+        assertExact(maxlength, editor.addEmissionToOccurrence(maxlength, "F", "x@when[A]", "N"), maxlength.replaceOnce("emits E\n", "emits E\n        emits N\n"))
+        assertExact(maxlength, editor.renameCommand(maxlength, "F", "x", "renamed"), maxlength.replaceOnce("when A do x {", "when A do renamed {"))
+
+        val numbered = flow("    @foo(3)\n$whenX")
+        assertExact(numbered, editor.changePolicyTrigger(numbered, "F", "x@when[A]", listOf(TriggerGroup(listOf("B")))), numbered.replaceOnce("when A do x", "when B do x"))
+        assertExact(numbered, editor.addEmissionToOccurrence(numbered, "F", "x@when[A]", "N"), numbered.replaceOnce("emits E\n", "emits E\n        emits N\n"))
     }
 
     @Test
@@ -810,6 +886,16 @@ class ZflEditorTest {
         val source = flow("    when A do x {\n        service S.Svc\n        emits E\n    }") +
             "flow G {\n    start A {}\n    end { completed: Missing }\n}\n"
         assertRejected(editor.renameCommand(source, "F", "x", "renamed"), "Source has semantic errors")
+    }
+
+    @Test
+    fun changePolicyTrigger_rejectsWhenTheEditProducesASemanticError() {
+        val source = flow(whenX)
+        assertRejected(
+            editor.changePolicyTrigger(source, "F", "x@when[A]", listOf(TriggerGroup(listOf("A2")))),
+            "Edit produces semantic errors",
+            "unknown trigger 'A2'"
+        )
     }
 
     @Test

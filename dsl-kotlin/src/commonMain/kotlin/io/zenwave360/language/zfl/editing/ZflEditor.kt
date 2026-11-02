@@ -25,7 +25,8 @@ import org.antlr.v4.kotlinruntime.tree.TerminalNode
  *   2. [changePolicyTrigger] replaces the trigger of a `when` block.
  *   3. [renameCommand] renames a command throughout one flow, with identity mapping.
  *
- * Recorded limitations. Each is an explicit rejection, never an accepted wrong result:
+ * Recorded limitations. Unless a line says the edit is accepted, each is an explicit rejection,
+ * never an accepted wrong result:
  *   - An occurrence written as `when X do Y` without a body cannot receive an emission.
  *   - A trigger change that alters the group structure of an expression holding comments.
  *   - A rename of a command listed in a `systems` `commands:` list. This is a recorded ES-P2
@@ -34,6 +35,9 @@ import org.antlr.v4.kotlinruntime.tree.TerminalNode
  *   - A rename when a quoted `@compensates("name")` refers to the command.
  *   - A rename of a command that is only called (and has no `do` block).
  *   - Adding an emission to an occurrence whose body is inherited from another occurrence.
+ *   - Adding an emission to an occurrence that has its own statements but inherits only its
+ *     emissions is accepted; the inherited emissions are not kept, and linting should report
+ *     the inconsistent ZFL.
  *
  * Deferred to ES-P2:
  *   - Adding/removing commands (service selection: ZVE-Q2) and creating policies atomically
@@ -81,7 +85,6 @@ class ZflEditor {
         if (!isIdentifier(eventName)) return ZflEditResult.rejected(notAnIdentifier("event name", eventName))
         val scan = scanFlow(source, flowName) ?: return syntaxRejection()
         scan.flowRejection(flowName)?.let { return it }
-        analyzerFailureRejection(source)?.let { return it }
 
         val target = when (val selection = select(scan.blocks, flowName, occurrenceKey, disambiguationIndex, "Occurrence")) {
             is Selection.Rejected -> return selection.result
@@ -116,7 +119,9 @@ class ZflEditor {
      *
      * When the new expression has the same group structure as the old one, only the event names that
      * differ are edited, so spacing and comments between them stay. An unchanged expression is a no-op.
-     * A structural change rewrites the whole expression and is rejected if the old one holds comments.
+     * A null separator keeps the separator tokens already in a group of the same length, including a
+     * trailing or mixed separator. A structural change rewrites the whole expression and is rejected
+     * if the old one holds comments.
      *
      * spec:flows/zfl-visual-editing#zve-r6
      * spec:flows/zfl-visual-editing#zve-r8
@@ -132,7 +137,6 @@ class ZflEditor {
         triggerInputRejection(newTriggers)?.let { return it }
         val scan = scanFlow(source, flowName) ?: return syntaxRejection()
         scan.flowRejection(flowName)?.let { return it }
-        analyzerFailureRejection(source)?.let { return it }
 
         val whens = scan.blocks.filter { it.trigger != null }
         val target = when (val selection = select(whens, flowName, policyKey, disambiguationIndex, "Policy")) {
@@ -150,8 +154,12 @@ class ZflEditor {
         }
 
         val sameStructure = old.groups.size == newTriggers.size && old.groups.zip(newTriggers).all { (o, n) ->
-            o.wellFormed && o.events.size == n.events.size &&
-                (o.events.size == 1 || n.separator == null || o.separator == n.separator)
+            o.events.size == n.events.size && when {
+                // A null separator keeps the tokens already written, even when they trail or mix.
+                n.separator == null -> true
+                o.events.size == 1 -> o.wellFormed
+                else -> o.wellFormed && o.separator == n.separator
+            }
         }
         val edits = if (sameStructure) {
             old.groups.flatMap { it.events }.zip(newTriggers.flatMap { it.events })
@@ -223,7 +231,6 @@ class ZflEditor {
                     "(unsupported until ES-P2)."
             )
         }
-        analyzerFailureRejection(source)?.let { return it }
 
         val edits = scan.commandRefs.getValue(oldName).sortedBy { it.first }
             .map { (start, end) -> ZflTextEdit(start, end, newName) }
@@ -292,61 +299,21 @@ class ZflEditor {
         val syntaxErrors: List<String>,
         val errors: List<String>,
         val warnings: List<String>,
-        val problems: Map<String, Int>,
-        val analyzerFailure: String? = null
+        val problems: Map<String, Int>
     )
 
     private fun analyze(text: String): Analysis {
         val parser = ZflParser()
         val syntax = parser.parse(text).syntaxProblems.map { it["message"]?.toString() ?: "syntax error" }
         if (syntax.isNotEmpty()) return Analysis(syntax, emptyList(), emptyList(), emptyMap())
-        return try {
-            val model = parser.parseModel(text)
-            val semantic = ZflSemanticAnalyzer().analyze(model)
-            Analysis(
-                syntaxErrors = emptyList(),
-                errors = semantic.diagnostics.filter { it.severity == Severity.ERROR }.map { it.message },
-                warnings = semantic.diagnostics.filter { it.severity == Severity.WARNING }.map { it.message },
-                problems = model.getProblems().groupingBy { "${it["message"]}|${it["value"]}" }.eachCount()
-            )
-        } catch (_: Throwable) {
-            // The analyzer currently has JVM-only unchecked casts for some valid annotation values.
-            // The editor must reject consistently until the analyzer itself is made platform-neutral.
-            Analysis(emptyList(), emptyList(), emptyList(), emptyMap(), "Semantic analysis failed; the edit was not applied.")
-        }
-    }
-
-    private fun analyzerFailureRejection(source: String): ZflEditResult? {
-        if (hasNonStringAnnotationValue(source)) {
-            return ZflEditResult.rejected(
-                "A non-string annotation value is unsupported because semantic analysis cannot handle it consistently; " +
-                    "the edit was not applied."
-            )
-        }
-        return analyze(source).analyzerFailure?.let { failure -> ZflEditResult.rejected(failure) }
-    }
-
-    /**
-     * `ZflSemanticAnalyzer` reads annotation options as strings, but its unchecked casts differ between
-     * JVM and JS for numeric, boolean and null values. Reject these syntactically valid shapes here until
-     * the analyzer can validate them consistently on both targets.
-     */
-    private fun hasNonStringAnnotationValue(source: String): Boolean {
-        val parsed = ZflParser().parse(source)
-        var nonString = false
-        ParseTreeWalker.DEFAULT.walk(object : ZflBaseListener() {
-            override fun enterOption(ctx: AntlrParser.OptionContext) {
-                val value = ctx.option_value() ?: return
-                ParseTreeWalker.DEFAULT.walk(object : ZflBaseListener() {
-                    // Every token, not only `simple` nodes: the grammar gives `true`, `false` and `null` their own tokens.
-                    // A quoted "true" is one token that keeps its quotes, so it does not match.
-                    override fun visitTerminal(node: TerminalNode) {
-                        if (NON_STRING_SIMPLE.matches(node.text)) nonString = true
-                    }
-                }, value)
-            }
-        }, parsed.tree)
-        return nonString
+        val model = parser.parseModel(text)
+        val semantic = ZflSemanticAnalyzer().analyze(model)
+        return Analysis(
+            syntaxErrors = emptyList(),
+            errors = semantic.diagnostics.filter { it.severity == Severity.ERROR }.map { it.message },
+            warnings = semantic.diagnostics.filter { it.severity == Severity.WARNING }.map { it.message },
+            problems = model.getProblems().groupingBy { "${it["message"]}|${it["value"]}" }.eachCount()
+        )
     }
 
     /**
@@ -356,7 +323,6 @@ class ZflEditor {
      */
     private fun finish(source: String, edits: List<ZflTextEdit>, mappings: List<ZflIdentityMapping>): ZflEditResult {
         val original = analyze(source)
-        original.analyzerFailure?.let { return ZflEditResult.rejected(it) }
         if (original.syntaxErrors.isNotEmpty()) {
             return ZflEditResult.rejected("Source has syntax errors; cannot apply edits: ${original.syntaxErrors.joinToString("; ")}")
         }
@@ -364,7 +330,6 @@ class ZflEditor {
             return ZflEditResult.rejected("Source has semantic errors; cannot apply edits: ${original.errors.joinToString("; ")}")
         }
         val candidate = analyze(applyEdits(source, edits))
-        candidate.analyzerFailure?.let { return ZflEditResult.rejected(it) }
         if (candidate.syntaxErrors.isNotEmpty()) {
             return ZflEditResult.rejected("Edit produces syntax errors: ${candidate.syntaxErrors.joinToString("; ")}")
         }
@@ -377,18 +342,40 @@ class ZflEditor {
                 "Edit produces model problems: ${introduced.joinToString("; ") { it.substringBefore('|') }}"
             )
         }
-        val originalWarningsAfterRename = original.warnings.map { warning ->
-            mappings.fold(warning) { current, mapping ->
-                current.replace("'${mapping.oldName}'", "'${mapping.newName}'")
-            }
-        }.toSet()
-        val newWarnings = candidate.warnings - originalWarningsAfterRename
+        val newWarnings = introducedWarnings(original.warnings, candidate.warnings, mappings)
         return ZflEditResult(
             accepted = true,
             edits = edits,
             diagnostics = newWarnings.map { ZflEditDiagnostic(EditSeverity.WARNING, it) },
             identityMappings = mappings
         )
+    }
+
+    /**
+     * Warnings the edit introduces. An exact original warning is the same warning, including one that
+     * another flow still has for the old command name. A warning that only differs by the rename is the
+     * renamed form of an original warning, not a new one.
+     */
+    private fun introducedWarnings(
+        original: List<String>,
+        candidate: List<String>,
+        mappings: List<ZflIdentityMapping>
+    ): List<String> {
+        fun renamed(warning: String): String = mappings.fold(warning) { current, mapping ->
+            current.replace("'${mapping.oldName}'", "'${mapping.newName}'")
+        }
+        val remaining = original.toMutableList()
+        val pending = mutableListOf<String>()
+        for (warning in candidate) {
+            val exact = remaining.indexOf(warning)
+            if (exact >= 0) remaining.removeAt(exact) else pending += warning
+        }
+        val introduced = mutableListOf<String>()
+        for (warning in pending) {
+            val source = remaining.indexOfFirst { renamed(it) == warning }
+            if (source >= 0) remaining.removeAt(source) else introduced += warning
+        }
+        return introduced
     }
 
     /** True when [name] is exactly one ZFL `ID` token: ASCII, not a keyword, nothing else (ZVE-R5). */
@@ -457,7 +444,6 @@ class ZflEditor {
 
     private companion object {
         val EXPLICIT_KEY = Regex("#\\d+$")
-        val NON_STRING_SIMPLE = Regex("(?:true|false|null|-?(?:\\d+\\.?\\d*|\\.\\d+))")
     }
 }
 
@@ -470,7 +456,8 @@ enum class TriggerSeparator { COMMA, OR }
 
 /**
  * A group of trigger events joined by [separator]. Several groups are joined by `and`.
- * The separator of a one-event group does not matter.
+ * The separator of a one-event group does not matter. Null keeps the separator tokens already
+ * written when the group has the same number of events.
  *
  * spec:flows/zfl-visual-editing#zve-r6
  */
