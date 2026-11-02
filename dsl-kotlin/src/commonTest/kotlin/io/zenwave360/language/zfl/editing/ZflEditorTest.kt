@@ -11,8 +11,8 @@ import kotlin.test.*
  * ES-P1 tests for the ZFL visual edit prototype.
  *
  * Accepted results are compared with the exact expected text, so a change outside the intended range
- * fails. Fixtures read from files run on the JVM and Node only; tests with inline sources also run in
- * the browser build through JsBrowserSmokeTest, which holds the Unicode offset test the browser runs.
+ * fails. Fixtures read from files run on the JVM and Node only; the browser smoke test separately
+ * holds the inline Unicode offset case it runs.
  *
  * Identifiers stay ASCII (ZVE-R5); Unicode appears in strings and comments, including characters
  * outside the BMP, which count as two UTF-16 code units in the edit offsets.
@@ -135,25 +135,25 @@ class ZflEditorTest {
 
     @Test
     fun addEmission_emptyBodies_oneLine() {
-        // the service comes from the `when` block; the `do x` block itself has an empty body
+        // An empty occurrence inherits the other occurrence's body and cannot be changed in ES-P1.
         val spaced = flow("$whenX\n    do x { }")
-        assertExact(spaced, editor.addEmissionToOccurrence(spaced, "F", "x@definition", "N"), flow("$whenX\n    do x { emits N }"))
+        assertRejected(editor.addEmissionToOccurrence(spaced, "F", "x@definition", "N"), "inherited body")
         val tight = flow("$whenX\n    do x {}")
-        assertExact(tight, editor.addEmissionToOccurrence(tight, "F", "x@definition", "N"), flow("$whenX\n    do x { emits N }"))
+        assertRejected(editor.addEmissionToOccurrence(tight, "F", "x@definition", "N"), "inherited body")
     }
 
     @Test
-    fun addEmission_emptyMultiLineBody_indentsOneLevelInsideBrace() {
+    fun addEmission_emptyMultiLineBody_rejectsAnInheritedBody() {
         val source = flow("$whenX\n    do x {\n    }")
-        assertExact(source, editor.addEmissionToOccurrence(source, "F", "x@definition", "N"), flow("$whenX\n    do x {\n        emits N\n    }"))
+        assertRejected(editor.addEmissionToOccurrence(source, "F", "x@definition", "N"), "inherited body")
     }
 
     @Test
     fun addEmission_tabIndentedBody_usesTheLastStatementIndent() {
-        val source = flow("\twhen A do x {\n\t\tservice S.Svc\n\t\temits E\n\t}")
+        val source = flow("    when A do x {\n\t\tservice S.Svc\n\t\temits E\n    }")
         assertExact(
             source, editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N"),
-            flow("\twhen A do x {\n\t\tservice S.Svc\n\t\temits E\n\t\temits N\n\t}")
+            flow("    when A do x {\n\t\tservice S.Svc\n\t\temits E\n\t\temits N\n    }")
         )
     }
 
@@ -204,6 +204,28 @@ class ZflEditorTest {
         val source = flow("    when A do x {\n        service S.Svc\n        emits E\n        call y\n        on Ok emits R\n    }\n    do y {\n        service S.Svc\n        response Ok\n    }")
         val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "R")
         assertExact(source, result, source.replaceOnce("on Ok emits R\n", "on Ok emits R\n        emits R\n"))
+    }
+
+    @Test
+    fun addEmission_annotatedDirectEmissions_doNotCountAsAlreadyEmitted() {
+        for (annotation in listOf("@failure", "@if(\"c\")")) {
+            val source = flow("    when A do x {\n        service S.Svc\n        emits E\n        $annotation emits N\n    }")
+            val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N")
+            assertExact(source, result, source.replaceOnce("$annotation emits N", "$annotation emits N\n        emits N"))
+        }
+    }
+
+    @Test
+    fun addEmission_outcomeAnnotatedEmission_doesNotCountAsAlreadyEmitted() {
+        val source = flow("    when A do x {\n        service S.Svc\n        emits E\n        @outcome(ok) emits N\n    }")
+        val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N")
+        assertExact(source, result, source.replaceOnce("@outcome(ok) emits N", "@outcome(ok) emits N\n        emits N"))
+    }
+
+    @Test
+    fun addEmission_rejects_whenTheOccurrenceWouldStopInheritingItsBody() {
+        val source = flow("    when A do x {}\n    do x {\n        service S.Svc\n        call y\n        emits E\n    }")
+        assertRejected(editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N"), "inherited body")
     }
 
     @Test
@@ -266,7 +288,7 @@ class ZflEditorTest {
         assertEquals(listOf("x@when[A]", "x@when[A]#2"), editor.occurrenceKeys(source, "F"))
         val result = editor.addEmissionToOccurrence(source, "F", "x@when[A]#2", "N")
         assertExact(source, result, source.replaceOnce("emits E\n", "emits E\n        emits N\n"))
-        // the bare key now selects the bodyless block, which is a rejection and not an edit of the other one
+        // the bare key is ambiguous, so it is a rejection rather than an edit of either block
         assertTrue(editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N").let { !it.accepted })
     }
 
@@ -451,6 +473,20 @@ class ZflEditorTest {
     }
 
     @Test
+    fun changePolicyTrigger_omittedSeparatorKeepsTheExistingSeparator() {
+        val source = fixture()
+        val result = editor.changePolicyTrigger(source, "shippingFlow", "notifyCustomer@when[CarrierChosen,ParcelReturned]",
+            listOf(TriggerGroup(listOf("CarrierChosen", "ParcelReady"))))
+        assertExact(source, result, source.replaceOnceIn("shippingFlow", "when CarrierChosen | ParcelReturned do notifyCustomer", "when CarrierChosen | ParcelReady do notifyCustomer"))
+    }
+
+    @Test
+    fun changePolicyTrigger_rejectsStructuralMultiEventGroupWithoutASeparator() {
+        val source = flow("    when A do x {\n        service S.Svc\n        emits E\n    }")
+        assertRejected(editor.changePolicyTrigger(source, "F", "x@when[A]", listOf(TriggerGroup(listOf("A", "B")))), "explicit separator")
+    }
+
+    @Test
     fun changePolicyTrigger_orGroup_changesOnlyTheNamedEventAndKeepsTheBar() {
         val source = fixture()
         val result = editor.changePolicyTrigger(source, "shippingFlow", "notifyCustomer@when[CarrierChosen,ParcelReturned]",
@@ -561,6 +597,30 @@ class ZflEditorTest {
         val source = flow("    when A do x {\n        service S.Svc\n        emits E\n    }\n    @compensates(x)\n    when E do y {\n        service S.Svc\n    }")
         val result = editor.renameCommand(source, "F", "x", "renamed")
         assertExact(source, result, source.replaceOnce("when A do x {", "when A do renamed {").replaceOnce("@compensates(x)", "@compensates(renamed)"))
+    }
+
+    @Test
+    fun renameCommand_updatesEveryPlainValueInACompensatesList() {
+        val source = flow("    @compensates(x, y)\n    do y {\n        service S.Svc\n    }\n    do x {\n        service S.Svc\n        emits E\n    }")
+        val result = editor.renameCommand(source, "F", "x", "renamed")
+        assertExact(source, result, source.replaceOnce("@compensates(x, y)", "@compensates(renamed, y)").replaceOnce("do x {", "do renamed {"))
+    }
+
+    @Test
+    fun renameCommand_rejectsNonPlainCompensatesValuesThatNameTheCommand() {
+        for (value in listOf("[x]", "target: x", "\"x\"")) {
+            val source = flow("    @compensates($value)\n    when A do x {\n        service S.Svc\n        emits E\n    }")
+            assertRejected(editor.renameCommand(source, "F", "x", "renamed"), "@compensates")
+        }
+    }
+
+    @Test
+    fun renameCommand_doesNotTouchCallsOrCompensatesInAnotherFlow() {
+        val source = "systems { S { service Svc } }\n" +
+            "flow F {\n    start A {}\n    when A do x {\n        service S.Svc\n        emits E\n    }\n    end { completed: E }\n}\n" +
+            "flow G {\n    start A {}\n    when A do y {\n        service S.Svc\n        call x\n        async call x\n        on E call x\n        @compensates(x) emits N\n    }\n    do x {\n        service S.Svc\n        emits E\n    }\n    end { completed: N }\n}\n"
+        val result = editor.renameCommand(source, "F", "x", "renamed")
+        assertExact(source, result, source.replaceOnceIn("F", "do x {", "do renamed {"))
     }
 
     @Test
@@ -687,13 +747,29 @@ class ZflEditorTest {
     @Test
     fun renameCommand_rejects_whenTheSystemsBlockListsTheCommand() {
         val source = "systems { S { service Svc { commands: x } } }\nflow F {\n    start A {}\n$whenX\n    end { completed: E }\n}\n"
-        assertRejected(editor.renameCommand(source, "F", "x", "renamed"), "commands:", "shared across flows")
+        assertRejected(editor.renameCommand(source, "F", "x", "renamed"), "commands:", "unsupported until ES-P2")
     }
 
     @Test
     fun renameCommand_rejects_whenAQuotedCompensatesNamesTheCommand() {
         val source = flow("$whenX\n    @compensates(\"x\")\n    when E do y {\n        service S.Svc\n    }")
-        assertRejected(editor.renameCommand(source, "F", "x", "renamed"), "quoted @compensates")
+        assertRejected(editor.renameCommand(source, "F", "x", "renamed"), "quoted or non-plain @compensates")
+    }
+
+    @Test
+    fun renameCommand_rejectsCapturingDanglingCompensatesOrCommandsListReferences() {
+        val dangling = flow("    @compensates(renamed)\n    when A do x {\n        service S.Svc\n        emits E\n    }")
+        assertRejected(editor.renameCommand(dangling, "F", "x", "renamed"), "capture")
+        val listed = "systems { S { service Svc { commands: renamed } } }\nflow F {\n    start A {}\n    when A do x {\n        service S.Svc\n        emits E\n    }\n    end { completed: E }\n}\n"
+        assertRejected(editor.renameCommand(listed, "F", "x", "renamed"), "capture")
+    }
+
+    @Test
+    fun renameCommand_doesNotReportAnExistingWarningAsIntroduced() {
+        val source = flow("    when A do x {\n        service S.Svc\n        @outcome(ok) emits E\n        emits N\n    }")
+        val result = editor.renameCommand(source, "F", "x", "renamed")
+        assertTrue(result.accepted, "diagnostics: ${result.diagnostics}")
+        assertTrue(result.diagnostics.isEmpty(), "diagnostics: ${result.diagnostics}")
     }
 
     // =========================================================================
@@ -706,6 +782,34 @@ class ZflEditorTest {
         assertRejected(editor.addEmissionToOccurrence(broken, "X", "foo@definition", "Bar"), "syntax errors")
         assertRejected(editor.changePolicyTrigger(broken, "X", "foo@when[Bar]", listOf(TriggerGroup(listOf("Baz")))), "syntax errors")
         assertRejected(editor.renameCommand(broken, "X", "foo", "bar"), "syntax errors")
+    }
+
+    @Test
+    fun operations_rejectAnalyzerFailuresInsteadOfThrowingOrAccepting() {
+        val source = flow("    @if(true)\n$whenX")
+        assertRejected(editor.addEmissionToOccurrence(source, "F", "x@when[A]", "N"), "non-string annotation value")
+        assertRejected(editor.changePolicyTrigger(source, "F", "x@when[A]", listOf(TriggerGroup(listOf("B")))), "non-string annotation value")
+        assertRejected(editor.renameCommand(source, "F", "x", "renamed"), "non-string annotation value")
+
+        // A quoted "true" is a string. The non-string guard must not reject it.
+        val quoted = flow("    @if(\"true\")\n$whenX")
+        val added = editor.addEmissionToOccurrence(quoted, "F", "x@when[A]", "N")
+        val changed = editor.changePolicyTrigger(quoted, "F", "x@when[A]", listOf(TriggerGroup(listOf("B"))))
+        val renamed = editor.renameCommand(quoted, "F", "x", "renamed")
+        for (result in listOf(added, changed, renamed)) {
+            assertTrue(result.accepted, "Quoted \"true\" must not be rejected. Diagnostics: ${result.diagnostics}")
+            assertTrue(
+                result.diagnostics.none { "non-string annotation value" in it.message },
+                "diagnostics: ${result.diagnostics}"
+            )
+        }
+    }
+
+    @Test
+    fun operations_rejectPreExistingSemanticErrorsWithoutBlamingTheEdit() {
+        val source = flow("    when A do x {\n        service S.Svc\n        emits E\n    }") +
+            "flow G {\n    start A {}\n    end { completed: Missing }\n}\n"
+        assertRejected(editor.renameCommand(source, "F", "x", "renamed"), "Source has semantic errors")
     }
 
     @Test
