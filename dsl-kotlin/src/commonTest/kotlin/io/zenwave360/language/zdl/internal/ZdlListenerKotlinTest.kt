@@ -464,7 +464,26 @@ class ZdlListenerKotlinTest {
     @Test
     fun parseZdl_Policies() {
         val model = parseZdl("policies.zdl")
-        // println(model)
+        val policies = model["policies"] as Map<*, *>
+        assertTrue(policies.keys.containsAll(listOf("somename_2", "some-3", "some-4")))
+        val policy = policies["somename_2"] as Map<*, *>
+        assertEquals("somename_2", policy["name"])
+        assertEquals("this is the body of the policy 2", policy["value"])
+        assertEquals(null, policy["aggregate"])
+    }
+
+    @Test
+    fun parseZdl_Policies_SameNameUnderDifferentAggregates() {
+        val model = ZdlParser().parseModel("""
+            policies (Order) { maxItems 10 }
+            policies (Customer) { maxItems 3 }
+            policies { maxItems 1 }
+        """.trimIndent())
+        val policies = model["policies"] as Map<*, *>
+        assertEquals(setOf("Order.maxItems", "Customer.maxItems", "maxItems"), policies.keys)
+        assertEquals(mapOf("name" to "maxItems", "value" to 10L, "aggregate" to "Order"), policies["Order.maxItems"])
+        assertEquals(mapOf("name" to "maxItems", "value" to 3L, "aggregate" to "Customer"), policies["Customer.maxItems"])
+        assertEquals(mapOf("name" to "maxItems", "value" to 1L, "aggregate" to null), policies["maxItems"])
     }
 
     @Test
