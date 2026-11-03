@@ -49,13 +49,19 @@ internal object Markdown {
     fun safeLiteral(text: String?): String = safeInline(text).replace("*", "\\*").replace("_", "\\_").replace("`", "\\`").replace("~", "\\~")
 
     /**
-     * [javadoc] with the escaping of [safeInline]. The text is a paragraph of its own, so a start that would make it a heading,
-     * a list, a quote, a rule or a fence (`# x`, `- x`, `> x`, `1. x`, a run of backticks) is escaped: the page has the headings
-     * and blocks the generator wrote and no others.
+     * Javadoc as safe CommonMark. Each source line ends in a CommonMark hard break; empty lines remain paragraph breaks.
+     * Markdown emphasis, lists and inline code are retained, while raw HTML, images and links are text. Headings, quotes,
+     * rules, fences and tables are escaped so the Javadoc cannot alter the page structure or its generated fences.
      */
     fun safeJavadoc(text: String?): String {
-        val line = safeInline(text.orEmpty().lines().joinToString("\n") { it.trim().removePrefix("*") })
-        return line.replace(BLOCK_START) { "\\" + it.value }.replace(LIST_NUMBER) { it.groupValues[1] + "\\" + it.groupValues[2] }
+        val lines = text.orEmpty().lines().map { it.trim().removePrefix("*").trimStart() }
+        return buildString {
+            lines.forEachIndexed { index, line ->
+                append(safeJavadocLine(line))
+                if (line.isNotBlank() && index < lines.lastIndex) append("  ")
+                if (index < lines.lastIndex) append('\n')
+            }
+        }
     }
 
     /**
@@ -77,9 +83,21 @@ internal object Markdown {
         }
     }
 
-    // What can open a block at the start of a paragraph: a marker character, or the number of a list item (its `.` or `)` is escaped).
-    private val BLOCK_START = Regex("^[#>+=~`*_-]")
-    private val LIST_NUMBER = Regex("^(\\d+)([.)])")
+    private fun safeJavadocLine(text: String): String {
+        val escaped = safeInline(text).replace("|", "\\|")
+        return when {
+            HEADING_START.containsMatchIn(escaped) -> "\\$escaped"
+            QUOTE_OR_SETEXT_START.containsMatchIn(escaped) -> "\\$escaped"
+            RULE_START.containsMatchIn(escaped) -> "\\$escaped"
+            FENCE_START.containsMatchIn(escaped) -> "\\$escaped"
+            else -> escaped
+        }
+    }
+
+    private val HEADING_START = Regex("^#{1,6}(?:\\s|$)")
+    private val QUOTE_OR_SETEXT_START = Regex("^[>=]")
+    private val RULE_START = Regex("^(?:[-*_]\\s*){3,}$")
+    private val FENCE_START = Regex("^(?:`{3,}|~{3,})")
 
     // Same slug rule as GitHub and VS Code headings.
     fun anchor(heading: String): String =
