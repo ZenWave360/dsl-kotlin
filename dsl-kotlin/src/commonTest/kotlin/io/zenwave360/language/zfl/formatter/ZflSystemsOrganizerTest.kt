@@ -157,6 +157,36 @@ class ZflSystemsOrganizerTest {
     }
 
     @Test
+    fun organizeSystems_additively_keeps_compact_closing_braces_in_their_parent_blocks() {
+        val inputs = listOf(
+            "systems {}\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
+            "systems { Orders {} }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
+            "systems { Orders { service Svc { commands: existing } } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }"
+        )
+
+        inputs.forEach { input ->
+            val organized = ZflParser().organizeSystems(input, ADDITIVE)
+
+            assertTrue(ZflParser().parse(organized).syntaxProblems.isEmpty(), "Organized ZFL should remain valid: $organized")
+            assertEquals(organized, ZflParser().organizeSystems(organized, ADDITIVE))
+        }
+    }
+
+    @Test
+    fun organizeSystems_additively_adds_aggregate_before_body_for_bare_service() {
+        val input = "systems { Orders { service Svc } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }"
+
+        val organized = ZflParser().organizeSystems(input, ADDITIVE)
+
+        assertEquals(
+            "systems { Orders { service Svc for(Order) {\n    commands: create\n} } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
+            organized
+        )
+        assertTrue(ZflParser().parse(organized).syntaxProblems.isEmpty(), "Organized ZFL should remain valid")
+        assertEquals(organized, ZflParser().organizeSystems(organized, ADDITIVE))
+    }
+
+    @Test
     fun organizeSystems_rebuilds_systems_from_policy_services() {
         val input = """
             @flag

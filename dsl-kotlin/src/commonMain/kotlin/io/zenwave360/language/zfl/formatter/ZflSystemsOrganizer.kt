@@ -87,7 +87,7 @@ class ZflSystemsOrganizer {
                     }
                     append(lineEnding)
                 }
-                val insertionPoint = closingBraceLineStart(input, existingSystem.RBRACE().symbol.startIndex)
+                val insertionPoint = insertionPointBeforeClosingBrace(input, existingSystem.RBRACE().symbol.startIndex)
                 edits += TextEdit(insertionPoint, insertionPoint, insertion)
             }
         }
@@ -100,7 +100,7 @@ class ZflSystemsOrganizer {
                 }
                 append(lineEnding)
             }
-            val insertionPoint = closingBraceLineStart(input, existingSystems.RBRACE().symbol.startIndex)
+            val insertionPoint = insertionPointBeforeClosingBrace(input, existingSystems.RBRACE().symbol.startIndex)
             edits += TextEdit(insertionPoint, insertionPoint, insertion)
         }
 
@@ -115,8 +115,29 @@ class ZflSystemsOrganizer {
     ) {
         val aggregates = existingService.system_service_aggregates()?.ID()?.map { it.text }.orEmpty()
         val missingAggregates = discoveredService.aggregates.filterNot { it in aggregates }
+        val body = existingService.system_service_body()
+        val commands = body?.system_service_command_list()?.ID()?.map { it.text }.orEmpty()
+        val missingCommands = discoveredService.commands.filterNot { it in commands }
+        val existingAggregates = existingService.system_service_aggregates()
+
+        if (body == null && missingCommands.isNotEmpty()) {
+            val indent = indentationAt(input, existingService.start!!.startIndex)
+            val insertion = buildString {
+                if (missingAggregates.isNotEmpty()) {
+                    if (existingAggregates == null) {
+                        append(" for(${missingAggregates.joinToString(", ")})")
+                    } else {
+                        append(", ${missingAggregates.joinToString(", ")}")
+                    }
+                }
+                append(" {${lineEnding(input)}${indent}    commands: ${missingCommands.joinToString(", ")}${lineEnding(input)}$indent}")
+            }
+            val insertAt = existingService.stop!!.stopIndex + 1
+            edits += TextEdit(insertAt, insertAt, insertion)
+            return
+        }
+
         if (missingAggregates.isNotEmpty()) {
-            val existingAggregates = existingService.system_service_aggregates()
             if (existingAggregates == null) {
                 val insertAt = existingService.system_service_name().stop!!.stopIndex + 1
                 edits += TextEdit(insertAt, insertAt, " for(${missingAggregates.joinToString(", ")})")
@@ -126,21 +147,11 @@ class ZflSystemsOrganizer {
             }
         }
 
-        val body = existingService.system_service_body()
-        val commands = body?.system_service_command_list()?.ID()?.map { it.text }.orEmpty()
-        val missingCommands = discoveredService.commands.filterNot { it in commands }
         if (missingCommands.isEmpty()) return
 
-        if (body == null) {
-            val indent = indentationAt(input, existingService.start!!.startIndex)
-            val insertion = " {${lineEnding(input)}${indent}    commands: ${missingCommands.joinToString(", ")}${lineEnding(input)}$indent}"
-            val insertAt = existingService.stop!!.stopIndex + 1
-            edits += TextEdit(insertAt, insertAt, insertion)
-        } else {
-            val commandList = body.system_service_command_list()
-            val insertAt = commandList.stop!!.stopIndex + 1
-            edits += TextEdit(insertAt, insertAt, ", ${missingCommands.joinToString(", ")}")
-        }
+        val commandList = body!!.system_service_command_list()
+        val insertAt = commandList.stop!!.stopIndex + 1
+        edits += TextEdit(insertAt, insertAt, ", ${missingCommands.joinToString(", ")}")
     }
 
     private fun renderAdditiveSystemsBlock(systems: List<DiscoveredSystem>, lineEnding: String): String = buildString {
@@ -203,8 +214,14 @@ class ZflSystemsOrganizer {
         return input.substring(lineStart, index).takeWhile { it == ' ' || it == '\t' }
     }
 
-    private fun closingBraceLineStart(input: String, closingBraceIndex: Int): Int =
-        input.lastIndexOf('\n', closingBraceIndex - 1) + 1
+    private fun insertionPointBeforeClosingBrace(input: String, closingBraceIndex: Int): Int {
+        val lineStart = input.lastIndexOf('\n', closingBraceIndex - 1) + 1
+        return if (input.substring(lineStart, closingBraceIndex).all { it == ' ' || it == '\t' }) {
+            lineStart
+        } else {
+            closingBraceIndex
+        }
+    }
 
     private fun discoverSystems(model: ZflModel): List<DiscoveredSystem> {
         val systems = linkedMapOf<String, MutableDiscoveredSystem>()
