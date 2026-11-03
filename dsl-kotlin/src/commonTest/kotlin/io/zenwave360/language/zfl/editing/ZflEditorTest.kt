@@ -659,7 +659,7 @@ class ZflEditorTest {
     fun renameCommand_updatesCallAndOnCallTargets() {
         val source = flow(
             "    when A do x {\n        service S.Svc\n        call y\n        on Ok call y\n        emits E\n    }\n" +
-                "    do y {\n        service S.Svc\n        emits Ok\n    }"
+                "    do y {\n        service S.Svc\n        emits response Ok\n    }"
         )
         val result = editor.renameCommand(source, "F", "y", "renamed")
         assertExact(source, result, source.replace(" y\n", " renamed\n").replace("do y {", "do renamed {"))

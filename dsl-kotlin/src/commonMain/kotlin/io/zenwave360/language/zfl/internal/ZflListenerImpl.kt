@@ -336,10 +336,13 @@ class ZflListenerImpl : ZflBaseListener() {
     }
 
     override fun enterFlow_do_on(ctx: ZflParser.Flow_do_onContext) {
-        val endOutcome = getText(ctx.flow_event_name())
+        val endOutcomes = ctx.flow_event_list().flow_event_name().mapNotNull { getText(it) }
+        val endOutcome = endOutcomes.firstOrNull()
         val step = buildMap()
             .with("type", "on")
+            // Keep endOutcome for consumers of the pre-list grammar; endOutcomes is authoritative.
             .with("endOutcome", endOutcome)
+            .with("endOutcomes", endOutcomes)
 
         when {
             ctx.CALL() != null -> {
@@ -356,7 +359,8 @@ class ZflListenerImpl : ZflBaseListener() {
                 step["emits"] = signalBody.EMITS() != null
                 step["response"] = signalBody.RESPONSE() != null
                 step["options"] = options
-                step["outcome"] = if (signalBody.EMITS() != null) explicitOutcome ?: endOutcome else null
+                step["terminal"] = true
+                step["outcome"] = explicitOutcome ?: if (signalBody.EMITS() != null) endOutcome else null
             }
         }
 

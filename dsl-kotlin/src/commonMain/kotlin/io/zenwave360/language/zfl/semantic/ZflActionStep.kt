@@ -40,6 +40,7 @@ data class ZflEndOutcomeHandler(
     val endOutcome: String,
     val action: String? = null,
     val signal: ZflHandlerSignal? = null,
+    val terminal: Boolean = false,
     val sourceRef: SourceRef? = null,
 )
 
