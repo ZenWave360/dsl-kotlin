@@ -16,8 +16,9 @@ class PreviewHardeningTest {
     private val script = "<script>alert(1)</script>"
     private val active = Regex("<script|<img|<iframe|!\\[|(?<!\\\\)\\]\\(http|https?://|(?<!\\\\)://|<https", RegexOption.IGNORE_CASE)
 
-    /** The page without its fenced diagrams, where only the generator and the escaped text write. */
-    private fun prose(page: String) = page.split("```mermaid\n").mapIndexed { i, part -> if (i == 0) part else part.substringAfter("\n```\n") }.joinToString("")
+    /** The page without code blocks, where only the generator and the escaped text write. */
+    private fun prose(page: String) = page.split("```mermaid\n").mapIndexed { i, part -> if (i == 0) part else part.substringAfter("\n```\n") }
+        .joinToString("").lines().filterNot { it.startsWith("    ") }.joinToString("\n")
 
     private fun zdl(text: String) = DslDocs().previewZdl(text)
 
@@ -79,7 +80,7 @@ class PreviewHardeningTest {
         )
 
         assertTrue(page.contains("run"), page)
-        assertFalse(active.containsMatchIn(page), page)
+        assertFalse(active.containsMatchIn(prose(page)), page)
         assertTrue(page.contains("&lt;script&gt;alert(1)&lt;/script&gt;"), page)
         assertTrue(page.contains("!\\[x\\](https\\://evil.test/a.png)"), page)
     }
@@ -130,7 +131,7 @@ class PreviewHardeningTest {
     fun zwPreviewEscapesTitlePluginNamesAndValues() {
         val page = zw("config { title \"$image\" plugins { P { x \"$script\" y \"$image\" } } }")
 
-        assertFalse(active.containsMatchIn(page), page)
+        assertFalse(active.containsMatchIn(prose(page)), page)
     }
 
     @Test
@@ -237,6 +238,6 @@ class PreviewHardeningTest {
 
         val expected = "{\"n\":\"9223372036854775807\",\"m\":9007199254740991,\"k\":\"9007199254740992\",\"neg\":\"-9007199254740992\",\"small\":2,\"list\":[1,\"9223372036854775807\"]}"
         val escaped = expected.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]").replace("_", "\\_").replace("*", "\\*")
-        assertEquals(2, page.split(escaped).size - 1, page)
+        assertEquals(1, page.split(escaped).size - 1, page)
     }
 }

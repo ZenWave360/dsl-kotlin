@@ -97,14 +97,13 @@ class DslDocs {
 
     /**
      * The Markdown of a single page that previews one `.zw` document (the plugin configuration of a model), for an editor that
-     * shows it beside its text. It has the global `config` with a description of it, then each plugin in document order with what
-     * it is for, its own options and the resolved sum of its options: the `config` options and command-line options the plugin
-     * inherits (unless it declares `(inherit false)`) with its own on top, and where each came from. The rules are those of the
-     * VS Code extension's command builder, see `PluginResolution`; `zdlFile`, `${this.file.path}` and Maven `--deps` are not
-     * resolved, as they depend on the file and on running.
+     * shows it beside its text. It has the global `config`, then each plugin in document order with its description, a Bash command
+     * using the default `jbang zw` SDK command, and its own and inherited configuration. The command arguments, including Maven
+     * dependencies and the default `zdlFile`, are from the rules shared with the VS Code extension's command builder; this page
+     * alone supplies its fixed preview path and Bash quoting.
      *
      * [catalogue] says what each plugin is for and what its options mean. A plugin that is not in it, or no [catalogue] at all,
-     * still shows its name and resolved options, without a description. A `.zw` file with no `config` or no plugins gives a page
+     * still shows its name and configuration, without a description. A `.zw` file with no `config` or no plugins gives a page
      * that says so.
      *
      * Everything the file or the catalogue wrote is escaped as in [previewZdl]: no HTML, images, links or remote references, and

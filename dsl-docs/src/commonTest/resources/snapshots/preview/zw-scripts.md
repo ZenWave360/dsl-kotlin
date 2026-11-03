@@ -33,11 +33,22 @@ Command-line options:
 
 ## Plugins
 
-Each plugin in the order the file declares them, with what it is for, its own options and the options it ends up with.
+Each plugin in the order the file declares them, with its description, the command to run, and its own and inherited configuration.
 
 ### ZDLToOpenAPIPlugin
 
+#### Description
+
 Generates a draft OpenAPI definitions from your ZDL entities and services.
+
+<details open>
+<summary>Command to run</summary>
+
+    jbang zw -p ZDLToOpenAPIPlugin id=urn:com.arcadiaeditions:orders:checkout:scripts title="Arcadia Editions - Orders Checkout scripts" basePackage=io.example.orders targetFolder=build/generated idType=integer targetFile=./openapi.yml zdlFile=preview.zw --force --profile=test
+</details>
+
+<details>
+<summary>Configuration</summary>
 
 #### Own configuration
 
@@ -51,27 +62,34 @@ Generates a draft OpenAPI definitions from your ZDL entities and services.
 | --- | --- |
 | --profile | test |
 
-#### Resolved configuration
+#### Inherited configuration
 
-| Property | Value | From | Description |
-| --- | --- | --- | --- |
-| id | urn:com.arcadiaeditions:orders:checkout:scripts | config |  |
-| title | Arcadia Editions - Orders Checkout scripts | config | API Title (String, default `null`) |
-| basePackage | io.example.orders | config |  |
-| targetFolder | build/generated | plugin, replaces config | Target folder to generate code to. If left empty, it will print to stdout. (File, default `null`) |
-| idType | integer | plugin | JsonSchema type for id fields and parameters. (String, default `string`) |
-| targetFile | ./openapi.yml | plugin | Target file (String, default `openapi.yml`) |
-
-| Option | Value | From |
+| Property | Value | Description |
 | --- | --- | --- |
-| --force |  | config |
-| --profile | test | plugin, replaces config |
+| id | urn:com.arcadiaeditions:orders:checkout:scripts |  |
+| title | Arcadia Editions - Orders Checkout scripts | API Title (String, default `null`) |
+| basePackage | io.example.orders |  |
+
+| Option | Value |
+| --- | --- |
+| --force |  |
+
+</details>
 
 ### ZDLToAsyncAPIPlugin
 
-Declared `(inherit false)`: it inherits nothing from the `config` block.
+#### Description
 
 Generates a draft AsyncAPI file with events from your ZDL services.
+
+<details open>
+<summary>Command to run</summary>
+
+    jbang zw -p ZDLToAsyncAPIPlugin schemaFormat=avro targetFile=./asyncapi.yml zdlFile=preview.zw --verbose
+</details>
+
+<details>
+<summary>Configuration</summary>
 
 #### Own configuration
 
@@ -84,22 +102,30 @@ Generates a draft AsyncAPI file with events from your ZDL services.
 | --- | --- |
 | --verbose |  |
 
-#### Resolved configuration
+#### Inherited configuration
 
-| Property | Value | From | Description |
-| --- | --- | --- | --- |
-| schemaFormat | avro | plugin | Schema format for messages' payload (SchemaFormat, default `schema`, one of schema, avro) |
-| targetFile | ./asyncapi.yml | plugin | Target file (String, default `null`) |
+Declared `(inherit false)`: it inherits nothing from the `config` block.
 
-| Option | Value | From |
-| --- | --- | --- |
-| --verbose |  | plugin |
+Inherits no options from the `config` block.
+
+</details>
 
 ### ZdlToMarkdownPlugin (disabled)
+
+#### Description
 
 Disabled: it does not run.
 
 Generates Markdown glossary from Zdl Models
+
+<details open>
+<summary>Command to run</summary>
+
+    jbang zw -p ZdlToMarkdownPlugin id=urn:com.arcadiaeditions:orders:checkout:scripts title="Arcadia Editions - Orders Checkout scripts" basePackage=io.example.orders targetFolder=. targetFile=./docs.md zdlFile=preview.zw --force --profile="local build"
+</details>
+
+<details>
+<summary>Configuration</summary>
 
 #### Own configuration
 
@@ -107,24 +133,36 @@ Generates Markdown glossary from Zdl Models
 | --- | --- | --- |
 | targetFile | ./docs.md | Target file (String, default `zdl-glossary.md`) |
 
-#### Resolved configuration
+#### Inherited configuration
 
-| Property | Value | From | Description |
-| --- | --- | --- | --- |
-| id | urn:com.arcadiaeditions:orders:checkout:scripts | config |  |
-| title | Arcadia Editions - Orders Checkout scripts | config |  |
-| basePackage | io.example.orders | config |  |
-| targetFolder | . | config |  |
-| targetFile | ./docs.md | plugin | Target file (String, default `zdl-glossary.md`) |
-
-| Option | Value | From |
+| Property | Value | Description |
 | --- | --- | --- |
-| --force |  | config |
-| --profile | local build | config |
+| id | urn:com.arcadiaeditions:orders:checkout:scripts |  |
+| title | Arcadia Editions - Orders Checkout scripts |  |
+| basePackage | io.example.orders |  |
+| targetFolder | . |  |
+
+| Option | Value |
+| --- | --- |
+| --force |  |
+| --profile | local build |
+
+</details>
 
 ### TeamOwnPlugin
 
+#### Description
+
 This plugin is not in the plugin catalogue, so it has no description.
+
+<details open>
+<summary>Command to run</summary>
+
+    jbang zw -p TeamOwnPlugin id=urn:com.arcadiaeditions:orders:checkout:scripts title="Arcadia Editions - Orders Checkout scripts" basePackage=io.example.orders targetFolder=. maxDepth=3 paths=src/a,src/b zdlFile=preview.zw --force --profile="local build"
+</details>
+
+<details>
+<summary>Configuration</summary>
 
 #### Own configuration
 
@@ -133,19 +171,19 @@ This plugin is not in the plugin catalogue, so it has no description.
 | maxDepth | 3 |  |
 | paths | src/a,src/b |  |
 
-#### Resolved configuration
+#### Inherited configuration
 
-| Property | Value | From | Description |
-| --- | --- | --- | --- |
-| id | urn:com.arcadiaeditions:orders:checkout:scripts | config |  |
-| title | Arcadia Editions - Orders Checkout scripts | config |  |
-| basePackage | io.example.orders | config |  |
-| targetFolder | . | config |  |
-| maxDepth | 3 | plugin |  |
-| paths | src/a,src/b | plugin |  |
-
-| Option | Value | From |
+| Property | Value | Description |
 | --- | --- | --- |
-| --force |  | config |
-| --profile | local build | config |
+| id | urn:com.arcadiaeditions:orders:checkout:scripts |  |
+| title | Arcadia Editions - Orders Checkout scripts |  |
+| basePackage | io.example.orders |  |
+| targetFolder | . |  |
+
+| Option | Value |
+| --- | --- |
+| --force |  |
+| --profile | local build |
+
+</details>
 

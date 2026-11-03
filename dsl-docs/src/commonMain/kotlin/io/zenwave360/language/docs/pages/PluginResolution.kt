@@ -67,7 +67,12 @@ internal data class ResolvedProperty(val name: String, val value: String, val or
 /** One resolved command-line option; [value] is null for a flag. */
 internal data class ResolvedCliOption(val name: String, val value: String?, val origin: Origin, val overrides: Boolean)
 
-internal data class ResolvedPlugin(val properties: List<ResolvedProperty>, val cliOptions: List<ResolvedCliOption>)
+internal data class ResolvedPlugin(
+    val properties: List<ResolvedProperty>,
+    val cliOptions: List<ResolvedCliOption>,
+    /** SDK arguments, including the plugin name, dependencies and default `zdlFile`, in SDK order. */
+    val arguments: List<String>,
+)
 
 /**
  * What a plugin declaration comes to once the enclosing `config` is applied, by the rules the VS Code extension uses to build
@@ -85,6 +90,7 @@ internal object PluginResolution {
         return ResolvedPlugin(
             resolved.properties.map { ResolvedProperty(it.name, it.value, if (it.origin == PluginArgumentOrigin.CONFIG) Origin.GLOBAL else Origin.PLUGIN, it.overrides) },
             resolved.cliOptions.map { ResolvedCliOption(it.name, it.value, if (it.origin == PluginArgumentOrigin.CONFIG) Origin.GLOBAL else Origin.PLUGIN, it.overrides) },
+            resolved.arguments,
         )
     }
 
