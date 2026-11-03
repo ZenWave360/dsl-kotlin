@@ -23,17 +23,19 @@ class ZflSemanticAnalyzerTest {
         assertEquals(listOf("OrderCreated", "StockUnavailable"), startOrderCheckout.emits.map { it.eventName })
         assertEquals(emptyList(), startOrderCheckout.responses)
 
-        assertEquals(4, startOrderCheckout.steps.size)
+        assertEquals(5, startOrderCheckout.steps.size)
         assertIs<ZflServiceStep>(startOrderCheckout.steps[0])
         val reserveStockCall = assertIs<ZflCallStep>(startOrderCheckout.steps[1])
         assertEquals("reserveStock", reserveStockCall.action)
-        assertEquals(2, reserveStockCall.handlers.size)
+        assertEquals(1, reserveStockCall.handlers.size)
         assertEquals("StockReserved", reserveStockCall.handlers[0].endOutcome)
         assertEquals("createOrder", reserveStockCall.handlers[0].action)
-        assertEquals("StockUnavailable", reserveStockCall.handlers[1].endOutcome)
-        assertEquals(listOf("StockUnavailable"), reserveStockCall.handlers[1].signal?.events)
-        assertEquals(true, reserveStockCall.handlers[1].signal?.emits)
-        assertEquals("StockUnavailable", reserveStockCall.handlers[1].signal?.outcome)
+        val createOrderCall = assertIs<ZflCallStep>(startOrderCheckout.steps[2])
+        assertEquals("createOrder", createOrderCall.action)
+        assertEquals("StockUnavailable", createOrderCall.handlers.single().endOutcome)
+        assertEquals(listOf("StockUnavailable"), createOrderCall.handlers.single().signal?.events)
+        assertEquals(true, createOrderCall.handlers.single().signal?.emits)
+        assertEquals("StockUnavailable", createOrderCall.handlers.single().signal?.outcome)
 
         assertEquals(1, flow.policies.size)
         assertEquals("startOrderCheckout", flow.policies.first().command)
@@ -44,7 +46,7 @@ class ZflSemanticAnalyzerTest {
             setOf("StockReserved", "StockUnavailable", "OrderCreated"),
             emittedNames
         )
-        assertTrue(semanticModel.diagnostics.isEmpty())
+        assertTrue(semanticModel.diagnostics.none { it.severity == Severity.ERROR })
     }
 
     @Test
@@ -118,7 +120,71 @@ class ZflSemanticAnalyzerTest {
             )
         )
 
-        assertTrue(semanticModel.diagnostics.any { it.message.contains("handles unknown endOutcome 'UnknownOutcome'") })
+        assertTrue(semanticModel.diagnostics.any { it.message.contains("not a declared response") })
+    }
+
+    @Test
+    fun testAnalyze_OnListsAreTerminalAndChainToTheNextCall() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    do bookSlot {
+                        service Bookings.BookingService
+                        call getBookingTerms
+                        on SlotNotBookable call checkBookingHolder
+                        on HolderNotEligible, HolderBlocked response BookingRejected
+                        emits Completed
+                    }
+                    do getBookingTerms {
+                        service Facilities.CatalogService
+                        response BookingTermsResult
+                        response SlotNotBookable
+                    }
+                    do checkBookingHolder {
+                        service Accounts.AccountService
+                        response HolderEligible
+                        response HolderNotEligible
+                        response HolderBlocked
+                    }
+                    end { completed: Completed }
+                }
+            """.trimIndent()
+        ))
+
+        val steps = semanticModel.flows.single().commands.first { it.name == "bookSlot" }.steps
+        val getTerms = assertIs<ZflCallStep>(steps[1])
+        assertEquals("SlotNotBookable", getTerms.handlers.single().endOutcome)
+        assertEquals("checkBookingHolder", getTerms.handlers.single().action)
+        val checkHolder = assertIs<ZflCallStep>(steps[2])
+        assertEquals(listOf("HolderNotEligible", "HolderBlocked"), checkHolder.handlers.map { it.endOutcome })
+        assertTrue(checkHolder.handlers.all { it.terminal })
+        assertTrue(semanticModel.diagnostics.none { it.severity == Severity.ERROR })
+    }
+
+    @Test
+    fun testAnalyze_AllHandledResponsesBeforeFurtherLinesAddsWarning() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    do bookSlot {
+                        service Bookings.BookingService
+                        call getBookingTerms
+                        on SlotNotBookable, BookingTermsResult response BookingRejected
+                        emits Completed
+                    }
+                    do getBookingTerms {
+                        service Facilities.CatalogService
+                        response BookingTermsResult
+                        response SlotNotBookable
+                    }
+                    end { completed: Completed }
+                }
+            """.trimIndent()
+        ))
+
+        assertTrue(semanticModel.diagnostics.any {
+            it.severity == Severity.WARNING && it.message.contains("subsequent lines are unreachable")
+        })
     }
 
     @Test
@@ -326,8 +392,8 @@ class ZflSemanticAnalyzerTest {
                         }
                         do reserveStock {
                             service CatalogProducts.CatalogProductsService
-                            emits StockReserved
-                            emits StockConfirmed
+                            emits response StockReserved
+                            emits response StockConfirmed
                         }
                         end {
                             completed: OrderCreated, OrderConfirmed, EventB
@@ -608,13 +674,14 @@ class ZflSemanticAnalyzerTest {
 
             do reserveStock {
                 service CatalogProducts.CatalogProductsService
-                emits StockReserved
-                emits StockUnavailable
+                emits response StockReserved
+                emits response StockUnavailable
             }
 
             do createOrder {
                 service OrdersCheckout.OrdersCheckoutService
                 emits OrderCreated
+                response StockUnavailable
             }
 
             end {

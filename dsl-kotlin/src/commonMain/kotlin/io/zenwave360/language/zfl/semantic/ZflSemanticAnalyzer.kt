@@ -205,6 +205,9 @@ class ZflSemanticAnalyzer {
                             sourceRef = sourceRefOf(flowName, actionName)
                         )
                     } else {
+                        val call = requireNotNull(pendingCall)
+                        val endOutcomes = stepModel.getList("endOutcomes")
+                            .ifEmpty { listOf(stepModel.getString("endOutcome")) }
                         val events = stepModel.getList("events")
                         val emits = stepModel.getBoolean("emits")
                         val response = stepModel.getBoolean("response")
@@ -215,22 +218,29 @@ class ZflSemanticAnalyzer {
                                 sourceRef = sourceRefOf(flowName, actionName)
                             )
                         }
-                        pendingCall.handlers += ZflEndOutcomeHandler(
-                            endOutcome = stepModel.getString("endOutcome"),
-                            action = stepModel.getStringOrNull("action"),
-                            signal = if (events.isNotEmpty() || emits || response) {
-                                ZflHandlerSignal(
-                                    events = events,
-                                    emits = emits,
-                                    response = response,
-                                    options = stepModel.getStringMap("options"),
-                                    outcome = stepModel.getStringOrNull("outcome")
-                                )
-                            } else {
-                                null
-                            },
-                            sourceRef = sourceRefOf(flowName, "actions.$actionName"),
-                        )
+                        endOutcomes.forEach { endOutcome ->
+                            call.handlers += ZflEndOutcomeHandler(
+                                endOutcome = endOutcome,
+                                action = stepModel.getStringOrNull("action"),
+                                signal = if (events.isNotEmpty() || emits || response) {
+                                    ZflHandlerSignal(
+                                        events = events,
+                                        emits = emits,
+                                        response = response,
+                                        options = stepModel.getStringMap("options"),
+                                        outcome = stepModel.getStringOrNull("outcome")
+                                    )
+                                } else {
+                                    null
+                                },
+                                terminal = stepModel.getBoolean("terminal"),
+                                sourceRef = sourceRefOf(flowName, "actions.$actionName"),
+                            )
+                        }
+                        if (stepModel.getStringOrNull("action") != null) {
+                            flushPendingCall(call, steps)
+                            pendingCall = MutableCallStep(stepModel.getString("action"))
+                        }
                     }
                 }
 
@@ -368,7 +378,8 @@ class ZflSemanticAnalyzer {
         val diagnostics = mutableListOf<ZflSemanticDiagnostic>()
 
         commands.forEach { command ->
-            command.steps.filterIsInstance<ZflCallStep>().forEach { call ->
+            command.steps.forEachIndexed { callIndex, step ->
+                val call = step as? ZflCallStep ?: return@forEachIndexed
                 val calledCommand = commands.find { it.name == call.action }
                 if (!call.async && call.action !in commandNames) {
                     diagnostics += ZflSemanticDiagnostic(
@@ -386,9 +397,9 @@ class ZflSemanticAnalyzer {
                 }
 
                 call.handlers.forEach { handler ->
-                    if (!call.async && calledCommand != null && handler.endOutcome !in calledCommand.endOutcomes()) {
+                    if (!call.async && calledCommand != null && handler.endOutcome !in calledCommand.responses) {
                         diagnostics += ZflSemanticDiagnostic(
-                            message = "Action '${command.name}' handles unknown endOutcome '${handler.endOutcome}' from action '${call.action}'.",
+                            message = "Action '${command.name}' handles event '${handler.endOutcome}' that is not a declared response of action '${call.action}'.",
                             severity = Severity.ERROR,
                             sourceRef = sourceRefOf(flowName, command.name)
                         )
@@ -400,6 +411,17 @@ class ZflSemanticAnalyzer {
                             sourceRef = sourceRefOf(flowName, command.name)
                         )
                     }
+                }
+                if (!call.async && calledCommand != null && calledCommand.responses.isNotEmpty() &&
+                    calledCommand.responses.all { response ->
+                        call.handlers.any { it.endOutcome == response && it.terminal }
+                    } && command.steps.drop(callIndex + 1).isNotEmpty()
+                ) {
+                    diagnostics += ZflSemanticDiagnostic(
+                        message = "Action '${command.name}' handles every response from action '${call.action}', so subsequent lines are unreachable.",
+                        severity = Severity.WARNING,
+                        sourceRef = sourceRefOf(flowName, command.name)
+                    )
                 }
             }
         }

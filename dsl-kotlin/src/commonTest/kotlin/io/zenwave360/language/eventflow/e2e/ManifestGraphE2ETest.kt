@@ -7,6 +7,7 @@ import io.zenwave360.language.eventflow.view.ZflToFlowViewModelTransformer
 import io.zenwave360.language.zfl.ZflParser
 import io.zenwave360.language.zfl.semantic.ZflCallStep
 import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
+import io.zenwave360.language.zfl.semantic.Severity
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -40,6 +41,7 @@ class ManifestGraphE2ETest {
                     do completeCheckout {
                         service Checkout.OrchestrationService
                         emits CheckoutCompleted
+                        emits response Rejected
                     }
 
                     end {
@@ -51,15 +53,15 @@ class ManifestGraphE2ETest {
             "checkout.zfl",
         ).let { ZflSemanticAnalyzer().analyze(it) }
 
-        assertTrue(semanticModel.diagnostics.isEmpty(), semanticModel.diagnostics.toString())
+        assertTrue(semanticModel.diagnostics.none { it.severity == Severity.ERROR }, semanticModel.diagnostics.toString())
         val flow = semanticModel.flows.single()
         val orchestrate = flow.commands.single { it.name == "orchestrateCheckout" }
         val calls = orchestrate.steps.filterIsInstance<ZflCallStep>()
-        assertEquals(listOf("reserveStock", "notifyAudit"), calls.map { it.action })
+        assertEquals(listOf("reserveStock", "completeCheckout", "notifyAudit"), calls.map { it.action })
         assertTrue(calls.last().async)
         assertEquals("completeCheckout", calls.first().handlers.first().action)
-        assertEquals(listOf("CheckoutRejected"), calls.first().handlers.last().signal?.events)
-        assertEquals("rejected", calls.first().handlers.last().signal?.outcome)
+        assertEquals(listOf("CheckoutRejected"), calls[1].handlers.single().signal?.events)
+        assertEquals("rejected", calls[1].handlers.single().signal?.outcome)
 
         val graph = ZflToFlowGraphTransformer().transform(semanticModel)
         assertNotNull(graph.nodes.singleOrNull { it.id == "command:notifyAudit" })
@@ -68,11 +70,6 @@ class ManifestGraphE2ETest {
                 it.target == "command:notifyAudit" &&
                 it.label == "async"
         })
-        assertNotNull(graph.edges.singleOrNull {
-            it.source == "command:orchestrateCheckout" &&
-                it.target == "command:completeCheckout"
-        })
-
         val viewModel = ZflToFlowViewModelTransformer().transform(semanticModel)
             .let { FlowLayoutEngine().layout(it) }
         assertEquals(
