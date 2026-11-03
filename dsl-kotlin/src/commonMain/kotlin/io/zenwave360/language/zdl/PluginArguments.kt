@@ -58,13 +58,18 @@ object PluginArguments {
         }
 
         val cliOptions = linkedMapOf<String, ResolvedPluginCliOption>()
+        // Source form, kept until the argument is built. Display values are dequoted without substituting the path.
+        val cliSources = linkedMapOf<String, Any?>()
         if (inherit) {
             for ((name, value) in model["cliOptions"].asMap()) {
+                cliSources[name] = value
                 cliOptions[name] = ResolvedPluginCliOption(name, cliValue(value), PluginArgumentOrigin.CONFIG, false)
             }
         }
         for ((name, value) in plugin["cliOptions"].asMap()) {
             val overrides = cliOptions.remove(name) != null
+            cliSources.remove(name)
+            cliSources[name] = value
             cliOptions[name] = ResolvedPluginCliOption(name, cliValue(value), PluginArgumentOrigin.PLUGIN, overrides)
         }
 
@@ -79,9 +84,7 @@ object PluginArguments {
             arguments += dependencies.joinToString(",")
         }
         for ((name, property) in options) arguments += "$name=${substitutePath(property.value, filePath)}"
-        for (option in cliOptions.values) {
-            arguments += if (option.value == null) "--${option.name}" else "--${option.name}=${substitutePath(option.value, filePath)}"
-        }
+        for (option in cliOptions.values) arguments += cliOptionArgument(option.name, cliSources[option.name], filePath)
         return PluginArgumentResolution(properties.values.toList(), cliOptions.values.toList(), arguments.filter { it.isNotEmpty() })
     }
 
@@ -99,6 +102,14 @@ object PluginArguments {
         val source = value.toString()
         val words = splitCommandLine(source)
         return if (words.size == 1) words[0] else source
+    }
+
+    /** SDK argument: substitute `${this.file.path}` in the source form, then dequote. [cliValue] stays the display value. */
+    private fun cliOptionArgument(name: String, raw: Any?, filePath: String): String {
+        raw ?: return "--$name"
+        val substituted = substitutePath(raw.toString(), filePath)
+        val words = splitCommandLine(substituted)
+        return "--$name=${if (words.size == 1) words[0] else substituted}"
     }
 
     /** Splits a source-form CLI value using the same POSIX rules as the SDK client. */

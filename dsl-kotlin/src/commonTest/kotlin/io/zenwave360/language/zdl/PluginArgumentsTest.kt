@@ -120,6 +120,17 @@ class PluginArgumentsTest {
     }
 
     @Test
+    fun quotedCliPlaceholderIsSubstitutedBeforeDequoting() {
+        // command.ts substitutes ${this.file.path} into the source form, then dequotes.
+        // The path quote closes "--input="${this.file.path}"", so Run drops it. zdlFile is not dequoted.
+        val text = """config { plugins { P { --input="${dollar}{this.file.path}" } } }"""
+        assertEquals(
+            listOf("-p", "P", "zdlFile=/work/a\"b/orders.zdl", "--input=/work/ab/orders.zdl"),
+            arguments(text, 0, "/work/a\"b/orders.zdl"),
+        )
+    }
+
+    @Test
     fun commaContainingValuesRemainSingleArguments() {
         assertContains(arguments(commandModel, 1), "zdlFiles=orders.zdl,customers.zdl")
     }
