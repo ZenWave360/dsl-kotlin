@@ -36,6 +36,7 @@ internal class ModuleContent(
     private val resolvedAdapters: (service: String, method: String) -> List<CommandAdapter>? = { _, _ -> null },
     private val modulePage: (moduleId: String) -> String? = { null },
     private val safe: Boolean = false,
+    private val policies: (aggregate: String?) -> List<Pair<String, String>> = { emptyList() },
 ) {
 
     /** The text of a heading. */
@@ -83,16 +84,18 @@ internal class ModuleContent(
         }
     }
 
-    /** `## Aggregates`: class diagram per aggregate, its lifecycle when it has one, and the entities no aggregate reaches. */
+    /** `## Aggregates`: policies, class diagram per aggregate, its lifecycle when it has one, and the entities no aggregate reaches. */
     fun aggregates(): String {
         val classes = ZdlAggregateToMermaidClassDiagramTransformer().transform(domain)
-        if (classes.aggregates.isEmpty() && classes.others == null) return ""
+        if (classes.aggregates.isEmpty() && classes.others == null && policies(null).isEmpty()) return ""
         val lifecycles = ZdlLifecycleToMermaidStateDiagramTransformer().transform(domain).associateBy { it.aggregate }
         return buildString {
             append(anchors.heading(2, "Aggregates"))
             append("Each aggregate root with the entities and enums it owns, and how they relate.\n\n")
+            append(policies(null).joinToString("\n") { (name, value) -> "${text(name)}: ${text(value)}" }.takeIf { it.isNotEmpty() }?.plus("\n\n").orEmpty())
             for (diagram in classes.aggregates) {
                 append(anchors.heading(3, inline(diagram.aggregate)))
+                append(policies(diagram.aggregate).joinToString("\n") { (name, value) -> "${text(name)}: ${text(value)}" }.takeIf { it.isNotEmpty() }?.plus("\n\n").orEmpty())
                 append(Markdown.mermaid(diagram.mermaid)).append('\n')
                 lifecycles[diagram.aggregate]?.let { lifecycle ->
                     append(anchors.heading(4, "Lifecycle"))
