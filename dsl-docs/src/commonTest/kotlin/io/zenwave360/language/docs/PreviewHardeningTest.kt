@@ -172,6 +172,46 @@ class PreviewHardeningTest {
     }
 
     @Test
+    fun javadocBlockSyntaxInsideListsAndSetextUnderlinesIsInert() {
+        val fence = "`".repeat(3)
+        val page = zdl(
+            """
+            /**
+             * Title
+             * --
+             * - # Nested heading
+             * - ${fence}kotlin
+             * -    indented code
+             */
+            config { title "Order" }
+            @aggregate
+            entity Order { id UUID }
+            """.trimIndent(),
+        )
+
+        assertFalse(headings(page).any { it.second.contains("Title") || it.second.contains("Nested") }, page)
+        assertTrue(page.contains("\\--"), page)
+        assertTrue(page.contains("- \\# Nested heading"), page)
+        assertTrue(page.contains("- \\${fence}kotlin"), page)
+    }
+
+    @Test
+    fun javadocLinksRemainCommonMarkLinksWhileImagesStayText() {
+        val page = zdl(
+            """
+            /** [go](../apis/a.yml#L8) and [web](https://example.test/docs), but ![image](https://evil.test/a.png) */
+            config { title "Order" }
+            @aggregate
+            entity Order { id UUID }
+            """.trimIndent(),
+        )
+
+        assertTrue(page.contains("[go](../apis/a.yml#L8)"), page)
+        assertTrue(page.contains("[web](https://example.test/docs)"), page)
+        assertTrue(page.contains("!\\[image\\](https\\://evil.test/a.png)"), page)
+    }
+
+    @Test
     fun zwPreviewEscapesTitlePluginNamesAndValues() {
         val page = zw("config { title \"$image\" plugins { P { x \"$script\" y \"$image\" } } }")
 

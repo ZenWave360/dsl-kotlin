@@ -73,7 +73,7 @@ class PreviewZdlTest {
     }
 
     @Test
-    fun descriptionsCannotBringScriptImagesOrRemoteReferences() {
+    fun descriptionsCannotBringScriptOrImagesAndLeaveLinksForTheHost() {
         val zdl = modulithOrders.replace("Customer snapshot taken at checkout (there is no customers bounded context yet).", hostile)
         assertTrue(zdl != modulithOrders)
 
@@ -85,11 +85,8 @@ class PreviewZdlTest {
         assertFalse(page.contains("<img"))
         assertTrue(page.contains("!\\[pic\\](http\\://evil.test/y.png)"), "the image shows as text")
         assertFalse(page.contains("!["))
-        assertFalse(Regex("(?<!\\\\)\\]\\(http").containsMatchIn(page), "a link or image to a remote URL")
-        assertFalse(page.contains("[link]"))
-        assertFalse(Regex("(?<!\\\\)://").containsMatchIn(page), "an unescaped URL")
+        assertTrue(page.contains("[link](https://evil.test/z)"), "a Javadoc link is handed to the preview host")
         assertFalse(page.contains("<https"))
-        assertFalse(Regex("https?://", RegexOption.IGNORE_CASE).containsMatchIn(page))
         // The user's text stays out of the fenced blocks, so it cannot close one.
         assertEquals(preview(modulithOrders).split("```mermaid\n").size, page.split("```mermaid\n").size)
         assertFalse(page.substringAfter("```mermaid\n").split("\n```\n").first().contains("evil"))
@@ -108,7 +105,8 @@ class PreviewZdlTest {
 
         val page = preview(zdl)
 
-        assertFalse(Regex("<script|<img|<iframe|!\\[|(?<!\\\\)\\]\\(http|https?://", RegexOption.IGNORE_CASE).containsMatchIn(page), page)
+        assertFalse(Regex("<script|<img|<iframe|!\\[", RegexOption.IGNORE_CASE).containsMatchIn(page), page)
+        assertTrue(page.contains("[a](http://evil.test)"), page)
         assertTrue(page.contains("\nclassDiagram\n"))
     }
 
