@@ -182,7 +182,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
     override fun enterPolicie_body(ctx: ZdlParser.Policie_bodyContext) {
         val name = getText(ctx.policie_name())!!
         val value = getValueText(ctx.policie_value().simple())
-        val aggregate = (ctx.getParent()?.getParent() as ZdlParser.PoliciesContext).policy_aggregate()
+        val aggregate = getText((ctx.getParent()?.getParent() as ZdlParser.PoliciesContext).policy_aggregate())
         model.appendToWithMap("policies", buildMap().with(name, buildMap().with("name", name).with("value", value).with("aggregate", aggregate)))
         super.enterPolicie_body(ctx)
     }
