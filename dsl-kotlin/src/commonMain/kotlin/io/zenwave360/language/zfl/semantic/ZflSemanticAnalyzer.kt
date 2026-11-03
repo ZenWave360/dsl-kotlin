@@ -34,10 +34,11 @@ class ZflSemanticAnalyzer {
             flowModel.getMap("starts").values.forEach { startData ->
                 val start = startData.asMapOrReturn { return@forEach }
                 val startName = start.getString("name")
-                val actor = JSONPath.get<String>(start, "options.actor")
-                val timer = JSONPath.get<String>(start, "options.time")
-                    ?: JSONPath.get<String>(start, "options.timer")
-                val system = JSONPath.get<String>(start, "options.system")
+                val startRef = sourceRefOf(flowName, "starts.$startName")
+                val actor = start.readSingleAnnotation("actor", diagnostics, startRef)
+                val timer = start.readSingleAnnotation("time", diagnostics, startRef)
+                    ?: start.readSingleAnnotation("timer", diagnostics, startRef)
+                val system = start.readSingleAnnotation("system", diagnostics, startRef)
                 starts += ZflStart(
                     description = start.getString("javadoc"),
                     name = startName,
@@ -54,7 +55,7 @@ class ZflSemanticAnalyzer {
                             options = field.getStringMap("options"),
                         )
                     },
-                    sourceRef = sourceRefOf(flowName, "starts.$startName")
+                    sourceRef = startRef
                 )
                 actor?.let { actorName ->
                     actors.getOrPut(actorName) {
@@ -109,15 +110,16 @@ class ZflSemanticAnalyzer {
                     return@forEach
                 }
 
+                val whenRef = sourceModel.sourceRef("flows.$flowName.whens[$whenIndex]")
                 policies += ZflPolicy(
                     description = whenModel.getString("javadoc"),
                     triggers = whenModel.getList("triggers"),
-                    condition = JSONPath.get<String>(whenModel, "options.if"),
-                    compensates = JSONPath.get<String>(whenModel, "options.compensates")
-                        ?: JSONPath.get<String>(whenModel, "options.compensate"),
+                    condition = whenModel.readSingleAnnotation("if", diagnostics, whenRef),
+                    compensates = whenModel.readSingleAnnotation("compensates", diagnostics, whenRef)
+                        ?: whenModel.readSingleAnnotation("compensate", diagnostics, whenRef),
                     command = actionName,
                     events = command.emits.map { it.eventName },
-                    sourceRef = sourceModel.sourceRef("flows.$flowName.whens[$whenIndex]")
+                    sourceRef = whenRef
                 )
             }
 
@@ -336,18 +338,19 @@ class ZflSemanticAnalyzer {
             emptyList()
         }
 
+        val commandRef = sourceRefOf(flowName, actionName)
         return ZflCommand(
             name = actionName,
             description = actionModel.getStringOrNull("javadoc"),
             system = systemName,
             service = serviceName,
             servicePath = servicePath,
-            actor = JSONPath.get<String>(actionModel, "options.actor"),
+            actor = actionModel.readSingleAnnotation("actor", diagnostics, commandRef),
             emits = emittedOutcomes,
             responses = responseOutcomes,
             steps = steps,
             occurrences = occurrences,
-            sourceRef = sourceRefOf(flowName, actionName)
+            sourceRef = commandRef
         )
     }
 
@@ -478,6 +481,33 @@ class ZflSemanticAnalyzer {
 
     private inline fun Any?.asMapOrReturn(block: () -> Nothing): Map<String, Any?> =
         this as? Map<String, Any?> ?: block()
+
+    /**
+     * Reads one annotation option as text without a generic cast, so the JVM and JS agree.
+     * A string, number or boolean becomes its text. Absence and null stay null. A list or a map
+     * becomes null and adds a warning: those shapes are not a single value.
+     */
+    private fun Map<String, Any?>.readSingleAnnotation(
+        annotation: String,
+        diagnostics: MutableList<ZflSemanticDiagnostic>,
+        sourceRef: SourceRef,
+    ): String? {
+        val options = this["options"] as? Map<String, Any?> ?: return null
+        if (!options.containsKey(annotation)) return null
+        return when (val value = options[annotation]) {
+            null -> null
+            is String -> value
+            is Boolean, is Number -> value.toString()
+            else -> {
+                diagnostics += ZflSemanticDiagnostic(
+                    message = "Annotation '@$annotation' expects a single value.",
+                    severity = Severity.WARNING,
+                    sourceRef = sourceRef,
+                )
+                null
+            }
+        }
+    }
 
     private fun Map<String, Any?>.getMap(key: String): Map<String, Any?> =
         this[key] as? Map<String, Any?> ?: emptyMap()

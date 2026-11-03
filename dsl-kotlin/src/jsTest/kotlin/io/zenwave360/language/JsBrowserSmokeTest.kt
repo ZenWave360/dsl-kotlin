@@ -1,6 +1,8 @@
 package io.zenwave360.language
 
 import io.zenwave360.language.eventflow.application.GenerateFlowViewFromZfl
+import io.zenwave360.language.zfl.editing.ZflEditor
+import io.zenwave360.language.zfl.editing.applyEdits
 import kotlinx.coroutines.test.runTest
 import parseZdl
 import parseZfl
@@ -81,5 +83,19 @@ class JsBrowserSmokeTest {
         val view = GenerateFlowViewFromZfl().execute(zfl)
         assertTrue(view.nodes.isNotEmpty())
         assertTrue((view.bounds?.width ?: 0.0) > 0.0, "bounds: ${view.bounds}")
+    }
+
+    /**
+     * Edit offsets are UTF-16 indexes into the source string, also when the text before the target holds
+     * characters outside the BMP. Inline source, so the browser run covers it too.
+     * spec:flows/zfl-visual-editing#zve-r8
+     */
+    @Test
+    fun zflEditOffsetsSurviveAstralCharactersBeforeTheTarget() {
+        val emoji = "😀"
+        val source = "// $emoji$emoji$emoji\n" + zfl.replace("when CheckoutStarted", "// keep $emoji intact\n    when CheckoutStarted")
+        val result = ZflEditor().renameCommand(source, "SimpleFlow", "createOrder", "placeOrder")
+        assertTrue(result.accepted, "diagnostics: ${result.diagnostics}")
+        assertEquals(source.replace("do createOrder", "do placeOrder"), applyEdits(source, result.edits))
     }
 }

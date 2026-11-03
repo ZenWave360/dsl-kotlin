@@ -4,6 +4,7 @@ import io.zenwave360.language.zfl.ZflParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ZflSemanticAnalyzerTest {
@@ -441,6 +442,143 @@ class ZflSemanticAnalyzerTest {
         assertEquals("payments.zfl", operation.occurrences[0].sourceRef.file)
         assertTrue(operation.occurrences[0].sourceRef.line > 1)
     }
+
+    @Test
+    fun testAnalyze_ScalarAnnotationValuesBecomeText() {
+        val condition = analyze(
+            """
+            systems { S { service Svc } }
+            flow F {
+                @actor(Customer)
+                start A {}
+                @if(true)
+                when A do x {
+                    service S.Svc
+                    emits E
+                }
+                end { completed: E }
+            }
+            """
+        )
+        assertEquals("Customer", condition.flows.single().starts.single().actor)
+        assertEquals("true", condition.flows.single().policies.single().condition)
+        assertTrue(condition.diagnostics.isEmpty(), condition.diagnostics.toString())
+
+        val number = analyze(
+            """
+            systems { S { service Svc } }
+            flow F {
+                start A {}
+                @if(3)
+                when A do x {
+                    service S.Svc
+                    emits E
+                }
+                end { completed: E }
+            }
+            """
+        )
+        assertEquals("3", number.flows.single().policies.single().condition)
+        assertTrue(number.diagnostics.isEmpty(), number.diagnostics.toString())
+
+        val valueless = analyze(
+            """
+            systems { S { service Svc } }
+            flow F {
+                start A {}
+                @if
+                when A do x {
+                    service S.Svc
+                    emits E
+                }
+                end { completed: E }
+            }
+            """
+        )
+        assertEquals("true", valueless.flows.single().policies.single().condition)
+        assertNull(valueless.flows.single().policies.single().compensates)
+        assertTrue(valueless.diagnostics.isEmpty(), valueless.diagnostics.toString())
+    }
+
+    @Test
+    fun testAnalyze_ListAndMapAnnotationValuesWarnAndBecomeNull() {
+        val compensates = analyze(
+            """
+            systems { S { service Svc } }
+            flow F {
+                start A {}
+                @compensates(x, y)
+                when A do x {
+                    service S.Svc
+                    emits E
+                }
+                end { completed: E }
+            }
+            """
+        )
+        assertNull(compensates.flows.single().policies.single().compensates)
+        assertSingleValueWarning(compensates, "@compensates")
+
+        val startActor = analyze(
+            """
+            systems { S { service Svc } }
+            flow F {
+                @actor(a, b)
+                start A {}
+                when A do x {
+                    service S.Svc
+                    emits E
+                }
+                end { completed: E }
+            }
+            """
+        )
+        assertNull(startActor.flows.single().starts.single().actor)
+        assertTrue(startActor.actors.isEmpty())
+        assertSingleValueWarning(startActor, "@actor")
+
+        val commandActor = analyze(
+            """
+            systems { S { service Svc } }
+            flow F {
+                @actor(a, b)
+                do x {
+                    service S.Svc
+                    emits E
+                }
+                end { completed: E }
+            }
+            """
+        )
+        assertNull(commandActor.flows.single().commands.single().actor)
+        assertSingleValueWarning(commandActor, "@actor")
+
+        val mapCondition = analyze(
+            """
+            systems { S { service Svc } }
+            flow F {
+                start A {}
+                @if(k: v)
+                when A do x {
+                    service S.Svc
+                    emits E
+                }
+                end { completed: E }
+            }
+            """
+        )
+        assertNull(mapCondition.flows.single().policies.single().condition)
+        assertSingleValueWarning(mapCondition, "@if")
+    }
+
+    private fun assertSingleValueWarning(model: ZflSemanticModel, annotation: String) {
+        assertTrue(model.diagnostics.none { it.severity == Severity.ERROR }, model.diagnostics.toString())
+        val warning = model.diagnostics.single { it.severity == Severity.WARNING }
+        assertEquals("Annotation '$annotation' expects a single value.", warning.message)
+    }
+
+    private fun analyze(zfl: String): ZflSemanticModel =
+        ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zfl.trimIndent()))
 
     private fun sampleFlow() = """
         systems {
