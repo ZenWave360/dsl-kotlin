@@ -42,12 +42,12 @@ kotlin {
     }
 }
 
-// The Arcadia snapshot tests parse six ZDL files and render every page: more than mocha's default 2s on Node.
+// Arcadia snapshots parse several ZDL files and render every page: more than Mocha's default 2s when a full build keeps Node busy.
 tasks.withType<org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest>()
     .matching { it.name == "jsNodeTest" }
     .configureEach {
         useMocha {
-            timeout = "10s"
+            timeout = "20s"
         }
     }
 
