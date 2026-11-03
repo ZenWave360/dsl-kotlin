@@ -18,6 +18,9 @@ class PreviewZwTest {
 
     private fun preview(text: String, catalogue: PluginCatalogue? = this.catalogue) = DslDocs().previewZw(text, catalogue)
 
+    /** Bash command lines are indented code, so raw command arguments cannot become active Markdown. */
+    private fun outsideCommands(page: String) = page.lines().filterNot { it.startsWith("    ") }.joinToString("\n")
+
     private fun hostileCatalogue(text: String) = PluginCatalogue.parse(
         """{"version":"1","source":"$text","plugins":[{"name":"P","configClassName":"x.P","title":"$text","summary":"$text","description":"$text",""" +
             """"documentation":"$text","options":{"o":{"description":"$text","type":"T","defaultValue":"$text","values":["$text"]}}}]}""",
@@ -50,21 +53,25 @@ class PreviewZwTest {
     }
 
     @Test
-    fun resolvedConfigurationListsInheritedAndOwnValues() {
+    fun configurationListsOwnAndOnlyNonOverriddenInheritedValues() {
         val page = preview(scripts)
         val openApi = page.substringAfter("### ZDLToOpenAPIPlugin\n").substringBefore("\n### ")
         val asyncApi = page.substringAfter("### ZDLToAsyncAPIPlugin\n").substringBefore("\n### ")
 
-        val resolved = openApi.substringAfter("#### Resolved configuration")
-        assertTrue(resolved.contains("| basePackage | io.example.orders | config |"), resolved)
-        assertTrue(resolved.contains("| targetFolder | build/generated | plugin, replaces config |"), resolved)
-        assertTrue(resolved.contains("| --force |  | config |"), resolved)
-        assertTrue(resolved.contains("| --profile | test | plugin, replaces config |"), resolved)
-        // (inherit false) lists only its own.
-        val own = asyncApi.substringAfter("#### Resolved configuration")
-        assertTrue(own.contains("| schemaFormat | avro | plugin |"), own)
-        assertFalse(own.contains("basePackage"), own)
-        assertFalse(own.contains("--force"), own)
+        val own = openApi.substringAfter("#### Own configuration").substringBefore("#### Inherited configuration")
+        val inherited = openApi.substringAfter("#### Inherited configuration").substringBefore("</details>")
+        assertTrue(own.contains("| targetFolder | build/generated |"), own)
+        assertTrue(own.contains("| --profile | test |"), own)
+        assertTrue(inherited.contains("| basePackage | io.example.orders |"), inherited)
+        assertTrue(inherited.contains("| --force |  |"), inherited)
+        assertFalse(inherited.contains("targetFolder"), inherited)
+        assertFalse(inherited.contains("--profile"), inherited)
+        // (inherit false) lists no enclosing configuration.
+        val asyncInherited = asyncApi.substringAfter("#### Inherited configuration").substringBefore("</details>")
+        assertTrue(asyncApi.contains("| schemaFormat | avro |"), asyncApi)
+        assertTrue(asyncInherited.contains("Declared `(inherit false)`"), asyncInherited)
+        assertFalse(asyncInherited.contains("basePackage"), asyncInherited)
+        assertFalse(asyncInherited.contains("--force"), asyncInherited)
         assertTrue(asyncApi.contains("Declared `(inherit false)`"))
     }
 
@@ -74,9 +81,9 @@ class PreviewZwTest {
         val team = page.substringAfter("### TeamOwnPlugin\n")
 
         assertTrue(team.contains("This plugin is not in the plugin catalogue, so it has no description."))
-        assertTrue(team.contains("| maxDepth | 3 | plugin |"), team)
-        assertTrue(team.contains("| paths | src/a,src/b | plugin |"), team)
-        assertTrue(team.contains("| basePackage | io.example.orders | config |"), team)
+        assertTrue(team.contains("| maxDepth | 3 |"), team)
+        assertTrue(team.contains("| paths | src/a,src/b |"), team)
+        assertTrue(team.contains("| basePackage | io.example.orders |"), team)
     }
 
     @Test
@@ -85,7 +92,7 @@ class PreviewZwTest {
             val page = preview(scripts, none)
 
             assertFalse(page.contains(assertNotNull(catalogue.plugin("ZDLToOpenAPIPlugin")).summary!!))
-            assertTrue(page.contains("| targetFolder | build/generated | plugin, replaces config |"))
+            assertTrue(page.contains("| targetFolder | build/generated |"))
             assertTrue(page.contains("### ZDLToOpenAPIPlugin\n"))
         }
     }
@@ -95,7 +102,51 @@ class PreviewZwTest {
         val option = assertNotNull(assertNotNull(catalogue.plugin("ZDLToOpenAPIPlugin")).options["idType"])
         val page = preview(scripts)
 
-        assertTrue(page.contains(Regex("\\| idType \\| integer \\| plugin \\| ${Regex.escape(option.description!!)}")), page)
+        assertTrue(page.contains(Regex("\\| idType \\| integer \\| ${Regex.escape(option.description!!)}")), page)
+    }
+
+    @Test
+    fun commandUsesPluginArgumentsAndQuotesForBash() {
+        val dollar = "$"
+        val page = preview(
+            """
+                @import("io.example:plugin:1.2.3")
+                config {
+                  basePackage "io.example.orders"
+                  targetFolder "."
+                  --profile="local build"
+                  plugins {
+                    OverriddenPlugin {
+                      targetFolder "build/generated"
+                      --profile=test
+                    }
+                    StandalonePlugin (inherit false) { output "a b" }
+                    disabled DisabledPlugin { value "x" }
+                    HostilePlugin {
+                      expression "a;b ${dollar}(touch should-not-run) it's"
+                      --cli="${dollar}(touch should-not-run)"
+                    }
+                  }
+                }
+            """.trimIndent(),
+            null,
+        )
+
+        assertTrue(page.contains("<details open>\n<summary>Command to run</summary>"), page)
+        assertTrue(page.contains("<details>\n<summary>Configuration</summary>"), page)
+        assertTrue(page.contains("jbang zw -p OverriddenPlugin --deps io.example:plugin:1.2.3 basePackage=io.example.orders targetFolder=build/generated zdlFile=preview.zw --profile=test"), page)
+        assertTrue(page.contains("output=\"a b\""), page)
+        assertTrue(page.contains("-p DisabledPlugin"), page)
+        assertTrue(page.contains("'expression=a;b ${dollar}(touch should-not-run) it'\\''s'"), page)
+        assertTrue(page.contains("'--cli=${dollar}(touch should-not-run)'"), page)
+
+        val inherited = page.substringAfter("### OverriddenPlugin").substringAfter("#### Inherited configuration").substringBefore("</details>")
+        assertTrue(inherited.contains("basePackage"), inherited)
+        assertFalse(inherited.contains("targetFolder"), inherited)
+        assertFalse(inherited.contains("--profile"), inherited)
+        val standalone = page.substringAfter("### StandalonePlugin").substringBefore("\n### ")
+        assertTrue(standalone.contains("Declared `(inherit false)`"), standalone)
+        assertFalse(standalone.substringAfter("#### Inherited configuration").contains("basePackage"), standalone)
     }
 
     @Test
@@ -104,7 +155,7 @@ class PreviewZwTest {
 
         assertTrue(page.contains("### ZDLToAsyncAPIPlugin\n"))
         assertTrue(page.contains("asyncapiOverlayFiles"))
-        assertFalse(Regex("https?://").containsMatchIn(page), "an unescaped URL")
+        assertFalse(Regex("https?://").containsMatchIn(outsideCommands(page)), "an unescaped URL")
         assertTrue(page.contains("https\\://raw.githubusercontent.com"))
         val links = Regex("\\]\\(([^)]*)\\)").findAll(page).map { it.groupValues[1] }.toList()
         assertTrue(links.isNotEmpty() && links.all { it.startsWith("#") }, links.toString())
@@ -127,7 +178,7 @@ class PreviewZwTest {
 
         val page = preview(zw, hostileCatalogue(hostile.replace("\"", "'")))
 
-        assertFalse(Regex("<script|<img|<iframe|<https|!\\[|(?<!\\\\)\\]\\(http|https?://", RegexOption.IGNORE_CASE).containsMatchIn(page), page)
+        assertFalse(Regex("<script|<img|<iframe|<https|!\\[|(?<!\\\\)\\]\\(http|https?://", RegexOption.IGNORE_CASE).containsMatchIn(outsideCommands(page)), page)
         assertTrue(page.contains("&lt;script&gt;alert(1)&lt;/script&gt;"), "shown as text")
         assertTrue(page.contains("!\\[pic\\](http\\://evil.test/y.png)"), "the image shows as text")
         assertFalse(page.contains("```"), "no code the catalogue could open or close")
@@ -142,7 +193,7 @@ class PreviewZwTest {
         assertTrue(noPlugins.contains("| basePackage | io.example |"))
         assertTrue(noPlugins.contains("No plugins are declared."))
         assertTrue(noConfig.contains("### ZDLToOpenAPIPlugin\n"))
-        assertTrue(noConfig.contains("| targetFolder | . | plugin |"))
+        assertTrue(noConfig.contains("| targetFolder | . |"))
         assertTrue(noConfig.contains("so plugins inherit nothing"))
         assertTrue(empty.contains("This file has no `config` block and declares no plugins."))
         for (page in listOf(noPlugins, noConfig, empty)) assertFalse(page.contains("null"), page)
@@ -181,7 +232,7 @@ class PreviewZwTest {
         val page = preview("config { plugins { P { a 1 } P { a 2 } } }")
         val anchors = Regex("\\]\\(#([^)]*)\\)").findAll(page).map { it.groupValues[1] }.toList()
 
-        assertTrue(page.contains("| a | 1 | plugin |") && page.contains("| a | 2 | plugin |"))
+        assertTrue(page.contains("| a | 1 |") && page.contains("| a | 2 |"))
         assertTrue(anchors.contains("p") && anchors.contains("p-1"), anchors.toString())
     }
 

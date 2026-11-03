@@ -30,6 +30,9 @@ internal object Markdown {
 
     fun code(text: String): String = if (text.isEmpty()) "" else "`${text.replace("`", "'")}`"
 
+    /** A code block whose contents cannot end the block or become Markdown, even when a model value has newlines. */
+    fun indentedCode(text: String): String = text.lines().joinToString("\n") { "    $it" } + "\n"
+
     /** Text on one line: Javadoc and descriptions often span lines, and tables and headings cannot. */
     fun inline(text: String?): String = text.orEmpty().trim().replace(Regex("\\s+"), " ")
 

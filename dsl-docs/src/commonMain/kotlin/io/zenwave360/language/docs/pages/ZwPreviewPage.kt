@@ -11,8 +11,8 @@ import io.zenwave360.language.docs.internal.string
 
 /**
  * The preview of one `.zw` document: the global `config` with a description of it, then each plugin in document order with
- * what it is for (from the [PluginCatalogue]), its own options and what they come to once the `config` is applied
- * ([PluginResolution]). Like [PreviewPage] it has no links but to its own headings, names no other file, and escapes
+ * what it is for (from the [PluginCatalogue]), a Bash command and its own and inherited options ([PluginResolution]).
+ * Like [PreviewPage] it has no links but to its own headings, names no other file, and escapes
  * everything the user or the catalogue wrote ([Markdown.safeInline], [Markdown.safeLiteral]).
  */
 internal object ZwPreviewPage {
@@ -67,14 +67,21 @@ internal object ZwPreviewPage {
 
     private fun plugins(model: PluginModel, catalogue: PluginCatalogue?, anchors: Anchors): String = buildString {
         append(anchors.heading(2, "Plugins"))
-        append("Each plugin in the order the file declares them, with what it is for, its own options and the options it ends up with.\n\n")
+        append("Each plugin in the order the file declares them, with its description, the command to run, and its own and inherited configuration.\n\n")
         for (plugin in model.plugins) {
             val entry = catalogue?.plugin(plugin.name)
+            val resolved = PluginResolution.resolve(model, plugin)
             append(anchors.heading(3, Markdown.safeHeading(plugin.name + if (plugin.disabled) " (disabled)" else "")))
+
+            append(anchors.heading(4, "Description"))
             if (plugin.disabled) append("Disabled: it does not run.\n\n")
-            if (!plugin.inherit) append("Declared `(inherit false)`: it inherits nothing from the `config` block.\n\n")
             append(about(entry, catalogue))
 
+            append("<details open>\n<summary>Command to run</summary>\n\n")
+            append(Markdown.indentedCode((listOf("jbang", "zw") + resolved.arguments).joinToString(" ", transform = ::bashQuote)))
+            append("</details>\n\n")
+
+            append("<details>\n<summary>Configuration</summary>\n\n")
             append(anchors.heading(4, "Own configuration"))
             if (plugin.config.isEmpty() && plugin.cliOptions.isEmpty()) append("Declares no options of its own.\n\n")
             if (plugin.config.isNotEmpty()) {
@@ -88,21 +95,24 @@ internal object ZwPreviewPage {
                 append('\n')
             }
 
-            val resolved = PluginResolution.resolve(model, plugin)
-            append(anchors.heading(4, "Resolved configuration"))
-            if (resolved.properties.isEmpty() && resolved.cliOptions.isEmpty()) append("Nothing is set.\n\n")
-            if (resolved.properties.isNotEmpty()) {
-                append(Markdown.table(listOf("Property", "Value", "From", "Description"), resolved.properties.map {
-                    listOf(Markdown.safeLiteral(it.name), Markdown.safeLiteral(it.value), from(it.origin, it.overrides), optionText(entry?.options?.get(it.name)))
+            append(anchors.heading(4, "Inherited configuration"))
+            if (!plugin.inherit) append("Declared `(inherit false)`: it inherits nothing from the `config` block.\n\n")
+            val inheritedProperties = resolved.properties.filter { it.origin == Origin.GLOBAL }
+            val inheritedCliOptions = resolved.cliOptions.filter { it.origin == Origin.GLOBAL }
+            if (inheritedProperties.isEmpty() && inheritedCliOptions.isEmpty()) append("Inherits no options from the `config` block.\n\n")
+            if (inheritedProperties.isNotEmpty()) {
+                append(Markdown.table(listOf("Property", "Value", "Description"), inheritedProperties.map {
+                    listOf(Markdown.safeLiteral(it.name), Markdown.safeLiteral(it.value), optionText(entry?.options?.get(it.name)))
                 }))
                 append('\n')
             }
-            if (resolved.cliOptions.isNotEmpty()) {
-                append(Markdown.table(listOf("Option", "Value", "From"), resolved.cliOptions.map {
-                    listOf(Markdown.safeLiteral("--${it.name}"), cliText(it.value), from(it.origin, it.overrides))
+            if (inheritedCliOptions.isNotEmpty()) {
+                append(Markdown.table(listOf("Option", "Value"), inheritedCliOptions.map {
+                    listOf(Markdown.safeLiteral("--${it.name}"), cliText(it.value))
                 }))
                 append('\n')
             }
+            append("</details>\n\n")
         }
     }
 
@@ -118,13 +128,19 @@ internal object ZwPreviewPage {
         entry.documentation?.let { append("Documentation: ").append(Markdown.safeInline(it)).append("\n\n") }
     }
 
-    private fun from(origin: Origin, overrides: Boolean) = when {
-        origin == Origin.GLOBAL -> "config"
-        overrides -> "plugin, replaces config"
-        else -> "plugin"
-    }
-
     private fun cliText(value: String?) = value?.let { Markdown.safeLiteral(it) }.orEmpty()
+
+    /** Quotes one SDK argument for Bash, matching the POSIX branch of the client's command builder. */
+    private fun bashQuote(argument: String): String {
+        if (SAFE_BASH_TOKEN.matches(argument)) return argument
+        val equals = argument.indexOf('=')
+        if (equals > 0) {
+            val name = argument.substring(0, equals + 1)
+            val value = argument.substring(equals + 1)
+            if (SAFE_BASH_TOKEN.matches(name) && SAFE_BASH_DOUBLE_QUOTED.matches(value)) return "$name\"$value\""
+        }
+        return "'${argument.replace("'", "'\\''")}'"
+    }
 
     /** What the catalogue says about an option: what it is for, its type, default and allowed values. */
     private fun optionText(option: CatalogueOption?): String {
@@ -137,4 +153,7 @@ internal object ZwPreviewPage {
         val text = listOfNotNull(option.description, facts.takeIf { it.isNotEmpty() }?.joinToString(", ", "(", ")")).joinToString(" ")
         return Markdown.safeInline(text)
     }
+
+    private val SAFE_BASH_TOKEN = Regex("^[a-zA-Z0-9_@%+=:,./-]+$")
+    private val SAFE_BASH_DOUBLE_QUOTED = Regex("^[^\"\\$`\\\\\\r\\n“”„]*$")
 }
