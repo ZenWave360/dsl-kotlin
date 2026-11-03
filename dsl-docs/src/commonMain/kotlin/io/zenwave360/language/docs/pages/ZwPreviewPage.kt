@@ -155,5 +155,5 @@ internal object ZwPreviewPage {
     }
 
     private val SAFE_BASH_TOKEN = Regex("^[a-zA-Z0-9_@%+=:,./-]+$")
-    private val SAFE_BASH_DOUBLE_QUOTED = Regex("^[^\"\\$`\\\\\\r\\n“”„]*$")
+    private val SAFE_BASH_DOUBLE_QUOTED = Regex("^[^\"\\$`\\\\!\\r\\n“”„]*$")
 }

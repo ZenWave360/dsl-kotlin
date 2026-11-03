@@ -150,6 +150,23 @@ class PreviewZwTest {
     }
 
     @Test
+    fun historyExpansionCharacterIsSingleQuotedForBash() {
+        val page = preview(
+            """
+                config {
+                  plugins {
+                    P { value "!!" }
+                  }
+                }
+            """.trimIndent(),
+            null,
+        )
+
+        assertTrue(page.contains("'value=!!'"), page)
+        assertFalse(page.contains("value=\"!!\""), page)
+    }
+
+    @Test
     fun arcadiaConfigurationPreviewsWithoutRemoteReferences() {
         val page = preview(arcadia)
 
