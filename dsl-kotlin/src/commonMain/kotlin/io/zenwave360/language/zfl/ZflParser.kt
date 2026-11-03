@@ -2,6 +2,7 @@ package io.zenwave360.language.zfl
 
 import io.zenwave360.language.antlr.ZflLexer
 import io.zenwave360.language.zfl.formatter.ZflSystemsOrganizer
+import io.zenwave360.language.zfl.formatter.ZflSystemsOrganizationMode
 import io.zenwave360.language.zfl.internal.ZflListenerImpl
 import org.antlr.v4.kotlinruntime.CharStreams
 import org.antlr.v4.kotlinruntime.CommonTokenStream
@@ -68,7 +69,9 @@ class ZflParser {
         return listener.model
     }
 
-    fun organizeSystems(input: String): String =
-        ZflSystemsOrganizer().organize(input)
+    fun organizeSystems(
+        input: String,
+        mode: ZflSystemsOrganizationMode = ZflSystemsOrganizationMode.FULL
+    ): String = ZflSystemsOrganizer().organize(input, mode)
 }
 
