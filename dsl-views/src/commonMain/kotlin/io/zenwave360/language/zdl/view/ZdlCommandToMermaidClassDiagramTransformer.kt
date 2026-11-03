@@ -46,12 +46,21 @@ class ZdlCommandToMermaidClassDiagramTransformer {
         output?.let { append(MermaidLight.styleLine(id(it), "output")) }
     }
 
+    /** Names are sanitised first; the array marker is added afterwards as Mermaid entity codes, so it survives. */
     private fun commandLabel(command: ZdlCommand): String {
         val parameter = command.parameter?.plus(if (command.parameterIsOptional) "?" else "")
-        val returnType = command.returnType?.plus(if (command.returnIsArray) "[]" else "")?.plus(if (command.returnIsOptional) "?" else "")
-        return memberText("${command.name}(${parameter.orEmpty()})" + (returnType?.let { " $it" } ?: ""))
-            .replace("[", "")
-            .replace("]", "")
+        val signature = labelText("${command.name}(${parameter.orEmpty()})")
+        val returnType = command.returnType?.let { type ->
+            labelText(type) + (if (command.returnIsArray) ARRAY_MARKER else "") + (if (command.returnIsOptional) "?" else "")
+        }
+        return signature + (returnType?.let { " $it" } ?: "")
+    }
+
+    private fun labelText(text: String): String = memberText(text).replace("[", "").replace("]", "")
+
+    private companion object {
+        /** `[]` as Mermaid entity codes, which [memberText] would otherwise strip along with other markup characters. */
+        const val ARRAY_MARKER = "#91;#93;"
     }
 }
 

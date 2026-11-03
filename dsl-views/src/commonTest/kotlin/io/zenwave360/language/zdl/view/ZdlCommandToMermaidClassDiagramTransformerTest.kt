@@ -121,6 +121,25 @@ class ZdlCommandToMermaidClassDiagramTransformerTest {
     }
 
     @Test
+    fun arrayAndOptionalReturnsKeepTheirMarkersInTheSignature() {
+        val diagrams = transform(
+            """
+            entity Order { id Long }
+            service OrderService for (Order) {
+                findAll() Order[]
+                findMaybe() Order?
+            }
+            """.trimIndent(),
+        )
+        val labels = diagrams.map { it.mermaid.substringAfter("[\"").substringBefore("\"]") }
+
+        assertEquals(listOf("findAll() Order#91;#93;", "findMaybe() Order?"), labels)
+        assertNotEquals(labels[0], "findAll() Order")
+        assertFalse(diagrams[0].mermaid.contains("Order["))
+        assertEquals(1, " --> ".toRegex().findAll(diagrams[0].mermaid).count())
+    }
+
+    @Test
     fun focusedLookupReturnsNullForAnUnknownMethod() {
         val domain = ZdlDomain(ZdlParser().parseModel("service Orders for (Order) { place() }"))
         assertNull(transformer.transform(domain, "Orders", "missing"))
