@@ -195,9 +195,10 @@ class PreviewZwTest {
 
         val page = preview(zw, hostileCatalogue(hostile.replace("\"", "'")))
 
-        assertFalse(Regex("<script|<img|<iframe|<https|!\\[|(?<!\\\\)\\]\\(http|https?://", RegexOption.IGNORE_CASE).containsMatchIn(outsideCommands(page)), page)
+        assertFalse(Regex("<script|<img|<iframe|<https|!\\[", RegexOption.IGNORE_CASE).containsMatchIn(outsideCommands(page)), page)
         assertTrue(page.contains("&lt;script&gt;alert(1)&lt;/script&gt;"), "shown as text")
         assertTrue(page.contains("!\\[pic\\](http\\://evil.test/y.png)"), "the image shows as text")
+        assertTrue(page.contains("[l](https://evil.test)"), "a Javadoc link is handed to the preview host")
         assertFalse(page.contains("```"), "no code the catalogue could open or close")
     }
 
