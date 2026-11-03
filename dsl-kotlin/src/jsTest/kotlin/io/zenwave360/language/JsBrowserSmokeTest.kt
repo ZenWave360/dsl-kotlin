@@ -4,6 +4,7 @@ import io.zenwave360.language.eventflow.application.GenerateFlowViewFromZfl
 import io.zenwave360.language.zfl.editing.ZflEditor
 import io.zenwave360.language.zfl.editing.applyEdits
 import kotlinx.coroutines.test.runTest
+import buildPluginArguments
 import parseZdl
 import parseZfl
 import kotlin.test.Test
@@ -70,6 +71,17 @@ class JsBrowserSmokeTest {
         assertEquals("-2", JSON.stringify(config.neg))
         assertTrue(model.cliOptions.force == null)
         assertEquals("Order", model.aggregates.OrderAggregate.aggregateRoot)
+    }
+
+    @Test
+    fun buildsPluginArgumentsFromPlainJsValues() {
+        val model = parseZdl(zdl)
+        val plugin = model.asDynamic().pluginsList[0]
+
+        assertEquals(
+            listOf("-p", "ExamplePlugin", "maxDepth=3", "neg=-2", "zdlFile=/work/orders.zdl", "--force"),
+            buildPluginArguments(model, plugin, "/work/orders.zdl").toList(),
+        )
     }
 
     @Test
