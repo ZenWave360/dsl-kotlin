@@ -3,15 +3,23 @@ package io.zenwave360.language.zfl.formatter
 import io.zenwave360.language.zfl.ZflModel
 import io.zenwave360.language.zfl.ZflParser
 
+enum class ZflSystemsOrganizationMode {
+    ADDITIVE,
+    FULL
+}
+
 class ZflSystemsOrganizer {
 
-    fun organize(input: String): String {
+    fun organize(input: String, mode: ZflSystemsOrganizationMode = ZflSystemsOrganizationMode.FULL): String {
         val parser = ZflParser()
         val parseResult = parser.parse(input)
         require(parseResult.syntaxProblems.isEmpty()) { "Cannot organize systems for malformed ZFL input." }
 
         val model = parser.parseModel(input)
         val discoveredSystems = discoverSystems(model)
+        if (mode == ZflSystemsOrganizationMode.ADDITIVE) {
+            return organizeAdditively(input, parseResult.tree.systems(), parseResult.tree.flow().firstOrNull(), discoveredSystems)
+        }
         if (discoveredSystems.isEmpty() && parseResult.tree.systems() == null) {
             return ZflFormatter().format(input)
         }
@@ -30,6 +38,189 @@ class ZflSystemsOrganizer {
         )
 
         return ZflFormatter().format(rewritten)
+    }
+
+    private fun organizeAdditively(
+        input: String,
+        existingSystems: io.zenwave360.language.antlr.ZflParser.SystemsContext?,
+        firstFlow: io.zenwave360.language.antlr.ZflParser.FlowContext?,
+        discoveredSystems: List<DiscoveredSystem>
+    ): String {
+        if (existingSystems == null) {
+            if (discoveredSystems.isEmpty()) return input
+            return replaceSystemsBlock(
+                input = input,
+                existingSystems = null,
+                firstFlow = firstFlow,
+                replacement = renderAdditiveSystemsBlock(discoveredSystems, lineEnding(input))
+            )
+        }
+
+        val lineEnding = lineEnding(input)
+        val existingByName = existingSystems.system().associateBy { it.system_name().text }
+        val edits = mutableListOf<TextEdit>()
+        val missingSystems = mutableListOf<DiscoveredSystem>()
+
+        discoveredSystems.forEach { discoveredSystem ->
+            val existingSystem = existingByName[discoveredSystem.name]
+            if (existingSystem == null) {
+                missingSystems += discoveredSystem
+                return@forEach
+            }
+
+            val existingServices = existingSystem.system_body().system_services().system_service()
+                .associateBy { it.system_service_name().text }
+            val missingServices = mutableListOf<DiscoveredService>()
+            discoveredSystem.services.forEach { discoveredService ->
+                val existingService = existingServices[discoveredService.name]
+                if (existingService == null) {
+                    missingServices += discoveredService
+                } else {
+                    addMissingServiceDetails(input, existingService, discoveredService, edits)
+                }
+            }
+            if (missingServices.isNotEmpty()) {
+                val indent = indentationAt(input, existingSystem.start!!.startIndex) + "    "
+                val insertion = buildString {
+                    missingServices.forEachIndexed { index, service ->
+                        append(renderAdditiveService(service, indent, lineEnding, leadingBlankLine = index > 0))
+                    }
+                    append(lineEnding)
+                }
+                val insertionPoint = insertionPointBeforeClosingBrace(input, existingSystem.RBRACE().symbol.startIndex)
+                edits += TextEdit(insertionPoint, insertionPoint, insertion)
+            }
+        }
+
+        if (missingSystems.isNotEmpty()) {
+            val indent = indentationAt(input, existingSystems.start!!.startIndex) + "    "
+            val insertion = buildString {
+                missingSystems.forEachIndexed { index, system ->
+                    append(renderAdditiveSystem(system, indent, lineEnding, leadingBlankLine = index > 0))
+                }
+                append(lineEnding)
+            }
+            val insertionPoint = insertionPointBeforeClosingBrace(input, existingSystems.RBRACE().symbol.startIndex)
+            edits += TextEdit(insertionPoint, insertionPoint, insertion)
+        }
+
+        return applyEdits(input, edits)
+    }
+
+    private fun addMissingServiceDetails(
+        input: String,
+        existingService: io.zenwave360.language.antlr.ZflParser.System_serviceContext,
+        discoveredService: DiscoveredService,
+        edits: MutableList<TextEdit>
+    ) {
+        val aggregates = existingService.system_service_aggregates()?.ID()?.map { it.text }.orEmpty()
+        val missingAggregates = discoveredService.aggregates.filterNot { it in aggregates }
+        val body = existingService.system_service_body()
+        val commands = body?.system_service_command_list()?.ID()?.map { it.text }.orEmpty()
+        val missingCommands = discoveredService.commands.filterNot { it in commands }
+        val existingAggregates = existingService.system_service_aggregates()
+
+        if (body == null && missingCommands.isNotEmpty()) {
+            val indent = indentationAt(input, existingService.start!!.startIndex)
+            val insertion = buildString {
+                if (missingAggregates.isNotEmpty()) {
+                    if (existingAggregates == null) {
+                        append(" for(${missingAggregates.joinToString(", ")})")
+                    } else {
+                        append(", ${missingAggregates.joinToString(", ")}")
+                    }
+                }
+                append(" {${lineEnding(input)}${indent}    commands: ${missingCommands.joinToString(", ")}${lineEnding(input)}$indent}")
+            }
+            val insertAt = existingService.stop!!.stopIndex + 1
+            edits += TextEdit(insertAt, insertAt, insertion)
+            return
+        }
+
+        if (missingAggregates.isNotEmpty()) {
+            if (existingAggregates == null) {
+                val insertAt = existingService.system_service_name().stop!!.stopIndex + 1
+                edits += TextEdit(insertAt, insertAt, " for(${missingAggregates.joinToString(", ")})")
+            } else {
+                val insertAt = existingAggregates.stop!!.stopIndex + 1
+                edits += TextEdit(insertAt, insertAt, ", ${missingAggregates.joinToString(", ")}")
+            }
+        }
+
+        if (missingCommands.isEmpty()) return
+
+        val commandList = body!!.system_service_command_list()
+        val insertAt = commandList.stop!!.stopIndex + 1
+        edits += TextEdit(insertAt, insertAt, ", ${missingCommands.joinToString(", ")}")
+    }
+
+    private fun renderAdditiveSystemsBlock(systems: List<DiscoveredSystem>, lineEnding: String): String = buildString {
+        append("systems {")
+        systems.forEachIndexed { index, system ->
+            append(renderAdditiveSystem(system, "    ", lineEnding, leadingBlankLine = index > 0))
+        }
+        append(lineEnding)
+        append("}")
+    }
+
+    private fun renderAdditiveSystem(
+        system: DiscoveredSystem,
+        indent: String,
+        lineEnding: String,
+        leadingBlankLine: Boolean
+    ): String = buildString {
+        append(lineEnding)
+        if (leadingBlankLine) append(lineEnding)
+        append(indent)
+        append(system.name)
+        append(" {")
+        system.services.forEachIndexed { index, service ->
+            append(renderAdditiveService(service, indent + "    ", lineEnding, leadingBlankLine = index > 0))
+        }
+        append(lineEnding)
+        append(indent)
+        append("}")
+    }
+
+    private fun renderAdditiveService(
+        service: DiscoveredService,
+        indent: String,
+        lineEnding: String,
+        leadingBlankLine: Boolean
+    ): String = buildString {
+        append(lineEnding)
+        if (leadingBlankLine) append(lineEnding)
+        append(indent)
+        append("service ${service.name}")
+        if (service.aggregates.isNotEmpty()) append(" for(${service.aggregates.joinToString(", ")})")
+        append(" {")
+        append(lineEnding)
+        append(indent)
+        append("    commands: ${service.commands.joinToString(", ")}")
+        append(lineEnding)
+        append(indent)
+        append("}")
+    }
+
+    private fun applyEdits(input: String, edits: List<TextEdit>): String =
+        edits.sortedByDescending { it.start }.fold(input) { result, edit ->
+            result.replaceRange(edit.start, edit.endExclusive, edit.replacement)
+        }
+
+    private fun lineEnding(input: String): String = if (input.contains("\r\n")) "\r\n" else "\n"
+
+    private fun indentationAt(input: String, index: Int): String {
+        val lineStart = input.lastIndexOf('\n', index - 1) + 1
+        return input.substring(lineStart, index).takeWhile { it == ' ' || it == '\t' }
+    }
+
+    private fun insertionPointBeforeClosingBrace(input: String, closingBraceIndex: Int): Int {
+        val lineStart = input.lastIndexOf('\n', closingBraceIndex - 1) + 1
+        return if (input.substring(lineStart, closingBraceIndex).all { it == ' ' || it == '\t' }) {
+            lineStart
+        } else {
+            closingBraceIndex
+        }
     }
 
     private fun discoverSystems(model: ZflModel): List<DiscoveredSystem> {
@@ -276,5 +467,11 @@ class ZflSystemsOrganizer {
         val leadingTrivia: String,
         val headerPrefix: String,
         val aggregates: List<String>
+    )
+
+    private data class TextEdit(
+        val start: Int,
+        val endExclusive: Int,
+        val replacement: String
     )
 }

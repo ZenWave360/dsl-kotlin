@@ -1,11 +1,190 @@
 package io.zenwave360.language.zfl.formatter
 
 import io.zenwave360.language.zfl.ZflParser
+import io.zenwave360.language.zfl.formatter.ZflSystemsOrganizationMode.ADDITIVE
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class ZflSystemsOrganizerTest {
+
+    @Test
+    fun organizeSystems_additively_leaves_complete_block_byte_for_byte_unchanged() {
+        val input = """
+            systems {
+                // Keep this order and this unused system.
+                Unused {
+                    service OldService {
+                        commands: oldCommand
+                    }
+                }
+
+                Orders {
+                    service OrdersService for(Order) {
+                        commands: createOrder
+                    }
+                }
+            }
+
+            flow CheckoutFlow {
+                when CheckoutStarted do createOrder {
+                    service Orders/OrdersService/Order
+                    emits OrderCreated
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(input, ZflParser().organizeSystems(input, ADDITIVE))
+    }
+
+    @Test
+    fun organizeSystems_additively_appends_missing_systems_services_and_commands() {
+        val input = """
+            systems {
+                // Keep this comment and the user's order.
+                Orders {
+                    service OrdersService {
+                        commands: createOrder
+                    }
+                }
+
+                Unused {
+                    service LegacyService {
+                        commands: legacyCommand
+                    }
+                }
+            }
+
+            flow CheckoutFlow {
+                when CheckoutStarted do createOrder {
+                    service Orders/OrdersService
+                    emits OrderCreated
+                }
+
+                when OrderCancelled do cancelOrder {
+                    service Orders/OrdersService
+                    emits OrderCancelled
+                }
+
+                when OrderCancelled do archiveOrder {
+                    service Orders/ArchiveService
+                    emits OrderArchived
+                }
+
+                when InvoiceRequested do createInvoice {
+                    service Billing/Invoices/Invoice
+                    emits InvoiceCreated
+                }
+            }
+        """.trimIndent()
+
+        val expected = """
+            systems {
+                // Keep this comment and the user's order.
+                Orders {
+                    service OrdersService {
+                        commands: createOrder, cancelOrder
+                    }
+
+                    service ArchiveService {
+                        commands: archiveOrder
+                    }
+                }
+
+                Unused {
+                    service LegacyService {
+                        commands: legacyCommand
+                    }
+                }
+
+                Billing {
+                    service Invoices for(Invoice) {
+                        commands: createInvoice
+                    }
+                }
+            }
+
+            flow CheckoutFlow {
+                when CheckoutStarted do createOrder {
+                    service Orders/OrdersService
+                    emits OrderCreated
+                }
+
+                when OrderCancelled do cancelOrder {
+                    service Orders/OrdersService
+                    emits OrderCancelled
+                }
+
+                when OrderCancelled do archiveOrder {
+                    service Orders/ArchiveService
+                    emits OrderArchived
+                }
+
+                when InvoiceRequested do createInvoice {
+                    service Billing/Invoices/Invoice
+                    emits InvoiceCreated
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(expected, ZflParser().organizeSystems(input, ADDITIVE))
+    }
+
+    @Test
+    fun organizeSystems_additively_preserves_crlf() {
+        val input = """
+            systems {
+                Orders {
+                    service OrdersService {
+                        commands: createOrder
+                    }
+                }
+            }
+
+            flow CheckoutFlow {
+                when OrderCancelled do cancelOrder {
+                    service Orders/OrdersService
+                    emits OrderCancelled
+                }
+            }
+        """.trimIndent().replace("\n", "\r\n")
+
+        val expected = input.replace("commands: createOrder", "commands: createOrder, cancelOrder")
+        val organized = ZflParser().organizeSystems(input, ADDITIVE)
+
+        assertEquals(expected, organized)
+        assertTrue(organized.replace("\r\n", "").contains('\n').not())
+    }
+
+    @Test
+    fun organizeSystems_additively_keeps_compact_closing_braces_in_their_parent_blocks() {
+        val inputs = listOf(
+            "systems {}\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
+            "systems { Orders {} }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
+            "systems { Orders { service Svc { commands: existing } } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }"
+        )
+
+        inputs.forEach { input ->
+            val organized = ZflParser().organizeSystems(input, ADDITIVE)
+
+            assertTrue(ZflParser().parse(organized).syntaxProblems.isEmpty(), "Organized ZFL should remain valid: $organized")
+            assertEquals(organized, ZflParser().organizeSystems(organized, ADDITIVE))
+        }
+    }
+
+    @Test
+    fun organizeSystems_additively_adds_aggregate_before_body_for_bare_service() {
+        val input = "systems { Orders { service Svc } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }"
+
+        val organized = ZflParser().organizeSystems(input, ADDITIVE)
+
+        assertEquals(
+            "systems { Orders { service Svc for(Order) {\n    commands: create\n} } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
+            organized
+        )
+        assertTrue(ZflParser().parse(organized).syntaxProblems.isEmpty(), "Organized ZFL should remain valid")
+        assertEquals(organized, ZflParser().organizeSystems(organized, ADDITIVE))
+    }
 
     @Test
     fun organizeSystems_rebuilds_systems_from_policy_services() {
