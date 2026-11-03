@@ -90,6 +90,27 @@ class PreviewZdlTest {
     }
 
     @Test
+    fun severalPoliciesEachGetTheirOwnLine() {
+        val page = preview(
+            """
+            @aggregate
+            entity Order { id UUID }
+            policies (Order) {
+                first "First rule"
+                second "Second rule"
+            }
+            policies {
+                alpha "Alpha rule"
+                beta "Beta rule"
+            }
+            """.trimIndent(),
+        )
+
+        assertTrue(page.contains("alpha: Alpha rule  \nbeta: Beta rule\n\n### Order"), page)
+        assertTrue(page.contains("first: First rule  \nsecond: Second rule\n\n```mermaid"), page)
+    }
+
+    @Test
     fun apiLocationsThatAreNotWorkspaceOrHttpLinksStayText() {
         val page = preview(
             """

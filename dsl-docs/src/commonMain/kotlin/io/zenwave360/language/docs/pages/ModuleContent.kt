@@ -92,10 +92,10 @@ internal class ModuleContent(
         return buildString {
             append(anchors.heading(2, "Aggregates"))
             append("Each aggregate root with the entities and enums it owns, and how they relate.\n\n")
-            append(policies(null).joinToString("\n") { (name, value) -> "${text(name)}: ${text(value)}" }.takeIf { it.isNotEmpty() }?.plus("\n\n").orEmpty())
+            append(policies(null).joinToString("  \n") { (name, value) -> "${text(name)}: ${text(value)}" }.takeIf { it.isNotEmpty() }?.plus("\n\n").orEmpty())
             for (diagram in classes.aggregates) {
                 append(anchors.heading(3, inline(diagram.aggregate)))
-                append(policies(diagram.aggregate).joinToString("\n") { (name, value) -> "${text(name)}: ${text(value)}" }.takeIf { it.isNotEmpty() }?.plus("\n\n").orEmpty())
+                append(policies(diagram.aggregate).joinToString("  \n") { (name, value) -> "${text(name)}: ${text(value)}" }.takeIf { it.isNotEmpty() }?.plus("\n\n").orEmpty())
                 append(Markdown.mermaid(diagram.mermaid)).append('\n')
                 lifecycles[diagram.aggregate]?.let { lifecycle ->
                     append(anchors.heading(4, "Lifecycle"))
