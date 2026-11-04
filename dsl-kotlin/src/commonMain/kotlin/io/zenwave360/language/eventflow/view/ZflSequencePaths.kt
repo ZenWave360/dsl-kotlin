@@ -7,16 +7,16 @@ import io.zenwave360.language.zfl.semantic.ZflFlow
 import io.zenwave360.language.zfl.semantic.ZflSignalStep
 import io.zenwave360.language.zfl.semantic.ZflStart
 
-internal enum class ParticipantKind { ACTOR, PARTICIPANT }
+enum class ParticipantKind { ACTOR, PARTICIPANT }
 
-internal data class SequenceParticipant(
+data class SequenceParticipant(
     val alias: String,
     val label: String,
     val kind: ParticipantKind,
     val system: String? = null
 )
 
-internal data class SequenceMessage(
+data class SequenceMessage(
     val from: SequenceParticipant,
     val to: SequenceParticipant,
     val label: String,
@@ -24,10 +24,10 @@ internal data class SequenceMessage(
 )
 
 /** The alternative taken at an execution that had more than one. [rank] is its declaration order. */
-internal data class SequenceChoice(val label: String, val rank: Int, val preferred: Boolean)
+data class SequenceChoice(val label: String, val rank: Int, val preferred: Boolean)
 
 /** One way through the flow, from a start to a terminal event of [endOutcome]. */
-internal data class SequencePath(
+data class SequencePath(
     val startIndex: Int,
     val start: ZflStart,
     val endOutcome: String,
@@ -38,7 +38,7 @@ internal data class SequencePath(
     val choiceLabels: List<String> get() = choices.map { it.label }
 }
 
-internal fun sequenceParticipantAlias(value: String): String =
+fun sequenceParticipantAlias(value: String): String =
     value.replace(Regex("[^A-Za-z0-9_]"), "_")
         .replace(Regex("_+"), "_")
         .trim('_')
@@ -48,7 +48,7 @@ internal fun sequenceParticipantAlias(value: String): String =
  * Enumerates the paths of a flow. Executions are the per-`when` occurrences of each command:
  * an event triggers every occurrence that lists it. See PLAN.md D20.
  */
-internal class ZflSequencePaths(
+class ZflSequencePaths(
     private val flow: ZflFlow,
     private val maxVisitsPerPath: Int = 2
 ) {
@@ -314,3 +314,4 @@ internal class ZflSequencePaths(
         return specs
     }
 }
+

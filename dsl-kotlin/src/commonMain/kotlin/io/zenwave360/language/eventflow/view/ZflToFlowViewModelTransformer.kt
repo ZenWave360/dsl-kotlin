@@ -9,6 +9,9 @@ class ZflToFlowViewModelTransformer(
     fun transform(semanticModel: ZflSemanticModel): FlowViewModel =
         transformGraph(graphTransformer.transform(semanticModel))
 
+    fun transform(semanticModel: ZflSemanticModel, path: SequencePath): FlowViewModel =
+        transformGraph(graphTransformer.transform(semanticModel).forPath(path))
+
     fun transformGraph(graph: FlowGraph): FlowViewModel {
         val nodes = graph.nodes.map { node ->
             FlowNode(
@@ -50,6 +53,26 @@ class ZflToFlowViewModelTransformer(
             edges = edges
         )
     }
+}
+
+private fun FlowGraph.forPath(path: SequencePath): FlowGraph {
+    val nodesById = nodes.associateBy { it.id }
+    val pathNodeIds = path.messages.flatMap { message ->
+        listOf("command:${message.label}", "event:${message.label}")
+    }.filterTo(linkedSetOf()) { it in nodesById }
+
+    // Policies are structural links between an event and a command. Keep only
+    // the ones that connect two nodes already reached by this execution.
+    nodes.filter { it.type == FlowGraphNodeType.POLICY }.forEach { policy ->
+        val incoming = edges.any { it.target == policy.id && it.source in pathNodeIds }
+        val outgoing = edges.any { it.source == policy.id && it.target in pathNodeIds }
+        if (incoming && outgoing) pathNodeIds += policy.id
+    }
+
+    return FlowGraph(
+        nodes = nodes.filter { it.id in pathNodeIds },
+        edges = edges.filter { it.source in pathNodeIds && it.target in pathNodeIds }
+    )
 }
 
 /** Backward-compatibility alias; use [ZflToFlowViewModelTransformer] for new code. */

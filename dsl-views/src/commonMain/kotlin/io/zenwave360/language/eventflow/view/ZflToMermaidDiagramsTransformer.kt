@@ -30,9 +30,10 @@ class ZflToMermaidDiagramsTransformer(
             .flatMap { policy -> policy.triggers.map { trigger -> trigger to policy } }
             .groupBy({ it.first }, { it.second })
 
-        val engine = ZflSequencePaths(flow, maxCommandVisitsPerPath)
-        val paths = engine.paths()
-        val sequences = renderSequences(flow, paths, engine.happy(paths), sequenceRenderMode)
+        val variants = zflFlowVariants(flow, maxCommandVisitsPerPath)
+        val paths = variants.map { it.path }
+        val happy = ZflSequencePaths(flow, maxCommandVisitsPerPath).happy(paths)
+        val sequences = renderSequences(flow, paths, happy, sequenceRenderMode)
 
         return MermaidDiagramsView(
             flowName = flow.name,
@@ -191,7 +192,7 @@ class ZflToMermaidDiagramsTransformer(
                 ofOutcome.map { path ->
                     MermaidSequenceDiagram(
                         endOutcome = endOutcome,
-                        title = buildSequenceTitle(endOutcome, path.start.name, path.choiceLabels),
+                        title = sequenceVariantTitle(path),
                         startLabel = path.start.name,
                         branchLabels = path.choiceLabels,
                         mermaid = renderSequenceDiagram(endOutcome, path),
@@ -204,7 +205,7 @@ class ZflToMermaidDiagramsTransformer(
                     val branchLabels = familyLabels(family)
                     MermaidSequenceDiagram(
                         endOutcome = endOutcome,
-                        title = buildSequenceTitle(endOutcome, startLabel, emptyList()),
+                        title = "$endOutcome: from $startLabel",
                         startLabel = startLabel,
                         branchLabels = if (family.size > 1) branchLabels.distinct() else family.first().choiceLabels,
                         mermaid = if (family.size > 1) {
@@ -326,21 +327,6 @@ class ZflToMermaidDiagramsTransformer(
         }
         return suffixLength
     }
-
-    private fun buildSequenceTitle(
-        endOutcome: String,
-        startLabel: String,
-        choices: List<String>
-    ): String =
-        buildString {
-            append(endOutcome)
-            append(": from ")
-            append(startLabel)
-            if (choices.isNotEmpty()) {
-                append(" via ")
-                append(choices.joinToString(" → "))
-            }
-        }
 
     private fun flowchartNodeId(prefix: String, value: String): String =
         "${prefix}_${value.replace(Regex("[^A-Za-z0-9_]"), "_")}"
