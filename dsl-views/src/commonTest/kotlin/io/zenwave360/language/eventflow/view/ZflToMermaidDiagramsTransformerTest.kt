@@ -11,6 +11,48 @@ import kotlin.test.assertTrue
 class ZflToMermaidDiagramsTransformerTest {
 
     @Test
+    fun testTransform_FlowchartUsesEventFlowStylesAndResponseBeforeEvent() {
+        val diagrams = ZflToMermaidDiagramsTransformer().transform(
+            ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+                """
+                    flow ResponseFlow {
+                        @actor(Customer)
+                        start Requested {}
+                        when Requested do fetchStatus {
+                            service Status.StatusService
+                            emits response StatusReady
+                        }
+                        when StatusReady do persistStatus {
+                            service Status.StatusService
+                            emits StatusPersisted
+                        }
+                        end { completed: StatusPersisted }
+                    }
+                """.trimIndent()
+            ))
+        )
+
+        val flowchart = diagrams.flowchart
+        assertTrue(flowchart.contains("start_Requested([\"Customer<br/>Requested\"])"), flowchart)
+        assertTrue(flowchart.contains("action_fetchStatus[\"fetchStatus\"]"), flowchart)
+        assertTrue(flowchart.contains("readModel_StatusReady[\"StatusReady\"]"), flowchart)
+        assertTrue(flowchart.contains("event_StatusReady[/StatusReady/]"), flowchart)
+        assertTrue(flowchart.contains("policy_when_StatusReady_do_persistStatus{{\"when StatusReady do persistStatus\"}}"), flowchart)
+        assertTrue(flowchart.contains("terminal_completed((\"completed\"))"), flowchart)
+        assertTrue(flowchart.contains("action_fetchStatus --> readModel_StatusReady"), flowchart)
+        assertTrue(flowchart.contains("readModel_StatusReady --> event_StatusReady"), flowchart)
+        assertTrue(!flowchart.contains("action_fetchStatus --> event_StatusReady"), flowchart)
+        assertTrue(flowchart.contains("event_StatusReady --> policy_when_StatusReady_do_persistStatus"), flowchart)
+        assertTrue(flowchart.contains("classDef start fill:#475569,stroke:#1e293b,color:#ffffff"), flowchart)
+        assertTrue(flowchart.contains("classDef command fill:#3b82f6,stroke:#1d4ed8,color:#ffffff"), flowchart)
+        assertTrue(flowchart.contains("classDef readModel fill:#bbf7d0,stroke:#15803d,color:#0f172a"), flowchart)
+        assertTrue(flowchart.contains("classDef event fill:#f97316,stroke:#c2410c,color:#ffffff"), flowchart)
+        assertTrue(flowchart.contains("classDef policy fill:#a855f7,stroke:#7e22ce,color:#ffffff"), flowchart)
+        assertTrue(flowchart.contains("classDef endOutcome fill:#ef4444,stroke:#b91c1c,color:#ffffff"), flowchart)
+        assertHasUniqueNodeDefinitionsAndEdges(flowchart)
+    }
+
+    @Test
     fun testTransform_DefaultModeUsesAltBlocksCompatibility() {
         val zflContent = """
             flow CheckoutFlow {
@@ -205,7 +247,7 @@ class ZflToMermaidDiagramsTransformerTest {
     }
 
     @Test
-    fun testTransform_OnEmitsOutcomesRenderInFlowchartAndSequences() {
+    fun testTransform_OnEmitsOutcomesStayInSequencesWithoutFlowchartRoutingEdges() {
         val zflContent = """
             flow CheckoutFlow {
                 @actor(Customer)
@@ -237,16 +279,8 @@ class ZflToMermaidDiagramsTransformerTest {
                 MermaidSequenceRenderMode.ALT_BLOCKS
             )
 
-        assertTrue(
-            diagrams.flowchart.contains("action_startOrderCheckout -->|on StockReserved| outcome_startOrderCheckout_created"),
-            diagrams.flowchart
-        )
-        assertTrue(diagrams.flowchart.contains("outcome_startOrderCheckout_created --> event_OrderCreated"), diagrams.flowchart)
-        assertTrue(diagrams.flowchart.contains("outcome_startOrderCheckout_created --> event_EventB"), diagrams.flowchart)
-        assertTrue(
-            diagrams.flowchart.contains("action_startOrderCheckout -->|on StockConfirmed| outcome_startOrderCheckout_StockConfirmed"),
-            diagrams.flowchart
-        )
+        assertTrue(!diagrams.flowchart.contains("|on StockReserved|"), diagrams.flowchart)
+        assertTrue(!diagrams.flowchart.contains("|on StockConfirmed|"), diagrams.flowchart)
 
         val done = diagrams.sequences.single { it.endOutcome == "done" }
         assertTrue(done.branchLabels.contains("created"), done.branchLabels.toString())
@@ -266,8 +300,8 @@ class ZflToMermaidDiagramsTransformerTest {
         val diagrams = ZflToMermaidDiagramsTransformer().transform(semanticModel)
 
         val flowchart = diagrams.flowchart
-        assertTrue(flowchart.contains("start_RequestBooking[\"Citizen<br/>RequestBooking\"]"), flowchart)
-        assertTrue(flowchart.contains("start_RequestAssistedBooking[\"FacilityStaff<br/>RequestAssistedBooking\"]"), flowchart)
+        assertTrue(flowchart.contains("start_RequestBooking([\"Citizen<br/>RequestBooking\"])"), flowchart)
+        assertTrue(flowchart.contains("start_RequestAssistedBooking([\"FacilityStaff<br/>RequestAssistedBooking\"])"), flowchart)
         assertTrue(
             flowchart.contains(
                 "policy_when_RequestBooking_RequestAssistedBooking_do_bookSlot{{\"when RequestBooking, RequestAssistedBooking do bookSlot\"}}"
@@ -299,19 +333,14 @@ class ZflToMermaidDiagramsTransformerTest {
         assertTrue(!flowchart.contains("action_sendBookingConfirmation --> event_BookingConfirmationSkipped"), flowchart)
         assertTrue(!flowchart.contains("action_sendBookingConfirmation --> event_BookingConfirmationFailed"), flowchart)
         assertTrue(flowchart.contains("action_bookSlot --> outcome_bookSlot_confirmed"), flowchart)
-        assertTrue(flowchart.contains("outcome_bookSlot_confirmed --> event_BookingConfirmed"), flowchart)
+        assertTrue(flowchart.contains("outcome_bookSlot_confirmed --> readModel_BookingConfirmed"), flowchart)
+        assertTrue(flowchart.contains("readModel_BookingConfirmed --> event_BookingConfirmed"), flowchart)
         assertTrue(flowchart.contains("action_bookSlot --> outcome_bookSlot_policy_violated"), flowchart)
-        assertTrue(flowchart.contains("outcome_bookSlot_policy_violated --> event_BookingRejected"), flowchart)
+        assertTrue(flowchart.contains("outcome_bookSlot_policy_violated --> readModel_BookingRejected"), flowchart)
         assertTrue(flowchart.contains("action_bookSlot --> outcome_bookSlot_slot_full"), flowchart)
-        assertTrue(flowchart.contains("outcome_bookSlot_slot_full --> event_SlotFull"), flowchart)
-        assertTrue(
-            flowchart.contains("action_bookSlot -->|on SlotNotBookable| outcome_bookSlot_SlotNotBookable"),
-            flowchart
-        )
-        assertTrue(
-            flowchart.contains("action_bookSlot -->|on HolderNotEligible| outcome_bookSlot_HolderNotEligible"),
-            flowchart
-        )
+        assertTrue(flowchart.contains("outcome_bookSlot_slot_full --> readModel_SlotFull"), flowchart)
+        assertTrue(!flowchart.contains("|on SlotNotBookable|"), flowchart)
+        assertTrue(!flowchart.contains("|on HolderNotEligible|"), flowchart)
         val slotNotBookable = diagrams.sequences.filter { it.endOutcome == "slotNotBookable" }
         assertTrue(slotNotBookable.isNotEmpty())
         assertTrue(slotNotBookable.none { it.mermaid.contains("checkBookingHolder") }, slotNotBookable.toString())
@@ -452,7 +481,7 @@ class ZflToMermaidDiagramsTransformerTest {
     }
 
     @Test
-    fun testTransform_AnnotatedOnListDrawsEveryCondition() {
+    fun testTransform_CallResponseConditionsDoNotDrawFlowchartRoutingEdges() {
         val diagrams = ZflToMermaidDiagramsTransformer().transform(
             ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
                 """
@@ -466,8 +495,9 @@ class ZflToMermaidDiagramsTransformerTest {
             ))
         )
 
-        assertTrue(diagrams.flowchart.contains("|on X|"), diagrams.flowchart)
-        assertTrue(diagrams.flowchart.contains("|on Happy|"), diagrams.flowchart)
+        assertTrue(diagrams.flowchart.contains("action_main --> action_first"), diagrams.flowchart)
+        assertTrue(!diagrams.flowchart.contains("|on X|"), diagrams.flowchart)
+        assertTrue(!diagrams.flowchart.contains("|on Happy|"), diagrams.flowchart)
         assertHasUniqueNodeDefinitionsAndEdges(diagrams.flowchart)
     }
 
@@ -496,18 +526,8 @@ class ZflToMermaidDiagramsTransformerTest {
             paths.toString()
         )
         val flowchart = ZflToMermaidDiagramsTransformer().transform(model).flowchart
-        assertTrue(
-            flowchart.contains("action_main -->|on W| outcome_main_W"),
-            flowchart
-        )
-        assertTrue(
-            flowchart.contains("outcome_main_W --> event_Rejected"),
-            flowchart
-        )
-        assertTrue(
-            !flowchart.contains("action_second -->|on W| outcome_second_W"),
-            flowchart
-        )
+        assertTrue(!flowchart.contains("|on W|"), flowchart)
+        assertTrue(!flowchart.contains("outcome_main_W"), flowchart)
     }
 
     @Test
@@ -546,5 +566,24 @@ class ZflToMermaidDiagramsTransformerTest {
 
         val edges = lines.filter { it.contains("-->") || it.contains("-.->") }
         assertEquals(edges.size, edges.distinct().size, flowchart)
+    }
+
+    @Test
+    fun testFlowchart_TerminalLinksFromTheReadModelWhenOnlyAResponseExists() {
+        val flowchart = ZflToMermaidDiagramsTransformer().transform(
+            ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+                """
+                    flow ResponseFlow {
+                        @actor(Customer)
+                        start Requested {}
+                        when Requested do fetchStatus { response Ready }
+                        end { completed: Ready }
+                    }
+                """.trimIndent()
+            ))
+        ).flowchart
+
+        assertTrue(flowchart.contains("readModel_Ready --> terminal_completed"), flowchart)
+        assertTrue(!flowchart.contains("event_Ready"), flowchart)
     }
 }

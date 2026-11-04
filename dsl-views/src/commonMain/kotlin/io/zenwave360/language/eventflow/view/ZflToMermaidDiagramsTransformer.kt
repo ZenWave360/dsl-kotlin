@@ -66,9 +66,9 @@ class ZflToMermaidDiagramsTransformer(
             val startLabel = listOfNotNull(start.actor ?: start.timer, start.name)
                 .distinct()
                 .joinToString("<br/>")
-            val startShape = if (start.actor != null) "[\"$startLabel\"]" else "(($startLabel))"
+            val startShape = "([\"$startLabel\"])"
             nodeLines += "    $startId$startShape"
-            classAssignments += "    class $startId actor"
+            classAssignments += "    class $startId start"
         }
 
         flow.policies.forEach { policy ->
@@ -81,26 +81,20 @@ class ZflToMermaidDiagramsTransformer(
             if (node.type == FlowGraphNodeType.START && startByName.containsKey(node.label)) {
                 return@forEach
             }
-            if (node.type == FlowGraphNodeType.READ_MODEL && graph.nodes.any {
-                    it.type == FlowGraphNodeType.OUTCOME && it.label == node.label
-                }
-            ) {
-                return@forEach
-            }
             val nodeId = flowchartNodeId(flowchartPrefix(node.type), node.label)
             val shape = when (node.type) {
-                FlowGraphNodeType.START -> "[\"${escape(node.label)}\"]"
+                FlowGraphNodeType.START -> "([\"${escape(node.label)}\"])"
                 FlowGraphNodeType.ACTION -> "[\"${escape(node.label)}\"]"
                 FlowGraphNodeType.OUTCOME -> "[/${escape(node.label)}/]"
-                FlowGraphNodeType.READ_MODEL -> "[/${escape(node.label)}/]"
+                FlowGraphNodeType.READ_MODEL -> "[\"${escape(node.label)}\"]"
                 FlowGraphNodeType.POLICY -> "{{\"${escape(policyLabelsById[nodeId] ?: node.label)}\"}}"
             }
             nodeLines += "    $nodeId$shape"
             val klass = when (node.type) {
-                FlowGraphNodeType.START -> "actor"
-                FlowGraphNodeType.ACTION -> "action"
+                FlowGraphNodeType.START -> "start"
+                FlowGraphNodeType.ACTION -> "command"
                 FlowGraphNodeType.OUTCOME -> "event"
-                FlowGraphNodeType.READ_MODEL -> "event"
+                FlowGraphNodeType.READ_MODEL -> "readModel"
                 FlowGraphNodeType.POLICY -> "policy"
             }
             classAssignments += "    class $nodeId $klass"
@@ -109,7 +103,7 @@ class ZflToMermaidDiagramsTransformer(
         flow.end.endOutcomes.keys.forEach { endOutcome ->
             val terminalId = flowchartNodeId("terminal", endOutcome)
             nodeLines += "    $terminalId((\"${escape(endOutcome)}\"))"
-            classAssignments += "    class $terminalId terminal"
+            classAssignments += "    class $terminalId endOutcome"
         }
 
         val edgeLines = mutableListOf<String>()
@@ -153,7 +147,7 @@ class ZflToMermaidDiagramsTransformer(
             if (
                 sourceNode.type == FlowGraphNodeType.ACTION &&
                 targetNode.isOutcomeLike() &&
-                outcome != null
+                outcome != null && outcome != targetNode.label
             ) {
                 val outcomeNodeId = flowchartOutcomeNodeId(sourceNode.label, outcome)
                 if (outcomeNodes.add(outcomeNodeId)) {
@@ -173,7 +167,13 @@ class ZflToMermaidDiagramsTransformer(
         flow.end.endOutcomes.forEach { (endOutcome, eventNames) ->
             val terminalId = flowchartNodeId("terminal", endOutcome)
             eventNames.forEach { eventName ->
-                val eventId = flowchartNodeId("event", eventName)
+                // the terminal hangs from the node the graph drew: the event, else the read model
+                val sourceNode = graph.nodes.find { it.type == FlowGraphNodeType.OUTCOME && it.label == eventName }
+                    ?: graph.nodes.find { it.type == FlowGraphNodeType.READ_MODEL && it.label == eventName }
+                val eventId = flowchartNodeId(
+                    sourceNode?.let { flowchartPrefix(it.type) } ?: "event",
+                    eventName
+                )
                 edgeLines += "    $eventId --> $terminalId"
             }
         }
@@ -181,12 +181,13 @@ class ZflToMermaidDiagramsTransformer(
         lines += nodeLines.sorted()
         lines += edgeLines.distinct()
         lines += ""
-        lines += "    classDef actor fill:#dbeafe,stroke:#1d4ed8,color:#0f172a"
-        lines += "    classDef action fill:#dcfce7,stroke:#166534,color:#0f172a"
-        lines += "    classDef event fill:#f8fafc,stroke:#475569,color:#0f172a"
+        lines += "    classDef start fill:#475569,stroke:#1e293b,color:#ffffff"
+        lines += "    classDef command fill:#3b82f6,stroke:#1d4ed8,color:#ffffff"
+        lines += "    classDef readModel fill:#bbf7d0,stroke:#15803d,color:#0f172a"
+        lines += "    classDef event fill:#f97316,stroke:#c2410c,color:#ffffff"
         lines += "    classDef outcomeNode fill:#ede9fe,stroke:#6d28d9,color:#0f172a"
-        lines += "    classDef policy fill:#fef3c7,stroke:#92400e,color:#0f172a"
-        lines += "    classDef terminal fill:#fee2e2,stroke:#b91c1c,color:#0f172a"
+        lines += "    classDef policy fill:#a855f7,stroke:#7e22ce,color:#ffffff"
+        lines += "    classDef endOutcome fill:#ef4444,stroke:#b91c1c,color:#ffffff"
         lines += classAssignments.distinct()
         return lines.joinToString("\n")
     }
@@ -348,7 +349,7 @@ class ZflToMermaidDiagramsTransformer(
             FlowGraphNodeType.START -> "start"
             FlowGraphNodeType.ACTION -> "action"
             FlowGraphNodeType.OUTCOME -> "event"
-            FlowGraphNodeType.READ_MODEL -> "event"
+            FlowGraphNodeType.READ_MODEL -> "readModel"
             FlowGraphNodeType.POLICY -> "policy"
         }
 

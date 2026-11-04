@@ -53,6 +53,7 @@ internal object ElkLayoutConstraints {
                 sourceType == FlowNodeType.COMMAND &&
                     (targetType == FlowNodeType.EVENT || targetType == FlowNodeType.READ_MODEL) -> true
                 sourceType == FlowNodeType.EVENT && targetType == FlowNodeType.POLICY -> true
+                sourceType == FlowNodeType.READ_MODEL && targetType == FlowNodeType.EVENT -> true
                 sourceType == FlowNodeType.COMMAND && targetType == FlowNodeType.COMMAND &&
                     (edge.type == FlowEdgeType.CALL || edge.type == FlowEdgeType.OUTCOME_HANDLER) -> true
                 sourceType == FlowNodeType.POLICY && targetType == FlowNodeType.COMMAND ->
