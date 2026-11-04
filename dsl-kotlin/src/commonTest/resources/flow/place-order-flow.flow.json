@@ -13,9 +13,11 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": "actor",
+            "actor": "Customer",
             "position": {
                 "x": 72.0,
-                "y": 255.33333333333326
+                "y": 520.0
             },
             "dimensions": {
                 "width": 180.0,
@@ -34,6 +36,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": "timer",
+            "actor": "Scheduler",
             "position": {
                 "x": 5172.0,
                 "y": 1740.5333333333333
@@ -55,9 +59,11 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 332.0,
-                "y": 255.33333333333326
+                "y": 520.0
             },
             "dimensions": {
                 "width": 180.0,
@@ -76,6 +82,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 632.0,
                 "y": 520.0
@@ -97,9 +105,11 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
-                "x": 932.0,
-                "y": 32.0
+                "x": 632.0,
+                "y": 1668.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -118,6 +128,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 632.0,
                 "y": 255.33333333333326
@@ -128,8 +140,8 @@
             }
         },
         {
-            "id": "event:StockReserved",
-            "type": "EVENT",
+            "id": "readModel:StockReserved",
+            "type": "READ_MODEL",
             "label": "StockReserved",
             "system": "CatalogInventory",
             "service": "InventoryService",
@@ -139,12 +151,37 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
+            "position": {
+                "x": 932.0,
+                "y": 32.0
+            },
+            "dimensions": {
+                "width": 124.0,
+                "height": 124.0
+            }
+        },
+        {
+            "id": "readModel:StockUnavailable",
+            "type": "READ_MODEL",
+            "label": "StockUnavailable",
+            "system": "CatalogInventory",
+            "service": "InventoryService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 38,
+                "column": 1
+            },
+            "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 932.0,
                 "y": 276.0
             },
             "dimensions": {
-                "width": 180.0,
+                "width": 124.0,
                 "height": 124.0
             }
         },
@@ -160,6 +197,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 1232.0,
                 "y": 520.0
@@ -181,6 +220,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 1532.0,
                 "y": 255.33333333333326
@@ -202,6 +243,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 1532.0,
                 "y": 499.33333333333326
@@ -223,6 +266,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 1532.0,
                 "y": 743.3333333333333
@@ -244,6 +289,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 2132.0,
                 "y": 743.3333333333333
@@ -265,6 +312,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 2432.0,
                 "y": 515.8666666666666
@@ -286,6 +335,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 2432.0,
                 "y": 759.8666666666666
@@ -307,6 +358,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 2132.0,
                 "y": 1471.1999999999998
@@ -328,6 +381,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 2432.0,
                 "y": 1491.8666666666666
@@ -349,6 +404,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 2432.0,
                 "y": 1003.8666666666666
@@ -370,6 +427,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 2732.0,
                 "y": 1003.8666666666666
@@ -391,6 +450,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 3032.0,
                 "y": 1491.8666666666666
@@ -412,6 +473,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 3332.0,
                 "y": 1268.5333333333333
@@ -433,6 +496,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 3332.0,
                 "y": 1512.5333333333333
@@ -454,6 +519,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 3932.0,
                 "y": 1268.5333333333333
@@ -475,6 +542,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 4232.0,
                 "y": 1045.1999999999998
@@ -496,6 +565,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 4232.0,
                 "y": 1289.1999999999998
@@ -517,6 +588,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 4832.0,
                 "y": 1045.1999999999998
@@ -540,6 +613,8 @@
             "endOutcomeLabels": [
                 "completed"
             ],
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 5132.0,
                 "y": 1045.1999999999998
@@ -561,8 +636,10 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
-                "x": 1532.0,
+                "x": 1232.0,
                 "y": 1668.5333333333333
             },
             "dimensions": {
@@ -584,9 +661,11 @@
             "endOutcomeLabels": [
                 "stockGone"
             ],
+            "startKind": null,
+            "actor": null,
             "position": {
-                "x": 1832.0,
-                "y": 499.33333333333326
+                "x": 1532.0,
+                "y": 1668.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -605,6 +684,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 4832.0,
                 "y": 1491.8666666666666
@@ -626,6 +707,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 5132.0,
                 "y": 1491.8666666666666
@@ -647,6 +730,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 5732.0,
                 "y": 1703.3333333333333
@@ -668,6 +753,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 6032.0,
                 "y": 1703.3333333333333
@@ -689,6 +776,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 6632.0,
                 "y": 1703.3333333333333
@@ -710,6 +799,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 6932.0,
                 "y": 1703.3333333333333
@@ -731,6 +822,8 @@
                 "column": 1
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 7532.0,
                 "y": 1703.3333333333333
@@ -754,6 +847,8 @@
             "endOutcomeLabels": [
                 "orderCancelled"
             ],
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 7832.0,
                 "y": 1703.3333333333333
@@ -775,6 +870,8 @@
                 "column": 5
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 932.0,
                 "y": 520.0
@@ -796,6 +893,8 @@
                 "column": 5
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 1832.0,
                 "y": 743.3333333333333
@@ -817,6 +916,8 @@
                 "column": 5
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 2732.0,
                 "y": 1247.8666666666666
@@ -838,6 +939,8 @@
                 "column": 5
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 1832.0,
                 "y": 1471.1999999999998
@@ -859,6 +962,8 @@
                 "column": 5
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 2732.0,
                 "y": 1491.8666666666666
@@ -880,6 +985,8 @@
                 "column": 5
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 3632.0,
                 "y": 1268.5333333333333
@@ -901,6 +1008,8 @@
                 "column": 5
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 4532.0,
                 "y": 1045.1999999999998
@@ -922,8 +1031,10 @@
                 "column": 5
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
-                "x": 1232.0,
+                "x": 932.0,
                 "y": 1668.5333333333333
             },
             "dimensions": {
@@ -943,6 +1054,8 @@
                 "column": 5
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 4532.0,
                 "y": 1491.8666666666666
@@ -964,6 +1077,8 @@
                 "column": 5
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 5432.0,
                 "y": 1703.3333333333333
@@ -985,6 +1100,8 @@
                 "column": 5
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 6332.0,
                 "y": 1703.3333333333333
@@ -1006,6 +1123,8 @@
                 "column": 5
             },
             "endOutcomeLabels": null,
+            "startKind": null,
+            "actor": null,
             "position": {
                 "x": 7232.0,
                 "y": 1703.3333333333333
@@ -1083,9 +1202,9 @@
             }
         },
         {
-            "id": "from[command:reserveStock]to[event:StockReserved]:CAUSATION:outcome[StockReserved]",
+            "id": "from[command:reserveStock]to[readModel:StockReserved]:CAUSATION:outcome[StockReserved]",
             "source": "command:reserveStock",
-            "target": "event:StockReserved",
+            "target": "readModel:StockReserved",
             "type": "CAUSATION",
             "label": null,
             "outcome": "StockReserved",
@@ -1096,9 +1215,9 @@
             }
         },
         {
-            "id": "from[command:reserveStock]to[event:StockUnavailable]:CAUSATION:outcome[StockUnavailable]",
+            "id": "from[command:reserveStock]to[readModel:StockUnavailable]:CAUSATION:outcome[StockUnavailable]",
             "source": "command:reserveStock",
-            "target": "event:StockUnavailable",
+            "target": "readModel:StockUnavailable",
             "type": "CAUSATION",
             "label": null,
             "outcome": "StockUnavailable",
@@ -1802,18 +1921,18 @@
             "systemName": "OrdersCheckout",
             "bounds": {
                 "x": 292.0,
-                "y": -8.0,
+                "y": 480.0,
                 "width": 6860.0,
-                "height": 1875.3333333333333
+                "height": 1387.3333333333333
             }
         },
         {
             "systemName": "CatalogInventory",
             "bounds": {
                 "x": 592.0,
-                "y": 215.33333333333326,
+                "y": -8.0,
                 "width": 5660.0,
-                "height": 1652.0
+                "height": 1875.3333333333333
             }
         },
         {
@@ -1837,10 +1956,10 @@
         {
             "systemName": "NotificationsConsumer",
             "bounds": {
-                "x": 1492.0,
-                "y": 459.33333333333326,
-                "width": 6560.0,
-                "height": 1408.0
+                "x": 1192.0,
+                "y": 1005.1999999999998,
+                "width": 6860.0,
+                "height": 862.1333333333334
             }
         }
     ]

@@ -10,5 +10,6 @@ enum class FlowNodeType {
     START,
     COMMAND,
     EVENT,
+    READ_MODEL,
     POLICY
 }

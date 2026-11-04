@@ -80,11 +80,18 @@ class ZflToMermaidDiagramsTransformer(
             if (node.type == FlowGraphNodeType.START && startByName.containsKey(node.label)) {
                 return@forEach
             }
+            if (node.type == FlowGraphNodeType.READ_MODEL && graph.nodes.any {
+                    it.type == FlowGraphNodeType.OUTCOME && it.label == node.label
+                }
+            ) {
+                return@forEach
+            }
             val nodeId = flowchartNodeId(flowchartPrefix(node.type), node.label)
             val shape = when (node.type) {
                 FlowGraphNodeType.START -> "[\"${escape(node.label)}\"]"
                 FlowGraphNodeType.ACTION -> "[\"${escape(node.label)}\"]"
                 FlowGraphNodeType.OUTCOME -> "[/${escape(node.label)}/]"
+                FlowGraphNodeType.READ_MODEL -> "[/${escape(node.label)}/]"
                 FlowGraphNodeType.POLICY -> "{{\"${escape(policyLabelsById[nodeId] ?: node.label)}\"}}"
             }
             nodeLines += "    $nodeId$shape"
@@ -92,6 +99,7 @@ class ZflToMermaidDiagramsTransformer(
                 FlowGraphNodeType.START -> "actor"
                 FlowGraphNodeType.ACTION -> "action"
                 FlowGraphNodeType.OUTCOME -> "event"
+                FlowGraphNodeType.READ_MODEL -> "event"
                 FlowGraphNodeType.POLICY -> "policy"
             }
             classAssignments += "    class $nodeId $klass"
@@ -133,7 +141,7 @@ class ZflToMermaidDiagramsTransformer(
             val outcome = edge.outcome
             if (
                 sourceNode.type == FlowGraphNodeType.ACTION &&
-                targetNode.type == FlowGraphNodeType.OUTCOME &&
+                targetNode.isOutcomeLike() &&
                 outcome == null &&
                 graph.edges.any {
                     it.source == edge.source && it.target == edge.target && it.outcome != null
@@ -143,7 +151,7 @@ class ZflToMermaidDiagramsTransformer(
             }
             if (
                 sourceNode.type == FlowGraphNodeType.ACTION &&
-                targetNode.type == FlowGraphNodeType.OUTCOME &&
+                targetNode.isOutcomeLike() &&
                 outcome != null
             ) {
                 val outcomeNodeId = flowchartOutcomeNodeId(sourceNode.label, outcome)
@@ -354,11 +362,15 @@ class ZflToMermaidDiagramsTransformer(
             FlowGraphNodeType.START -> "start"
             FlowGraphNodeType.ACTION -> "action"
             FlowGraphNodeType.OUTCOME -> "event"
+            FlowGraphNodeType.READ_MODEL -> "event"
             FlowGraphNodeType.POLICY -> "policy"
         }
 
     private fun flowchartOutcomeNodeId(commandName: String, outcome: String): String =
         flowchartNodeId("outcome", "${commandName}_$outcome")
+
+    private fun FlowGraphNode.isOutcomeLike(): Boolean =
+        type == FlowGraphNodeType.OUTCOME || type == FlowGraphNodeType.READ_MODEL
 
     private fun policyLabel(policy: ZflPolicy): String =
         "when ${policy.triggers.joinToString(", ")} do ${policy.command}" +

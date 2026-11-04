@@ -26,6 +26,7 @@ export enum FlowNodeType {
   START = "START",
   COMMAND = "COMMAND",
   EVENT = "EVENT",
+  READ_MODEL = "READ_MODEL",
   POLICY = "POLICY"
 }
 
@@ -88,6 +89,10 @@ export interface FlowNode {
   sourceRef: SourceRef;
   /** Marks this event as a terminal outcome when present. */
   endOutcomeLabels: string[] | null;
+  /** What starts this flow: timer, actor, or system. Present for START nodes. */
+  startKind: "timer" | "actor" | "system" | null;
+  /** Name of the actor that starts this flow, when one is declared. */
+  actor: string | null;
   /** Null until layout is applied. */
   position: Point | null;
   /** Null until layout is applied. */

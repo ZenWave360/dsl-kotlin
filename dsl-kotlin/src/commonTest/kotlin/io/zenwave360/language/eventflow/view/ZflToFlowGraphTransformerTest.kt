@@ -76,11 +76,11 @@ class ZflToFlowGraphTransformerTest {
             it.source == "command:main" && it.target == "command:second" && it.type == FlowGraphEdgeType.CALL
         })
         assertNotNull(graph.edges.find {
-            it.source == "command:main" && it.target == "event:Rejected" &&
+            it.source == "command:main" && it.target == "readModel:Rejected" &&
                 it.type == FlowGraphEdgeType.OUTCOME_HANDLER && it.label == "on W"
         })
         assertNull(graph.edges.find {
-            it.source == "command:second" && it.target == "event:Rejected" &&
+            it.source == "command:second" && it.target == "readModel:Rejected" &&
                 it.type == FlowGraphEdgeType.OUTCOME_HANDLER && it.label == "on W"
         })
     }
@@ -102,7 +102,7 @@ class ZflToFlowGraphTransformerTest {
         )
 
         val exit = graph.edges.single {
-            it.target == "event:Rejected" && it.type == FlowGraphEdgeType.OUTCOME_HANDLER && it.label == "on Q"
+            it.target == "readModel:Rejected" && it.type == FlowGraphEdgeType.OUTCOME_HANDLER && it.label == "on Q"
         }
         assertEquals("command:main", exit.source)
     }
@@ -121,7 +121,7 @@ class ZflToFlowGraphTransformerTest {
             ))
         )
 
-        val exits = graph.edges.filter { it.source == "command:main" && it.target == "event:Rejected" }
+        val exits = graph.edges.filter { it.source == "command:main" && it.target == "readModel:Rejected" }
         assertEquals(3, exits.size)
         assertEquals(exits.size, exits.map { it.id }.distinct().size)
         assertTrue(exits.mapNotNull { it.label }.containsAll(listOf("on X", "on Happy")))
@@ -178,15 +178,18 @@ class ZflToFlowGraphTransformerTest {
     }
 
     @Test
-    fun testTransform_ResponseOnlyOutcomesCreateExitOutcomeNodes() {
+    fun testTransform_ResponseOnlyOutcomesCreateReadModelNodes() {
         val graph = ZflToFlowGraphTransformer()
             .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(responseCallFlow())))
 
-        assertNotNull(graph.nodes.find { it.id == "event:StockUnavailable" })
+        assertNotNull(graph.nodes.find {
+            it.id == "readModel:StockUnavailable" && it.type == FlowGraphNodeType.READ_MODEL
+        })
+        assertNull(graph.nodes.find { it.id == "event:StockUnavailable" })
         assertNotNull(
             graph.edges.find {
                 it.source == "command:reserveStock" &&
-                    it.target == "event:StockUnavailable" &&
+                    it.target == "readModel:StockUnavailable" &&
                     it.type == FlowGraphEdgeType.CAUSATION
             }
         )
@@ -201,15 +204,25 @@ class ZflToFlowGraphTransformerTest {
     }
 
     @Test
-    fun testTransform_EmitsResponseCreatesPublishedOutcomeNodeAndCausationEdge() {
+    fun testTransform_EmitsResponseCreatesEventAndReadModelNodes() {
         val graph = ZflToFlowGraphTransformer()
             .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(emitsResponseCallFlow())))
 
         assertNotNull(graph.nodes.find { it.id == "event:StockReserved" })
+        assertNotNull(graph.nodes.find {
+            it.id == "readModel:StockReserved" && it.type == FlowGraphNodeType.READ_MODEL
+        })
         assertNotNull(
             graph.edges.find {
                 it.source == "command:reserveStock" &&
                     it.target == "event:StockReserved" &&
+                    it.type == FlowGraphEdgeType.CAUSATION
+            }
+        )
+        assertNotNull(
+            graph.edges.find {
+                it.source == "command:reserveStock" &&
+                    it.target == "readModel:StockReserved" &&
                     it.type == FlowGraphEdgeType.CAUSATION
             }
         )
