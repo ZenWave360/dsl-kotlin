@@ -126,11 +126,13 @@ class ZflSystemsOrganizer {
                 if (missingAggregates.isNotEmpty()) {
                     if (existingAggregates == null) {
                         append(" for(${missingAggregates.joinToString(", ")})")
-                    } else {
-                        append(", ${missingAggregates.joinToString(", ")}")
                     }
                 }
                 append(" {${lineEnding(input)}${indent}    commands: ${missingCommands.joinToString(", ")}${lineEnding(input)}$indent}")
+            }
+            if (missingAggregates.isNotEmpty() && existingAggregates != null) {
+                val insertAt = existingAggregates.ID().last().symbol.stopIndex + 1
+                edits += TextEdit(insertAt, insertAt, ", ${missingAggregates.joinToString(", ")}")
             }
             val insertAt = existingService.stop!!.stopIndex + 1
             edits += TextEdit(insertAt, insertAt, insertion)
@@ -142,7 +144,7 @@ class ZflSystemsOrganizer {
                 val insertAt = existingService.system_service_name().stop!!.stopIndex + 1
                 edits += TextEdit(insertAt, insertAt, " for(${missingAggregates.joinToString(", ")})")
             } else {
-                val insertAt = existingAggregates.stop!!.stopIndex + 1
+                val insertAt = existingAggregates.ID().last().symbol.stopIndex + 1
                 edits += TextEdit(insertAt, insertAt, ", ${missingAggregates.joinToString(", ")}")
             }
         }
