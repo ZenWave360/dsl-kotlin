@@ -274,6 +274,50 @@ class ZflToFlowGraphTransformerTest {
         assertTrue(graph.edges.none { it.type == FlowGraphEdgeType.OUTCOME_HANDLER && it.target.startsWith("event:") })
     }
 
+    @Test
+    fun testTransform_CallHandlerResponseKeepsReadModelAndEndAttachesToIt() {
+        val graph = ZflToFlowGraphTransformer().transform(
+            ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+                """
+                    flow F {
+                        do main { call second  on Ready response Done }
+                        do second { emits Ready }
+                        end { completed: Done }
+                    }
+                """.trimIndent()
+            ))
+        )
+
+        assertNotNull(graph.nodes.find { it.id == "readModel:Done" && it.type == FlowGraphNodeType.READ_MODEL })
+        assertNull(graph.nodes.find { it.id == "event:Done" })
+        assertEquals(listOf("completed"), graph.nodes.single { it.id == "readModel:Done" }.endOutcomeLabels)
+        assertNotNull(graph.edges.find { it.source == "command:main" && it.target == "readModel:Done" })
+        assertNull(graph.edges.find { it.source == "command:second" && it.target == "readModel:Done" })
+    }
+
+    @Test
+    fun testTransform_CallHandlerEmitsResponseKeepsReadModelAndEvent() {
+        val graph = ZflToFlowGraphTransformer().transform(
+            ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+                """
+                    flow F {
+                        do main { call second  on Ready emits response Done }
+                        do second { emits Ready }
+                        end { completed: Done }
+                    }
+                """.trimIndent()
+            ))
+        )
+
+        assertNotNull(graph.nodes.find { it.id == "readModel:Done" && it.type == FlowGraphNodeType.READ_MODEL })
+        assertNotNull(graph.nodes.find { it.id == "event:Done" && it.type == FlowGraphNodeType.OUTCOME })
+        assertNotNull(graph.edges.find {
+            it.source == "readModel:Done" && it.target == "event:Done" && it.type == FlowGraphEdgeType.CAUSATION
+        })
+        assertNull(graph.edges.find { it.source == "command:main" && it.target == "event:Done" })
+        assertNull(graph.edges.find { it.type == FlowGraphEdgeType.OUTCOME_HANDLER && it.target.endsWith(":Done") })
+    }
+
     private fun actorStartFlow() = """
         flow ActorStartFlow {
             @actor(Customer)

@@ -23,6 +23,26 @@ class FlowLayoutEngineTest {
     }
 
     @Test
+    fun testLayout_EmitsResponseEventLandsAfterItsReadModel() {
+        val semantic = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow ReadStatus {
+                    @actor(Customer)
+                    start Requested {}
+                    when Requested do readStatus { emits response StatusReady }
+                    end { completed: StatusReady }
+                }
+            """.trimIndent()
+        ))
+        val full = ZflToFlowViewModelTransformer().transform(semantic)
+        val laid = FlowLayoutEngine().layout(full)
+
+        fun x(model: FlowViewModel, id: String) = model.nodes.single { it.id == id }.position!!.x
+        assertTrue(x(laid, "event:StatusReady") > x(laid, "readModel:StatusReady"))
+        assertTrue(x(laid, "readModel:StatusReady") > x(laid, "command:readStatus"))
+    }
+
+    @Test
     fun testLayout_SimpleFlow() {
         val zflContent = """
             systems {

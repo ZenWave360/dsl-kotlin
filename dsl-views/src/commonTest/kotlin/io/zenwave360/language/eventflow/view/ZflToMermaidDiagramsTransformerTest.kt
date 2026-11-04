@@ -567,4 +567,23 @@ class ZflToMermaidDiagramsTransformerTest {
         val edges = lines.filter { it.contains("-->") || it.contains("-.->") }
         assertEquals(edges.size, edges.distinct().size, flowchart)
     }
+
+    @Test
+    fun testFlowchart_TerminalLinksFromTheReadModelWhenOnlyAResponseExists() {
+        val flowchart = ZflToMermaidDiagramsTransformer().transform(
+            ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+                """
+                    flow ResponseFlow {
+                        @actor(Customer)
+                        start Requested {}
+                        when Requested do fetchStatus { response Ready }
+                        end { completed: Ready }
+                    }
+                """.trimIndent()
+            ))
+        ).flowchart
+
+        assertTrue(flowchart.contains("readModel_Ready --> terminal_completed"), flowchart)
+        assertTrue(!flowchart.contains("event_Ready"), flowchart)
+    }
 }

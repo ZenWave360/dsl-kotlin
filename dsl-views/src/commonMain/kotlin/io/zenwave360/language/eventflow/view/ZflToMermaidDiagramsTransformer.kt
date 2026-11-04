@@ -167,7 +167,13 @@ class ZflToMermaidDiagramsTransformer(
         flow.end.endOutcomes.forEach { (endOutcome, eventNames) ->
             val terminalId = flowchartNodeId("terminal", endOutcome)
             eventNames.forEach { eventName ->
-                val eventId = flowchartNodeId("event", eventName)
+                // the terminal hangs from the node the graph drew: the event, else the read model
+                val sourceNode = graph.nodes.find { it.type == FlowGraphNodeType.OUTCOME && it.label == eventName }
+                    ?: graph.nodes.find { it.type == FlowGraphNodeType.READ_MODEL && it.label == eventName }
+                val eventId = flowchartNodeId(
+                    sourceNode?.let { flowchartPrefix(it.type) } ?: "event",
+                    eventName
+                )
                 edgeLines += "    $eventId --> $terminalId"
             }
         }
