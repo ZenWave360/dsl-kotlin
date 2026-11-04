@@ -295,6 +295,23 @@ class ZflToMermaidDiagramsTransformerTest {
         assertTrue(!flowchart.contains("action_sendBookingConfirmation --> event_BookingConfirmationSent"), flowchart)
         assertTrue(!flowchart.contains("action_sendBookingConfirmation --> event_BookingConfirmationSkipped"), flowchart)
         assertTrue(!flowchart.contains("action_sendBookingConfirmation --> event_BookingConfirmationFailed"), flowchart)
+        assertTrue(flowchart.contains("action_bookSlot --> outcome_bookSlot_confirmed"), flowchart)
+        assertTrue(flowchart.contains("outcome_bookSlot_confirmed --> event_BookingConfirmed"), flowchart)
+        assertTrue(flowchart.contains("action_bookSlot --> outcome_bookSlot_policy_violated"), flowchart)
+        assertTrue(flowchart.contains("outcome_bookSlot_policy_violated --> event_BookingRejected"), flowchart)
+        assertTrue(flowchart.contains("action_bookSlot --> outcome_bookSlot_slot_full"), flowchart)
+        assertTrue(flowchart.contains("outcome_bookSlot_slot_full --> event_SlotFull"), flowchart)
+        assertTrue(
+            flowchart.contains("action_bookSlot -->|on SlotNotBookable| outcome_bookSlot_SlotNotBookable"),
+            flowchart
+        )
+        assertTrue(
+            flowchart.contains("action_bookSlot -->|on HolderNotEligible| outcome_bookSlot_HolderNotEligible"),
+            flowchart
+        )
+        val slotNotBookable = diagrams.sequences.filter { it.endOutcome == "slotNotBookable" }
+        assertTrue(slotNotBookable.isNotEmpty())
+        assertTrue(slotNotBookable.none { it.mermaid.contains("checkBookingHolder") }, slotNotBookable.toString())
         assertHasUniqueNodeDefinitionsAndEdges(flowchart)
     }
 

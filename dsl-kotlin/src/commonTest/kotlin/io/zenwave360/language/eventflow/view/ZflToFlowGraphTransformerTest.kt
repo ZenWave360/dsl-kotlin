@@ -103,11 +103,18 @@ class ZflToFlowGraphTransformerTest {
     }
 
     @Test
-    fun testTransform_ResponseOnlyOutcomesDoNotCreateOutcomeNodes() {
+    fun testTransform_ResponseOnlyOutcomesCreateExitOutcomeNodes() {
         val graph = ZflToFlowGraphTransformer()
             .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(responseCallFlow())))
 
-        assertNull(graph.nodes.find { it.id == "event:StockUnavailable" })
+        assertNotNull(graph.nodes.find { it.id == "event:StockUnavailable" })
+        assertNotNull(
+            graph.edges.find {
+                it.source == "command:reserveStock" &&
+                    it.target == "event:StockUnavailable" &&
+                    it.type == FlowGraphEdgeType.CAUSATION
+            }
+        )
         assertNotNull(
             graph.edges.find {
                 it.source == "command:startOrderCheckout" &&

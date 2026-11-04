@@ -15,7 +15,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 72.0,
-                "y": 296.66666666666674
+                "y": 255.33333333333326
             },
             "dimensions": {
                 "width": 180.0,
@@ -36,7 +36,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 5172.0,
-                "y": 1517.2
+                "y": 1740.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -57,7 +57,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 332.0,
-                "y": 296.66666666666674
+                "y": 255.33333333333326
             },
             "dimensions": {
                 "width": 180.0,
@@ -78,7 +78,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 632.0,
-                "y": 296.66666666666674
+                "y": 520.0
             },
             "dimensions": {
                 "width": 180.0,
@@ -98,8 +98,8 @@
             },
             "endOutcomeLabels": null,
             "position": {
-                "x": 632.0,
-                "y": 1445.2
+                "x": 932.0,
+                "y": 32.0
             },
             "dimensions": {
                 "width": 180.0,
@@ -120,7 +120,28 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 632.0,
-                "y": 52.66666666666674
+                "y": 255.33333333333326
+            },
+            "dimensions": {
+                "width": 180.0,
+                "height": 124.0
+            }
+        },
+        {
+            "id": "event:StockReserved",
+            "type": "EVENT",
+            "label": "StockReserved",
+            "system": "CatalogInventory",
+            "service": "InventoryService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            },
+            "endOutcomeLabels": null,
+            "position": {
+                "x": 932.0,
+                "y": 276.0
             },
             "dimensions": {
                 "width": 180.0,
@@ -141,7 +162,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 1232.0,
-                "y": 296.66666666666674
+                "y": 520.0
             },
             "dimensions": {
                 "width": 180.0,
@@ -162,7 +183,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 1532.0,
-                "y": 32.0
+                "y": 255.33333333333326
             },
             "dimensions": {
                 "width": 180.0,
@@ -183,7 +204,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 1532.0,
-                "y": 276.0
+                "y": 499.33333333333326
             },
             "dimensions": {
                 "width": 180.0,
@@ -204,7 +225,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 1532.0,
-                "y": 520.0
+                "y": 743.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -225,7 +246,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 2132.0,
-                "y": 520.0
+                "y": 743.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -246,7 +267,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 2432.0,
-                "y": 292.5333333333333
+                "y": 515.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -267,7 +288,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 2432.0,
-                "y": 536.5333333333333
+                "y": 759.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -288,7 +309,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 2132.0,
-                "y": 1247.8666666666668
+                "y": 1471.1999999999998
             },
             "dimensions": {
                 "width": 180.0,
@@ -309,7 +330,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 2432.0,
-                "y": 1268.5333333333333
+                "y": 1491.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -330,7 +351,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 2432.0,
-                "y": 780.5333333333333
+                "y": 1003.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -351,7 +372,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 2732.0,
-                "y": 780.5333333333333
+                "y": 1003.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -372,7 +393,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 3032.0,
-                "y": 1268.5333333333333
+                "y": 1491.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -393,7 +414,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 3332.0,
-                "y": 1045.2
+                "y": 1268.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -414,7 +435,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 3332.0,
-                "y": 1289.2
+                "y": 1512.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -435,7 +456,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 3932.0,
-                "y": 1045.2
+                "y": 1268.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -456,7 +477,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 4232.0,
-                "y": 821.8666666666667
+                "y": 1045.1999999999998
             },
             "dimensions": {
                 "width": 180.0,
@@ -477,7 +498,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 4232.0,
-                "y": 1065.8666666666668
+                "y": 1289.1999999999998
             },
             "dimensions": {
                 "width": 180.0,
@@ -498,7 +519,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 4832.0,
-                "y": 821.8666666666667
+                "y": 1045.1999999999998
             },
             "dimensions": {
                 "width": 180.0,
@@ -521,7 +542,7 @@
             ],
             "position": {
                 "x": 5132.0,
-                "y": 821.8666666666667
+                "y": 1045.1999999999998
             },
             "dimensions": {
                 "width": 180.0,
@@ -541,8 +562,8 @@
             },
             "endOutcomeLabels": null,
             "position": {
-                "x": 1232.0,
-                "y": 1445.2
+                "x": 1532.0,
+                "y": 1668.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -564,8 +585,8 @@
                 "stockGone"
             ],
             "position": {
-                "x": 1532.0,
-                "y": 1445.2
+                "x": 1832.0,
+                "y": 499.33333333333326
             },
             "dimensions": {
                 "width": 180.0,
@@ -586,7 +607,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 4832.0,
-                "y": 1268.5333333333333
+                "y": 1491.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -607,7 +628,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 5132.0,
-                "y": 1268.5333333333333
+                "y": 1491.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -628,7 +649,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 5732.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -649,7 +670,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 6032.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -670,7 +691,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 6632.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -691,7 +712,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 6932.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -712,7 +733,7 @@
             "endOutcomeLabels": null,
             "position": {
                 "x": 7532.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -735,7 +756,7 @@
             ],
             "position": {
                 "x": 7832.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -751,12 +772,12 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 932.0,
-                "y": 296.66666666666674
+                "y": 520.0
             },
             "dimensions": {
                 "width": 180.0,
@@ -772,12 +793,12 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 1832.0,
-                "y": 520.0
+                "y": 743.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -793,12 +814,12 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 2732.0,
-                "y": 1024.5333333333333
+                "y": 1247.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -814,12 +835,12 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 1832.0,
-                "y": 1247.8666666666668
+                "y": 1471.1999999999998
             },
             "dimensions": {
                 "width": 180.0,
@@ -835,12 +856,12 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 2732.0,
-                "y": 1268.5333333333333
+                "y": 1491.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -856,12 +877,12 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 3632.0,
-                "y": 1045.2
+                "y": 1268.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -877,12 +898,12 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 4532.0,
-                "y": 821.8666666666667
+                "y": 1045.1999999999998
             },
             "dimensions": {
                 "width": 180.0,
@@ -898,12 +919,12 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
-                "x": 932.0,
-                "y": 1445.2
+                "x": 1232.0,
+                "y": 1668.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -919,12 +940,12 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 4532.0,
-                "y": 1268.5333333333333
+                "y": 1491.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -940,12 +961,12 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 5432.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -961,12 +982,12 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 6332.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -982,12 +1003,12 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 7232.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -1054,6 +1075,32 @@
             "target": "event:StockUnavailable",
             "type": "OUTCOME_HANDLER",
             "label": "on StockUnavailable",
+            "outcome": "StockUnavailable",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            }
+        },
+        {
+            "id": "from[command:reserveStock]to[event:StockReserved]",
+            "source": "command:reserveStock",
+            "target": "event:StockReserved",
+            "type": "CAUSATION",
+            "label": null,
+            "outcome": "StockReserved",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 1,
+                "column": 1
+            }
+        },
+        {
+            "id": "from[command:reserveStock]to[event:StockUnavailable]",
+            "source": "command:reserveStock",
+            "target": "event:StockUnavailable",
+            "type": "CAUSATION",
+            "label": null,
             "outcome": "StockUnavailable",
             "sourceRef": {
                 "file": "<zfl>",
@@ -1305,7 +1352,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1318,7 +1365,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1331,7 +1378,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1344,7 +1391,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1357,7 +1404,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1370,7 +1417,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1383,7 +1430,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1396,7 +1443,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1409,7 +1456,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1422,7 +1469,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1435,7 +1482,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1448,7 +1495,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1461,7 +1508,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1474,7 +1521,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1487,7 +1534,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1500,7 +1547,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1513,7 +1560,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1526,7 +1573,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1539,7 +1586,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1552,7 +1599,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1565,7 +1612,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1578,7 +1625,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1591,7 +1638,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1604,7 +1651,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1617,7 +1664,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1630,7 +1677,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1643,7 +1690,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1656,7 +1703,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1669,7 +1716,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1682,7 +1729,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1695,7 +1742,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1708,7 +1755,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1721,7 +1768,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         },
         {
@@ -1734,7 +1781,7 @@
             "sourceRef": {
                 "file": "<zfl>",
                 "line": 1,
-                "column": 1
+                "column": 5
             }
         }
     ],
@@ -1748,32 +1795,32 @@
         "x": 0.0,
         "y": 0.0,
         "width": 8032.0,
-        "height": 1661.2
+        "height": 1884.5333333333333
     },
     "systemGroups": [
         {
             "systemName": "OrdersCheckout",
             "bounds": {
                 "x": 292.0,
-                "y": 256.66666666666674,
+                "y": -8.0,
                 "width": 6860.0,
-                "height": 1387.3333333333333
+                "height": 1875.3333333333333
             }
         },
         {
             "systemName": "CatalogInventory",
             "bounds": {
                 "x": 592.0,
-                "y": 12.666666666666742,
+                "y": 215.33333333333326,
                 "width": 5660.0,
-                "height": 1631.3333333333333
+                "height": 1652.0
             }
         },
         {
             "systemName": "PaymentsProcessing",
             "bounds": {
                 "x": 1192.0,
-                "y": -8.0,
+                "y": 215.33333333333326,
                 "width": 4160.0,
                 "height": 1440.5333333333333
             }
@@ -1782,7 +1829,7 @@
             "systemName": "FulfillmentShipping",
             "bounds": {
                 "x": 2992.0,
-                "y": 1005.2,
+                "y": 1228.5333333333333,
                 "width": 560.0,
                 "height": 448.0
             }
@@ -1790,10 +1837,10 @@
         {
             "systemName": "NotificationsConsumer",
             "bounds": {
-                "x": 1192.0,
-                "y": 781.8666666666667,
-                "width": 6860.0,
-                "height": 862.1333333333333
+                "x": 1492.0,
+                "y": 459.33333333333326,
+                "width": 6560.0,
+                "height": 1408.0
             }
         }
     ]

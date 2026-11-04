@@ -23,13 +23,12 @@ class GenerateFlowViewFromZflJvmTest {
         assertTrue(actualModel.nodes.any { it.sourceRef.line > 1 },
             "Generated flow nodes must retain their real ZFL locations")
         val expectedNodeRefs = expectedModel.nodes.associate { it.id to it.sourceRef }
-        val expectedEdgeRefs = expectedModel.edges.associate { it.id to it.sourceRef }
         assertEquals(expectedModel, actualModel.copy(
             nodes = actualModel.nodes.map { node ->
                 node.copy(sourceRef = expectedNodeRefs.getValue(node.id))
             },
-            edges = actualModel.edges.map { edge ->
-                edge.copy(sourceRef = expectedEdgeRefs[edge.id])
+            edges = actualModel.edges.mapIndexed { index, edge ->
+                edge.copy(sourceRef = expectedModel.edges[index].sourceRef)
             },
         ))
     }

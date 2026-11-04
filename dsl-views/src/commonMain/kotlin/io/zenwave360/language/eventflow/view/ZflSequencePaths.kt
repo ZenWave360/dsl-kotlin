@@ -137,7 +137,7 @@ internal class ZflSequencePaths(
                 if (consumers.size > 1) state = state.choose(SequenceChoice(exec.name, consumerIndex, consumerIndex == 0))
                 state = state.add(SequenceMessage(startParticipant, exec.participant, exec.name, false))
                 run(exec, state).forEach { outcome ->
-                    deliver(listOf(outcome.events), outcome.emitter, outcome.state, index, start, found)
+                    deliver(listOf(outcome.events, outcome.responses), outcome.emitter, outcome.state, index, start, found)
                 }
             }
         }

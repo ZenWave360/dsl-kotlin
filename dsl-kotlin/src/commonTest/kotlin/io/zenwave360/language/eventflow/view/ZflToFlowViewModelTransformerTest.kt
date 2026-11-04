@@ -358,7 +358,7 @@ class ZflToFlowViewModelTransformerTest {
     }
 
     @Test
-    fun testTransform_ResponseOnlyOutcomesDoNotCreateEventNodes() {
+    fun testTransform_ResponseOnlyOutcomesCreateExitEventNodes() {
         val zflContent = """
             flow CallFlow {
                 when StartOrderCheckout do startOrderCheckout
@@ -384,7 +384,14 @@ class ZflToFlowViewModelTransformerTest {
         val viewModel = ZflToFlowViewModelTransformer()
             .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)))
 
-        assertNull(viewModel.nodes.find { it.id == "event:StockUnavailable" })
+        assertNotNull(viewModel.nodes.find { it.id == "event:StockUnavailable" })
+        assertNotNull(
+            viewModel.edges.find {
+                it.source == "command:reserveStock" &&
+                    it.target == "event:StockUnavailable" &&
+                    it.type == FlowEdgeType.CAUSATION
+            }
+        )
         assertNotNull(
             viewModel.edges.find {
                 it.source == "command:startOrderCheckout" &&

@@ -3,6 +3,7 @@ package io.zenwave360.language.eventflow.view
 import io.zenwave360.language.zfl.semantic.ZflCallStep
 import io.zenwave360.language.zfl.semantic.ZflCommand
 import io.zenwave360.language.zfl.semantic.ZflPolicy
+import io.zenwave360.language.zfl.semantic.ZflSignalStep
 import io.zenwave360.language.zfl.semantic.ZflSemanticModel
 
 class ZflToFlowGraphTransformer {
@@ -72,6 +73,7 @@ class ZflToFlowGraphTransformer {
                 }
 
                 connectCommandToDirectOutcomes(nodeMap, edgeMap, command)
+                connectCommandToDirectResponses(nodeMap, edgeMap, command)
             }
 
             flow.events.forEach { event ->
@@ -209,6 +211,29 @@ class ZflToFlowGraphTransformer {
         }
     }
 
+    private fun connectCommandToDirectResponses(
+        nodeMap: MutableMap<String, FlowGraphNode>,
+        edgeMap: MutableMap<String, FlowGraphEdge>,
+        command: ZflCommand
+    ) {
+        command.steps.filterIsInstance<ZflSignalStep>()
+            .filter { it.response && !it.emits }
+            .forEach { response ->
+                ensureOutcomeNode(nodeMap, response.endOutcome, command)
+                addEdge(
+                    edgeMap,
+                    FlowGraphEdge(
+                        id = edgeId(commandId(command.name), eventId(response.endOutcome)),
+                        source = commandId(command.name),
+                        target = eventId(response.endOutcome),
+                        type = FlowGraphEdgeType.CAUSATION,
+                        outcome = response.options["outcome"] ?: response.endOutcome,
+                        sourceRef = response.sourceRef
+                    )
+                )
+            }
+    }
+
     private fun connectOutcomeHandlers(
         nodeMap: MutableMap<String, FlowGraphNode>,
         edgeMap: MutableMap<String, FlowGraphEdge>,
@@ -244,7 +269,7 @@ class ZflToFlowGraphTransformer {
                     )
                 )
             }
-            handler.signal?.takeIf { it.emits }?.events.orEmpty().forEach { eventName ->
+            handler.signal?.takeIf { it.emits || it.response }?.events.orEmpty().forEach { eventName ->
                 val targetId = eventId(eventName)
                 ensureOutcomeNode(nodeMap, eventName, command)
                 addEdge(
@@ -255,7 +280,8 @@ class ZflToFlowGraphTransformer {
                         target = targetId,
                         type = FlowGraphEdgeType.OUTCOME_HANDLER,
                         label = "on ${handler.endOutcome}",
-                        outcome = handler.signal?.outcome,
+                        outcome = handler.signal?.outcome
+                            ?: handler.endOutcome.takeIf { handler.signal?.response == true },
                         sourceRef = command.sourceRef
                     )
                 )
