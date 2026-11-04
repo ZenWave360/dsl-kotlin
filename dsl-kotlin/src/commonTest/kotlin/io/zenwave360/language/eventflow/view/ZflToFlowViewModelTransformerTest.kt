@@ -471,6 +471,28 @@ class ZflToFlowViewModelTransformerTest {
     }
 
     @Test
+    fun testTransform_VariantRetainsStartAndResponseReadModel() {
+        val semantic = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow ReadStatus {
+                    @actor(Customer)
+                    start Requested {}
+                    when Requested do readStatus { response StatusReady }
+                    end { completed: StatusReady }
+                }
+            """.trimIndent()
+        ))
+
+        val path = zflFlowVariants(semantic.flows.single()).single().path
+        val variant = ZflToFlowViewModelTransformer().transform(semantic, path)
+
+        assertNotNull(variant.nodes.find { it.id == "event:Requested" && it.type == FlowNodeType.START })
+        assertNotNull(variant.nodes.find { it.id == "readModel:StatusReady" && it.type == FlowNodeType.READ_MODEL })
+        assertNotNull(variant.edges.find { it.source == "event:Requested" && it.target == "command:readStatus" })
+        assertNotNull(variant.edges.find { it.source == "command:readStatus" && it.target == "readModel:StatusReady" })
+    }
+
+    @Test
     fun testTransform_CalledCommandDirectEmitsRemainConnected() {
         val zflContent = """
             flow CalledCommandEmitsFlow {

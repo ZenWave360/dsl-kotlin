@@ -25,7 +25,7 @@ class ZdlArchitectureToEventStormingTransformer {
             append(MermaidLight.SUBGRAPH_TITLE_FRONT_MATTER)
             append("flowchart LR\n")
             append("  classDef command ").append(ZdlServiceToEventStormingTransformer.COMMAND_STYLE).append('\n')
-            append("  classDef query fill:#fefce8,stroke:#ca8a04,color:#111\n")
+            append("  classDef query ").append(ZdlServiceToEventStormingTransformer.QUERY_STYLE).append('\n')
             append("  classDef service ").append(ZdlServiceToEventStormingTransformer.AGGREGATE_STYLE).append('\n')
             append("  classDef event ").append(ZdlServiceToEventStormingTransformer.EVENT_STYLE).append('\n')
             for (b in boxes) {

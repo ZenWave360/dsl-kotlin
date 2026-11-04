@@ -69,7 +69,7 @@ internal class ModuleContent(
         val diagrams = ZdlServiceToEventStormingTransformer().transform(domain)
         return buildString {
             append(anchors.heading(2, "Services"))
-            append("Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.\n\n")
+            append("Each service with its commands (blue), queries (pale yellow) and the events commands emit (orange), inside the aggregate it works on.\n\n")
             for ((service, diagram) in domain.services.zip(diagrams)) {
                 append(anchors.heading(3, inline(service.name)))
                 service.javadoc?.let { append(javadoc(it)).append("\n\n") }

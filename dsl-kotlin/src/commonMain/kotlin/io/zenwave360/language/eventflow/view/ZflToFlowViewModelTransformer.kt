@@ -60,9 +60,10 @@ class ZflToFlowViewModelTransformer(
 
 private fun FlowGraph.forPath(path: SequencePath): FlowGraph {
     val nodesById = nodes.associateBy { it.id }
-    val pathNodeIds = path.messages.flatMap { message ->
-        listOf("command:${message.label}", "event:${message.label}")
-    }.filterTo(linkedSetOf()) { it in nodesById }
+    val pathNodeIds = (path.messages.flatMap { message ->
+        listOf("command:${message.label}", "event:${message.label}", "readModel:${message.label}")
+    } + "event:${path.start.name}")
+        .filterTo(linkedSetOf()) { it in nodesById }
 
     // Policies are structural links between an event and a command. Keep only
     // the ones that connect two nodes already reached by this execution.

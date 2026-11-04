@@ -108,7 +108,7 @@ Box = module. Blue = command. Orange = event; a pipe outside the boxes is an ext
 
 ## Services
 
-Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.
+Each service with its commands (blue), queries (pale yellow) and the events commands emit (orange), inside the aggregate it works on.
 
 ### InventoryService
 
@@ -120,6 +120,7 @@ config:
 ---
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef query fill:#fefce8,stroke:#ca8a04,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
   subgraph agg_InventoryService["service InventoryService for StockReservation"]
     direction LR
@@ -149,17 +150,20 @@ config:
 ---
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef query fill:#fefce8,stroke:#ca8a04,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
   subgraph agg_InventoryBackofficeService["service InventoryBackofficeService for InventoryPosition"]
     direction LR
     cmd_receiveStock["receiveStock"]
     cmd_adjustStock["adjustStock"]
+    qry_createInventoryPosition["createInventoryPosition"]
     evt_StockReceived["StockReceived"]
     evt_StockAdjusted["StockAdjusted"]
   end
   style agg_InventoryBackofficeService fill:#fbd3ee,stroke:#c2569b,color:#111
   class cmd_receiveStock command
   class cmd_adjustStock command
+  class qry_createInventoryPosition query
   class evt_StockReceived event
   class evt_StockAdjusted event
   cmd_receiveStock --> evt_StockReceived

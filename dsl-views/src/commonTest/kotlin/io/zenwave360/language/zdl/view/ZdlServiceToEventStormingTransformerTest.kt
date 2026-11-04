@@ -4,7 +4,6 @@ import io.zenwave360.language.readViewsTestFile
 import io.zenwave360.language.zdl.ZdlParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 class ZdlServiceToEventStormingTransformerTest {
 
@@ -32,12 +31,15 @@ class ZdlServiceToEventStormingTransformerTest {
             ---
             flowchart LR
               classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+              classDef query fill:#fefce8,stroke:#ca8a04,color:#111
               classDef event fill:#ffb76b,stroke:#d9822b,color:#111
               subgraph agg_OrderService["service OrderService for Order, Customer"]
                 direction LR
                 cmd_startCheckout["startCheckout"]
                 cmd_pay["pay"]
                 cmd_audit["audit"]
+                qry_getOrder["getOrder"]
+                qry_findOrders["findOrders"]
                 evt_OrderCreated["OrderCreated"]
                 evt_PaymentOk["PaymentOk"]
                 evt_PaymentFailed["PaymentFailed"]
@@ -47,6 +49,8 @@ class ZdlServiceToEventStormingTransformerTest {
               class cmd_startCheckout command
               class cmd_pay command
               class cmd_audit command
+              class qry_getOrder query
+              class qry_findOrders query
               class evt_OrderCreated event
               class evt_PaymentOk event
               class evt_PaymentFailed event
@@ -66,7 +70,7 @@ class ZdlServiceToEventStormingTransformerTest {
     }
 
     @Test
-    fun queryOnlyServiceHasNoDiagram() {
+    fun queryOnlyServiceHasAPaleYellowDiagramNode() {
         val zdl = """
             service ReadService for (Product) {
                 getProduct(id) Product?
@@ -74,7 +78,28 @@ class ZdlServiceToEventStormingTransformerTest {
         """.trimIndent()
 
         val read = transform(zdl).single()
-        assertNull(read.mermaid)
+        val mermaid = requireNotNull(read.mermaid)
+        assertEquals(
+            """
+                ---
+                config:
+                  themeVariables:
+                    titleColor: "#111111"
+                ---
+                flowchart LR
+                  classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+                  classDef query fill:#fefce8,stroke:#ca8a04,color:#111
+                  classDef event fill:#ffb76b,stroke:#d9822b,color:#111
+                  subgraph agg_ReadService["service ReadService for Product"]
+                    direction LR
+                    qry_getProduct["getProduct"]
+                  end
+                  style agg_ReadService fill:#fbd3ee,stroke:#c2569b,color:#111
+                  class qry_getProduct query
+
+            """.trimIndent(),
+            mermaid
+        )
         assertEquals("Queries: `getProduct`.", read.queriesLine)
     }
 
@@ -89,6 +114,7 @@ class ZdlServiceToEventStormingTransformerTest {
             ---
             flowchart LR
               classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+              classDef query fill:#fefce8,stroke:#ca8a04,color:#111
               classDef event fill:#ffb76b,stroke:#d9822b,color:#111
               subgraph agg_OrdersCheckoutService["service OrdersCheckoutService for Order"]
                 direction LR
