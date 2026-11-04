@@ -129,6 +129,29 @@ class FlowLayoutEngineTest {
     }
 
     @Test
+    fun testLayout_ReadModelUsesSquareDimensions() {
+        val zflContent = """
+            flow ReadModelFlow {
+                when Start do getStatus {
+                    service Test.StatusService
+                    response StatusReady
+                }
+                end { completed: StatusReady }
+            }
+        """.trimIndent()
+
+        val viewModel = FlowLayoutEngine().layout(
+            ZflToFlowViewModelTransformer().transform(
+                ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent))
+            )
+        )
+
+        val readModel = assertNotNull(viewModel.nodes.find { it.type == FlowNodeType.READ_MODEL })
+        assertEquals(48.0, readModel.dimensions!!.width)
+        assertEquals(48.0, readModel.dimensions!!.height)
+    }
+
+    @Test
     fun testLayout_SubscriptionsFlow() {
         // Parse and analyze
         val content = readTestFile("flow/subscriptions.zfl")

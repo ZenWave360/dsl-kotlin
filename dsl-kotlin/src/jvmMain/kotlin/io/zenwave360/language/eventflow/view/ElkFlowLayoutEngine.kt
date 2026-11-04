@@ -139,6 +139,7 @@ actual class ElkFlowLayoutEngine actual constructor() {
         FlowNodeType.START   -> Dimensions(width = 180.0, height = 124.0)
         FlowNodeType.COMMAND -> Dimensions(width = 180.0, height = 124.0)
         FlowNodeType.EVENT   -> Dimensions(width = 180.0, height = 124.0)
+        FlowNodeType.READ_MODEL -> Dimensions(width = 124.0, height = 124.0)
         FlowNodeType.POLICY  -> Dimensions(width = 180.0, height = 124.0)
     }
 

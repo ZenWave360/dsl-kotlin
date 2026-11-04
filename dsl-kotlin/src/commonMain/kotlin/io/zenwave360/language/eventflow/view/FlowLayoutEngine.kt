@@ -128,9 +128,10 @@ class FlowLayoutEngine {
             // Group ready nodes by type and process in event storming order
             val nodesByType = readyNodes.groupBy { it.type }
 
-            // Process in strict order: EVENT → POLICY → COMMAND
+            // Process in strict order: EVENT/READ_MODEL → POLICY → COMMAND
             val processingOrder = listOf(
                 FlowNodeType.EVENT,
+                FlowNodeType.READ_MODEL,
                 FlowNodeType.POLICY,
                 FlowNodeType.COMMAND
             )
@@ -239,6 +240,7 @@ class FlowLayoutEngine {
             FlowNodeType.START -> Dimensions(width = 180.0, height = 56.0)
             FlowNodeType.COMMAND -> Dimensions(width = 180.0, height = 56.0)
             FlowNodeType.EVENT -> Dimensions(width = 160.0, height = 48.0)
+            FlowNodeType.READ_MODEL -> Dimensions(width = 48.0, height = 48.0)
             FlowNodeType.POLICY -> Dimensions(width = 220.0, height = 64.0)
         }
     }

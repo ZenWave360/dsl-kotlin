@@ -319,6 +319,21 @@ class ZflToMermaidDiagramsTransformerTest {
     }
 
     @Test
+    fun testTransform_StartHandlingPolicyConnectsToItsCommand() {
+        val zflContent = readViewsTestFile("flow/booking-reminder-flow.zfl")
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent))
+        assertTrue(semanticModel.diagnostics.none { it.severity == Severity.ERROR }, semanticModel.diagnostics.toString())
+
+        val flowchart = ZflToMermaidDiagramsTransformer().transform(semanticModel).flowchart
+
+        assertTrue(
+            flowchart.contains("policy_when_BookingReminderDue_do_sendBookingReminder --> action_sendBookingReminder"),
+            flowchart
+        )
+        assertHasUniqueNodeDefinitionsAndEdges(flowchart)
+    }
+
+    @Test
     fun testTransform_PlaceOrderFlow_DefaultModeSplitsScenarioFamiliesBeforeMerging() {
         val zflContent = readViewsTestFile("flow/place-order-flow.zfl")
 

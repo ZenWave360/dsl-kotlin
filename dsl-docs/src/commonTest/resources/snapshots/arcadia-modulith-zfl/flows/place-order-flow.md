@@ -120,7 +120,9 @@ flowchart TD
     terminal_orderCancelled(("orderCancelled"))
     terminal_stockGone(("stockGone"))
     start_StartOrderCheckout --> policy_when_StartOrderCheckout_do_startOrderCheckout
+    policy_when_StartOrderCheckout_do_startOrderCheckout --> action_startOrderCheckout
     start_ReservationExpired --> policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock
+    policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock --> action_releaseStock
     action_startOrderCheckout --> action_reserveStock
     action_startOrderCheckout -->|on StockReservedResult| outcome_startOrderCheckout_StockReservedResult
     outcome_startOrderCheckout_StockReservedResult --> event_OrderCreated
@@ -175,7 +177,6 @@ flowchart TD
     event_PaymentDeclined --> policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock
     event_PaymentRetryExhausted --> policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock
     event_PaymentVoided --> policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock
-    policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock --> action_releaseStock
     event_StockReleased --> policy_when_StockReleased_do_cancelOrder
     policy_when_StockReleased_do_cancelOrder --> action_cancelOrder
     event_OrderCancelled --> policy_when_OrderCancelled_do_sendOrderCancelledNotification

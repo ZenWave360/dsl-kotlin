@@ -358,7 +358,7 @@ class ZflToFlowViewModelTransformerTest {
     }
 
     @Test
-    fun testTransform_ResponseOnlyOutcomesCreateExitEventNodes() {
+    fun testTransform_ResponseOnlyOutcomesCreateReadModelNodes() {
         val zflContent = """
             flow CallFlow {
                 when StartOrderCheckout do startOrderCheckout
@@ -384,11 +384,14 @@ class ZflToFlowViewModelTransformerTest {
         val viewModel = ZflToFlowViewModelTransformer()
             .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)))
 
-        assertNotNull(viewModel.nodes.find { it.id == "event:StockUnavailable" })
+        assertNotNull(viewModel.nodes.find {
+            it.id == "readModel:StockUnavailable" && it.type == FlowNodeType.READ_MODEL
+        })
+        assertNull(viewModel.nodes.find { it.id == "event:StockUnavailable" })
         assertNotNull(
             viewModel.edges.find {
                 it.source == "command:reserveStock" &&
-                    it.target == "event:StockUnavailable" &&
+                    it.target == "readModel:StockUnavailable" &&
                     it.type == FlowEdgeType.CAUSATION
             }
         )
@@ -400,6 +403,71 @@ class ZflToFlowViewModelTransformerTest {
                     it.label == "on StockUnavailable"
             }
         )
+    }
+
+    @Test
+    fun testTransform_EmitsResponseCreatesEventAndReadModelNodes() {
+        val viewModel = ZflToFlowViewModelTransformer().transform(
+            ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+                """
+                    flow ResponseFlow {
+                        when Start do getStatus {
+                            service Test.StatusService
+                            emits response StatusReady
+                        }
+                        end { completed: StatusReady }
+                    }
+                """.trimIndent()
+            ))
+        )
+
+        assertNotNull(viewModel.nodes.find { it.id == "event:StatusReady" && it.type == FlowNodeType.EVENT })
+        assertNotNull(viewModel.nodes.find {
+            it.id == "readModel:StatusReady" && it.type == FlowNodeType.READ_MODEL
+        })
+        assertNotNull(viewModel.edges.find {
+            it.source == "command:getStatus" && it.target == "event:StatusReady"
+        })
+        assertNotNull(viewModel.edges.find {
+            it.source == "command:getStatus" && it.target == "readModel:StatusReady"
+        })
+    }
+
+    @Test
+    fun testTransform_StartNodesCarryKindAndActor() {
+        val viewModel = ZflToFlowViewModelTransformer().transform(
+            ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+                """
+                    flow StartKindsFlow {
+                        @actor(Scheduler)
+                        @time("every day at 09:00")
+                        start Timed {}
+                        @actor(Customer)
+                        start ActorStarted {}
+                        start SystemStarted {}
+
+                        when Timed do runTimer { service Test.TimerService emits TimedDone }
+                        when ActorStarted do runActor { service Test.ActorService emits ActorDone }
+                        when SystemStarted do runSystem { service Test.SystemService emits SystemDone }
+
+                        end { completed: TimedDone, ActorDone, SystemDone }
+                    }
+                """.trimIndent()
+            ))
+        )
+
+        val timer = assertNotNull(viewModel.nodes.find { it.id == "event:Timed" })
+        assertEquals("timer", timer.startKind)
+        assertEquals("Scheduler", timer.actor)
+
+        val actor = assertNotNull(viewModel.nodes.find { it.id == "event:ActorStarted" })
+        assertEquals("actor", actor.startKind)
+        assertEquals("Customer", actor.actor)
+
+        val system = assertNotNull(viewModel.nodes.find { it.id == "event:SystemStarted" })
+        assertEquals("system", system.startKind)
+        assertNull(system.actor)
+        assertTrue(viewModel.toJson().contains("\"startKind\":\"timer\""))
     }
 
     @Test

@@ -20,13 +20,16 @@ class ZflToFlowViewModelTransformer(
                     FlowGraphNodeType.START -> FlowNodeType.START
                     FlowGraphNodeType.ACTION -> FlowNodeType.COMMAND
                     FlowGraphNodeType.OUTCOME -> FlowNodeType.EVENT
+                    FlowGraphNodeType.READ_MODEL -> FlowNodeType.READ_MODEL
                     FlowGraphNodeType.POLICY -> FlowNodeType.POLICY
                 },
                 label = node.label,
                 system = node.system,
                 service = node.service,
                 sourceRef = node.sourceRef,
-                endOutcomeLabels = node.endOutcomeLabels
+                endOutcomeLabels = node.endOutcomeLabels,
+                startKind = node.startKind,
+                actor = node.actor
             )
         }
 

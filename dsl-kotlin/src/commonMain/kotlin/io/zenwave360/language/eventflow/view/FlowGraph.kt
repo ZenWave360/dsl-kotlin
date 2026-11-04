@@ -14,13 +14,16 @@ data class FlowGraphNode(
     val system: String?,
     val service: String?,
     val sourceRef: SourceRef,
-    val endOutcomeLabels: List<String>? = null
+    val endOutcomeLabels: List<String>? = null,
+    val startKind: String? = null,
+    val actor: String? = null
 )
 
 enum class FlowGraphNodeType {
     START,
     ACTION,
     OUTCOME,
+    READ_MODEL,
     POLICY
 }
 
