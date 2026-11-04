@@ -56,22 +56,36 @@ class ZflToMermaidDiagramsTransformer(
         val outcomeNodes = linkedSetOf<String>()
 
         val startByName = flow.starts.associateBy { it.name }
+        val policyLabelsById = flow.policies.associate { policy ->
+            flowchartPolicyNodeId(policy) to policyLabel(policy)
+        }
 
         flow.starts.forEach { start ->
             val startId = flowchartNodeId("start", start.name)
-            val startLabel = start.actor ?: start.timer ?: start.name
+            val startLabel = listOfNotNull(start.actor ?: start.timer, start.name)
+                .distinct()
+                .joinToString("<br/>")
             val startShape = if (start.actor != null) "[\"$startLabel\"]" else "(($startLabel))"
             nodeLines += "    $startId$startShape"
             classAssignments += "    class $startId actor"
         }
 
+        flow.policies.forEach { policy ->
+            val policyId = flowchartPolicyNodeId(policy)
+            nodeLines += "    $policyId{{\"${escape(policyLabel(policy))}\"}}"
+            classAssignments += "    class $policyId policy"
+        }
+
         graph.nodes.forEach { node ->
+            if (node.type == FlowGraphNodeType.START && startByName.containsKey(node.label)) {
+                return@forEach
+            }
             val nodeId = flowchartNodeId(flowchartPrefix(node.type), node.label)
             val shape = when (node.type) {
                 FlowGraphNodeType.START -> "[\"${escape(node.label)}\"]"
                 FlowGraphNodeType.ACTION -> "[\"${escape(node.label)}\"]"
                 FlowGraphNodeType.OUTCOME -> "[/${escape(node.label)}/]"
-                FlowGraphNodeType.POLICY -> "{{\"${escape(node.label)}\"}}"
+                FlowGraphNodeType.POLICY -> "{{\"${escape(policyLabelsById[nodeId] ?: node.label)}\"}}"
             }
             nodeLines += "    $nodeId$shape"
             val klass = when (node.type) {
@@ -95,7 +109,7 @@ class ZflToMermaidDiagramsTransformer(
             val startPolicies = policiesByTrigger[start.name].orEmpty()
             startPolicies.forEach { policy ->
                 val sourceId = flowchartNodeId("start", start.name)
-                val targetId = flowchartNodeId("action", policy.command)
+                val targetId = flowchartPolicyNodeId(policy)
                 edgeLines += "    $sourceId --> $targetId"
             }
         }
@@ -116,15 +130,25 @@ class ZflToMermaidDiagramsTransformer(
             if (
                 sourceNode.type == FlowGraphNodeType.ACTION &&
                 targetNode.type == FlowGraphNodeType.OUTCOME &&
+                outcome == null &&
+                graph.edges.any {
+                    it.source == edge.source && it.target == edge.target && it.outcome != null
+                }
+            ) {
+                return@forEach
+            }
+            if (
+                sourceNode.type == FlowGraphNodeType.ACTION &&
+                targetNode.type == FlowGraphNodeType.OUTCOME &&
                 outcome != null
             ) {
                 val outcomeNodeId = flowchartOutcomeNodeId(sourceNode.label, outcome)
                 if (outcomeNodes.add(outcomeNodeId)) {
                     nodeLines += "    $outcomeNodeId([\"${escape(outcome)}\"])"
                     classAssignments += "    class $outcomeNodeId outcomeNode"
-                    val label = edge.label?.let { "|${escape(it)}|" } ?: ""
-                    edgeLines += "    $sourceId -->$label $outcomeNodeId"
                 }
+                val label = edge.label?.let { "|${escape(it)}|" } ?: ""
+                edgeLines += "    $sourceId -->$label $outcomeNodeId"
                 edgeLines += "    $outcomeNodeId --> $targetId"
                 return@forEach
             }
@@ -331,6 +355,17 @@ class ZflToMermaidDiagramsTransformer(
 
     private fun flowchartOutcomeNodeId(commandName: String, outcome: String): String =
         flowchartNodeId("outcome", "${commandName}_$outcome")
+
+    private fun policyLabel(policy: ZflPolicy): String =
+        "when ${policy.triggers.joinToString(", ")} do ${policy.command}" +
+            (if (policy.condition != null) " if ${policy.condition}" else "")
+
+    private fun flowchartPolicyNodeId(policy: ZflPolicy): String =
+        flowchartNodeId(
+            "policy",
+            "when ${policy.triggers.joinToString(",")} do ${policy.command}" +
+                (if (policy.condition != null) " if ${policy.condition}" else "")
+        )
 
     private fun escape(value: String): String =
         value.replace("\"", "\\\"")

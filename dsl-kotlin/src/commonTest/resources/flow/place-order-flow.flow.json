@@ -9,13 +9,13 @@
             "service": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 72.0,
-                "y": 296.66666666666674
+                "y": 255.33333333333326
             },
             "dimensions": {
                 "width": 180.0,
@@ -30,13 +30,13 @@
             "service": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 5172.0,
-                "y": 1517.2
+                "y": 1740.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -51,13 +51,13 @@
             "service": "OrdersCheckoutService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 332.0,
-                "y": 296.66666666666674
+                "y": 255.33333333333326
             },
             "dimensions": {
                 "width": 180.0,
@@ -72,13 +72,13 @@
             "service": "OrdersCheckoutService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 632.0,
-                "y": 296.66666666666674
+                "y": 520.0
             },
             "dimensions": {
                 "width": 180.0,
@@ -93,13 +93,13 @@
             "service": "OrdersCheckoutService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
-                "x": 632.0,
-                "y": 1445.2
+                "x": 932.0,
+                "y": 32.0
             },
             "dimensions": {
                 "width": 180.0,
@@ -114,13 +114,34 @@
             "service": "InventoryService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 632.0,
-                "y": 52.66666666666674
+                "y": 255.33333333333326
+            },
+            "dimensions": {
+                "width": 180.0,
+                "height": 124.0
+            }
+        },
+        {
+            "id": "event:StockReserved",
+            "type": "EVENT",
+            "label": "StockReserved",
+            "system": "CatalogInventory",
+            "service": "InventoryService",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 38,
+                "column": 1
+            },
+            "endOutcomeLabels": null,
+            "position": {
+                "x": 932.0,
+                "y": 276.0
             },
             "dimensions": {
                 "width": 180.0,
@@ -135,13 +156,13 @@
             "service": "PaymentsProcessingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 1232.0,
-                "y": 296.66666666666674
+                "y": 520.0
             },
             "dimensions": {
                 "width": 180.0,
@@ -156,13 +177,13 @@
             "service": "PaymentsProcessingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 1532.0,
-                "y": 32.0
+                "y": 255.33333333333326
             },
             "dimensions": {
                 "width": 180.0,
@@ -177,13 +198,13 @@
             "service": "PaymentsProcessingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 1532.0,
-                "y": 276.0
+                "y": 499.33333333333326
             },
             "dimensions": {
                 "width": 180.0,
@@ -198,13 +219,13 @@
             "service": "PaymentsProcessingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 1532.0,
-                "y": 520.0
+                "y": 743.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -219,13 +240,13 @@
             "service": "PaymentsProcessingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 2132.0,
-                "y": 520.0
+                "y": 743.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -240,13 +261,13 @@
             "service": "PaymentsProcessingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 2432.0,
-                "y": 292.5333333333333
+                "y": 515.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -261,13 +282,13 @@
             "service": "PaymentsProcessingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 2432.0,
-                "y": 536.5333333333333
+                "y": 759.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -282,13 +303,13 @@
             "service": "OrdersCheckoutService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 2132.0,
-                "y": 1247.8666666666668
+                "y": 1471.1999999999998
             },
             "dimensions": {
                 "width": 180.0,
@@ -303,13 +324,13 @@
             "service": "OrdersCheckoutService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 2432.0,
-                "y": 1268.5333333333333
+                "y": 1491.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -324,13 +345,13 @@
             "service": "InventoryService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 2432.0,
-                "y": 780.5333333333333
+                "y": 1003.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -345,13 +366,13 @@
             "service": "InventoryService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 2732.0,
-                "y": 780.5333333333333
+                "y": 1003.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -366,13 +387,13 @@
             "service": "FulfillmentShippingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 3032.0,
-                "y": 1268.5333333333333
+                "y": 1491.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -387,13 +408,13 @@
             "service": "FulfillmentShippingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 3332.0,
-                "y": 1045.2
+                "y": 1268.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -408,13 +429,13 @@
             "service": "FulfillmentShippingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 3332.0,
-                "y": 1289.2
+                "y": 1512.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -429,13 +450,13 @@
             "service": "PaymentsProcessingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 3932.0,
-                "y": 1045.2
+                "y": 1268.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -450,13 +471,13 @@
             "service": "PaymentsProcessingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 4232.0,
-                "y": 821.8666666666667
+                "y": 1045.1999999999998
             },
             "dimensions": {
                 "width": 180.0,
@@ -471,13 +492,13 @@
             "service": "PaymentsProcessingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 4232.0,
-                "y": 1065.8666666666668
+                "y": 1289.1999999999998
             },
             "dimensions": {
                 "width": 180.0,
@@ -492,13 +513,13 @@
             "service": "NotificationsConsumerService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 4832.0,
-                "y": 821.8666666666667
+                "y": 1045.1999999999998
             },
             "dimensions": {
                 "width": 180.0,
@@ -513,7 +534,7 @@
             "service": "NotificationsConsumerService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": [
@@ -521,7 +542,7 @@
             ],
             "position": {
                 "x": 5132.0,
-                "y": 821.8666666666667
+                "y": 1045.1999999999998
             },
             "dimensions": {
                 "width": 180.0,
@@ -536,13 +557,13 @@
             "service": "NotificationsConsumerService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
-                "x": 1232.0,
-                "y": 1445.2
+                "x": 1532.0,
+                "y": 1668.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -557,15 +578,15 @@
             "service": "NotificationsConsumerService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": [
                 "stockGone"
             ],
             "position": {
-                "x": 1532.0,
-                "y": 1445.2
+                "x": 1832.0,
+                "y": 499.33333333333326
             },
             "dimensions": {
                 "width": 180.0,
@@ -580,13 +601,13 @@
             "service": "PaymentsProcessingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 4832.0,
-                "y": 1268.5333333333333
+                "y": 1491.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -601,13 +622,13 @@
             "service": "PaymentsProcessingService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 5132.0,
-                "y": 1268.5333333333333
+                "y": 1491.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -622,13 +643,13 @@
             "service": "InventoryService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 5732.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -643,13 +664,13 @@
             "service": "InventoryService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 6032.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -664,13 +685,13 @@
             "service": "OrdersCheckoutService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 6632.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -685,13 +706,13 @@
             "service": "OrdersCheckoutService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 6932.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -706,13 +727,13 @@
             "service": "NotificationsConsumerService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 7532.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -727,7 +748,7 @@
             "service": "NotificationsConsumerService",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             },
             "endOutcomeLabels": [
@@ -735,7 +756,7 @@
             ],
             "position": {
                 "x": 7832.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -750,13 +771,13 @@
             "service": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 92,
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 932.0,
-                "y": 296.66666666666674
+                "y": 520.0
             },
             "dimensions": {
                 "width": 180.0,
@@ -771,13 +792,13 @@
             "service": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 109,
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 1832.0,
-                "y": 520.0
+                "y": 743.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -792,13 +813,13 @@
             "service": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 123,
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 2732.0,
-                "y": 1024.5333333333333
+                "y": 1247.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -813,13 +834,13 @@
             "service": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 133,
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 1832.0,
-                "y": 1247.8666666666668
+                "y": 1471.1999999999998
             },
             "dimensions": {
                 "width": 180.0,
@@ -834,13 +855,13 @@
             "service": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 151,
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 2732.0,
-                "y": 1268.5333333333333
+                "y": 1491.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -855,13 +876,13 @@
             "service": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 163,
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 3632.0,
-                "y": 1045.2
+                "y": 1268.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -876,13 +897,13 @@
             "service": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 175,
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 4532.0,
-                "y": 821.8666666666667
+                "y": 1045.1999999999998
             },
             "dimensions": {
                 "width": 180.0,
@@ -897,13 +918,13 @@
             "service": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 185,
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
-                "x": 932.0,
-                "y": 1445.2
+                "x": 1232.0,
+                "y": 1668.5333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -918,13 +939,13 @@
             "service": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 195,
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 4532.0,
-                "y": 1268.5333333333333
+                "y": 1491.8666666666666
             },
             "dimensions": {
                 "width": 180.0,
@@ -939,13 +960,13 @@
             "service": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 207,
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 5432.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -960,13 +981,13 @@
             "service": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 232,
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 6332.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -981,13 +1002,13 @@
             "service": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 243,
+                "column": 5
             },
             "endOutcomeLabels": null,
             "position": {
                 "x": 7232.0,
-                "y": 1480.0
+                "y": 1703.3333333333333
             },
             "dimensions": {
                 "width": 180.0,
@@ -997,7 +1018,7 @@
     ],
     "edges": [
         {
-            "id": "from[event:StartOrderCheckout]to[event:StartOrderCheckout]",
+            "id": "from[event:StartOrderCheckout]to[event:StartOrderCheckout]:TRIGGER",
             "source": "event:StartOrderCheckout",
             "target": "event:StartOrderCheckout",
             "type": "TRIGGER",
@@ -1005,12 +1026,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[event:ReservationExpired]to[event:ReservationExpired]",
+            "id": "from[event:ReservationExpired]to[event:ReservationExpired]:TRIGGER",
             "source": "event:ReservationExpired",
             "target": "event:ReservationExpired",
             "type": "TRIGGER",
@@ -1018,12 +1039,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:startOrderCheckout]to[command:reserveStock]",
+            "id": "from[command:startOrderCheckout]to[command:reserveStock]:CALL",
             "source": "command:startOrderCheckout",
             "target": "command:reserveStock",
             "type": "CALL",
@@ -1031,12 +1052,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:startOrderCheckout]to[event:OrderCreated]",
+            "id": "from[command:startOrderCheckout]to[event:OrderCreated]:OUTCOME_HANDLER:label[on StockReserved]:outcome[StockReserved]",
             "source": "command:startOrderCheckout",
             "target": "event:OrderCreated",
             "type": "OUTCOME_HANDLER",
@@ -1044,12 +1065,12 @@
             "outcome": "StockReserved",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:startOrderCheckout]to[event:StockUnavailable]",
+            "id": "from[command:startOrderCheckout]to[event:StockUnavailable]:OUTCOME_HANDLER:label[on StockUnavailable]:outcome[StockUnavailable]",
             "source": "command:startOrderCheckout",
             "target": "event:StockUnavailable",
             "type": "OUTCOME_HANDLER",
@@ -1057,12 +1078,38 @@
             "outcome": "StockUnavailable",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:authorizePayment]to[event:PaymentAuthorized]",
+            "id": "from[command:reserveStock]to[event:StockReserved]:CAUSATION:outcome[StockReserved]",
+            "source": "command:reserveStock",
+            "target": "event:StockReserved",
+            "type": "CAUSATION",
+            "label": null,
+            "outcome": "StockReserved",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 38,
+                "column": 1
+            }
+        },
+        {
+            "id": "from[command:reserveStock]to[event:StockUnavailable]:CAUSATION:outcome[StockUnavailable]",
+            "source": "command:reserveStock",
+            "target": "event:StockUnavailable",
+            "type": "CAUSATION",
+            "label": null,
+            "outcome": "StockUnavailable",
+            "sourceRef": {
+                "file": "<zfl>",
+                "line": 38,
+                "column": 1
+            }
+        },
+        {
+            "id": "from[command:authorizePayment]to[event:PaymentAuthorized]:CAUSATION:outcome[authorized]",
             "source": "command:authorizePayment",
             "target": "event:PaymentAuthorized",
             "type": "CAUSATION",
@@ -1070,12 +1117,12 @@
             "outcome": "authorized",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:authorizePayment]to[event:PaymentDeclined]",
+            "id": "from[command:authorizePayment]to[event:PaymentDeclined]:CAUSATION:outcome[declined]",
             "source": "command:authorizePayment",
             "target": "event:PaymentDeclined",
             "type": "CAUSATION",
@@ -1083,12 +1130,12 @@
             "outcome": "declined",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:authorizePayment]to[event:PaymentFailed]",
+            "id": "from[command:authorizePayment]to[event:PaymentFailed]:CAUSATION:outcome[failed]",
             "source": "command:authorizePayment",
             "target": "event:PaymentFailed",
             "type": "CAUSATION",
@@ -1096,12 +1143,12 @@
             "outcome": "failed",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:retryPayment]to[event:PaymentRetried]",
+            "id": "from[command:retryPayment]to[event:PaymentRetried]:CAUSATION:outcome[retried]",
             "source": "command:retryPayment",
             "target": "event:PaymentRetried",
             "type": "CAUSATION",
@@ -1109,12 +1156,12 @@
             "outcome": "retried",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:retryPayment]to[event:PaymentRetryExhausted]",
+            "id": "from[command:retryPayment]to[event:PaymentRetryExhausted]:CAUSATION:outcome[retry-exhausted]",
             "source": "command:retryPayment",
             "target": "event:PaymentRetryExhausted",
             "type": "CAUSATION",
@@ -1122,12 +1169,12 @@
             "outcome": "retry-exhausted",
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:confirmOrder]to[command:confirmStockReservation]",
+            "id": "from[command:confirmOrder]to[command:confirmStockReservation]:CALL",
             "source": "command:confirmOrder",
             "target": "command:confirmStockReservation",
             "type": "CALL",
@@ -1135,12 +1182,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:confirmOrder]to[event:OrderConfirmed]",
+            "id": "from[command:confirmOrder]to[event:OrderConfirmed]:CAUSATION",
             "source": "command:confirmOrder",
             "target": "event:OrderConfirmed",
             "type": "CAUSATION",
@@ -1148,12 +1195,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:confirmStockReservation]to[event:StockReservationConfirmed]",
+            "id": "from[command:confirmStockReservation]to[event:StockReservationConfirmed]:CAUSATION",
             "source": "command:confirmStockReservation",
             "target": "event:StockReservationConfirmed",
             "type": "CAUSATION",
@@ -1161,12 +1208,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:scheduleFulfillment]to[event:FulfillmentScheduled]",
+            "id": "from[command:scheduleFulfillment]to[event:FulfillmentScheduled]:CAUSATION",
             "source": "command:scheduleFulfillment",
             "target": "event:FulfillmentScheduled",
             "type": "CAUSATION",
@@ -1174,12 +1221,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:scheduleFulfillment]to[event:FulfillmentFailed]",
+            "id": "from[command:scheduleFulfillment]to[event:FulfillmentFailed]:CAUSATION",
             "source": "command:scheduleFulfillment",
             "target": "event:FulfillmentFailed",
             "type": "CAUSATION",
@@ -1187,12 +1234,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:capturePayment]to[event:PaymentCaptured]",
+            "id": "from[command:capturePayment]to[event:PaymentCaptured]:CAUSATION",
             "source": "command:capturePayment",
             "target": "event:PaymentCaptured",
             "type": "CAUSATION",
@@ -1200,12 +1247,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:capturePayment]to[event:PaymentCaptureFailed]",
+            "id": "from[command:capturePayment]to[event:PaymentCaptureFailed]:CAUSATION",
             "source": "command:capturePayment",
             "target": "event:PaymentCaptureFailed",
             "type": "CAUSATION",
@@ -1213,12 +1260,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:sendOrderConfirmation]to[event:OrderConfirmationSent]",
+            "id": "from[command:sendOrderConfirmation]to[event:OrderConfirmationSent]:CAUSATION",
             "source": "command:sendOrderConfirmation",
             "target": "event:OrderConfirmationSent",
             "type": "CAUSATION",
@@ -1226,12 +1273,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:sendStockUnavailableNotification]to[event:StockUnavailableNotificationSent]",
+            "id": "from[command:sendStockUnavailableNotification]to[event:StockUnavailableNotificationSent]:CAUSATION",
             "source": "command:sendStockUnavailableNotification",
             "target": "event:StockUnavailableNotificationSent",
             "type": "CAUSATION",
@@ -1239,12 +1286,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:voidPayment]to[event:PaymentVoided]",
+            "id": "from[command:voidPayment]to[event:PaymentVoided]:CAUSATION",
             "source": "command:voidPayment",
             "target": "event:PaymentVoided",
             "type": "CAUSATION",
@@ -1252,12 +1299,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:releaseStock]to[event:StockReleased]",
+            "id": "from[command:releaseStock]to[event:StockReleased]:CAUSATION",
             "source": "command:releaseStock",
             "target": "event:StockReleased",
             "type": "CAUSATION",
@@ -1265,12 +1312,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:cancelOrder]to[event:OrderCancelled]",
+            "id": "from[command:cancelOrder]to[event:OrderCancelled]:CAUSATION",
             "source": "command:cancelOrder",
             "target": "event:OrderCancelled",
             "type": "CAUSATION",
@@ -1278,12 +1325,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[command:sendOrderCancelledNotification]to[event:OrderCancelledNotificationSent]",
+            "id": "from[command:sendOrderCancelledNotification]to[event:OrderCancelledNotificationSent]:CAUSATION",
             "source": "command:sendOrderCancelledNotification",
             "target": "event:OrderCancelledNotificationSent",
             "type": "CAUSATION",
@@ -1291,12 +1338,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
+                "line": 38,
                 "column": 1
             }
         },
         {
-            "id": "from[event:StartOrderCheckout]to[command:startOrderCheckout]",
+            "id": "from[event:StartOrderCheckout]to[command:startOrderCheckout]:TRIGGER",
             "source": "event:StartOrderCheckout",
             "target": "command:startOrderCheckout",
             "type": "TRIGGER",
@@ -1304,12 +1351,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 73,
+                "column": 5
             }
         },
         {
-            "id": "from[event:OrderCreated]to[policy:OrderCreated:authorizePayment]",
+            "id": "from[event:OrderCreated]to[policy:OrderCreated:authorizePayment]:TRIGGER",
             "source": "event:OrderCreated",
             "target": "policy:OrderCreated:authorizePayment",
             "type": "TRIGGER",
@@ -1317,12 +1364,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 92,
+                "column": 5
             }
         },
         {
-            "id": "from[policy:OrderCreated:authorizePayment]to[command:authorizePayment]",
+            "id": "from[policy:OrderCreated:authorizePayment]to[command:authorizePayment]:TRIGGER",
             "source": "policy:OrderCreated:authorizePayment",
             "target": "command:authorizePayment",
             "type": "TRIGGER",
@@ -1330,12 +1377,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 92,
+                "column": 5
             }
         },
         {
-            "id": "from[command:authorizePayment]to[event:PaymentAuthorized]",
+            "id": "from[command:authorizePayment]to[event:PaymentAuthorized]:CAUSATION",
             "source": "command:authorizePayment",
             "target": "event:PaymentAuthorized",
             "type": "CAUSATION",
@@ -1343,12 +1390,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 92,
+                "column": 5
             }
         },
         {
-            "id": "from[command:authorizePayment]to[event:PaymentDeclined]",
+            "id": "from[command:authorizePayment]to[event:PaymentDeclined]:CAUSATION",
             "source": "command:authorizePayment",
             "target": "event:PaymentDeclined",
             "type": "CAUSATION",
@@ -1356,12 +1403,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 92,
+                "column": 5
             }
         },
         {
-            "id": "from[command:authorizePayment]to[event:PaymentFailed]",
+            "id": "from[command:authorizePayment]to[event:PaymentFailed]:CAUSATION",
             "source": "command:authorizePayment",
             "target": "event:PaymentFailed",
             "type": "CAUSATION",
@@ -1369,12 +1416,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 92,
+                "column": 5
             }
         },
         {
-            "id": "from[event:PaymentFailed]to[policy:PaymentFailed:retryPayment]",
+            "id": "from[event:PaymentFailed]to[policy:PaymentFailed:retryPayment]:TRIGGER",
             "source": "event:PaymentFailed",
             "target": "policy:PaymentFailed:retryPayment",
             "type": "TRIGGER",
@@ -1382,12 +1429,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 109,
+                "column": 5
             }
         },
         {
-            "id": "from[policy:PaymentFailed:retryPayment]to[command:retryPayment]",
+            "id": "from[policy:PaymentFailed:retryPayment]to[command:retryPayment]:TRIGGER",
             "source": "policy:PaymentFailed:retryPayment",
             "target": "command:retryPayment",
             "type": "TRIGGER",
@@ -1395,12 +1442,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 109,
+                "column": 5
             }
         },
         {
-            "id": "from[command:retryPayment]to[event:PaymentRetried]",
+            "id": "from[command:retryPayment]to[event:PaymentRetried]:CAUSATION",
             "source": "command:retryPayment",
             "target": "event:PaymentRetried",
             "type": "CAUSATION",
@@ -1408,12 +1455,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 109,
+                "column": 5
             }
         },
         {
-            "id": "from[command:retryPayment]to[event:PaymentRetryExhausted]",
+            "id": "from[command:retryPayment]to[event:PaymentRetryExhausted]:CAUSATION",
             "source": "command:retryPayment",
             "target": "event:PaymentRetryExhausted",
             "type": "CAUSATION",
@@ -1421,12 +1468,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 109,
+                "column": 5
             }
         },
         {
-            "id": "from[event:PaymentRetried]to[policy:PaymentRetried:authorizePayment]",
+            "id": "from[event:PaymentRetried]to[policy:PaymentRetried:authorizePayment]:TRIGGER",
             "source": "event:PaymentRetried",
             "target": "policy:PaymentRetried:authorizePayment",
             "type": "TRIGGER",
@@ -1434,12 +1481,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 123,
+                "column": 5
             }
         },
         {
-            "id": "from[policy:PaymentRetried:authorizePayment]to[command:authorizePayment]",
+            "id": "from[policy:PaymentRetried:authorizePayment]to[command:authorizePayment]:TRIGGER",
             "source": "policy:PaymentRetried:authorizePayment",
             "target": "command:authorizePayment",
             "type": "TRIGGER",
@@ -1447,12 +1494,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 123,
+                "column": 5
             }
         },
         {
-            "id": "from[event:PaymentAuthorized]to[policy:PaymentAuthorized:confirmOrder]",
+            "id": "from[event:PaymentAuthorized]to[policy:PaymentAuthorized:confirmOrder]:TRIGGER",
             "source": "event:PaymentAuthorized",
             "target": "policy:PaymentAuthorized:confirmOrder",
             "type": "TRIGGER",
@@ -1460,12 +1507,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 133,
+                "column": 5
             }
         },
         {
-            "id": "from[policy:PaymentAuthorized:confirmOrder]to[command:confirmOrder]",
+            "id": "from[policy:PaymentAuthorized:confirmOrder]to[command:confirmOrder]:TRIGGER",
             "source": "policy:PaymentAuthorized:confirmOrder",
             "target": "command:confirmOrder",
             "type": "TRIGGER",
@@ -1473,12 +1520,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 133,
+                "column": 5
             }
         },
         {
-            "id": "from[event:OrderConfirmed]to[policy:OrderConfirmed:scheduleFulfillment]",
+            "id": "from[event:OrderConfirmed]to[policy:OrderConfirmed:scheduleFulfillment]:TRIGGER",
             "source": "event:OrderConfirmed",
             "target": "policy:OrderConfirmed:scheduleFulfillment",
             "type": "TRIGGER",
@@ -1486,12 +1533,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 151,
+                "column": 5
             }
         },
         {
-            "id": "from[policy:OrderConfirmed:scheduleFulfillment]to[command:scheduleFulfillment]",
+            "id": "from[policy:OrderConfirmed:scheduleFulfillment]to[command:scheduleFulfillment]:TRIGGER",
             "source": "policy:OrderConfirmed:scheduleFulfillment",
             "target": "command:scheduleFulfillment",
             "type": "TRIGGER",
@@ -1499,12 +1546,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 151,
+                "column": 5
             }
         },
         {
-            "id": "from[event:FulfillmentScheduled]to[policy:FulfillmentScheduled:capturePayment]",
+            "id": "from[event:FulfillmentScheduled]to[policy:FulfillmentScheduled:capturePayment]:TRIGGER",
             "source": "event:FulfillmentScheduled",
             "target": "policy:FulfillmentScheduled:capturePayment",
             "type": "TRIGGER",
@@ -1512,12 +1559,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 163,
+                "column": 5
             }
         },
         {
-            "id": "from[policy:FulfillmentScheduled:capturePayment]to[command:capturePayment]",
+            "id": "from[policy:FulfillmentScheduled:capturePayment]to[command:capturePayment]:TRIGGER",
             "source": "policy:FulfillmentScheduled:capturePayment",
             "target": "command:capturePayment",
             "type": "TRIGGER",
@@ -1525,12 +1572,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 163,
+                "column": 5
             }
         },
         {
-            "id": "from[event:PaymentCaptured]to[policy:PaymentCaptured:sendOrderConfirmation]",
+            "id": "from[event:PaymentCaptured]to[policy:PaymentCaptured:sendOrderConfirmation]:TRIGGER",
             "source": "event:PaymentCaptured",
             "target": "policy:PaymentCaptured:sendOrderConfirmation",
             "type": "TRIGGER",
@@ -1538,12 +1585,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 175,
+                "column": 5
             }
         },
         {
-            "id": "from[policy:PaymentCaptured:sendOrderConfirmation]to[command:sendOrderConfirmation]",
+            "id": "from[policy:PaymentCaptured:sendOrderConfirmation]to[command:sendOrderConfirmation]:TRIGGER",
             "source": "policy:PaymentCaptured:sendOrderConfirmation",
             "target": "command:sendOrderConfirmation",
             "type": "TRIGGER",
@@ -1551,12 +1598,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 175,
+                "column": 5
             }
         },
         {
-            "id": "from[event:StockUnavailable]to[policy:StockUnavailable:sendStockUnavailableNotification]",
+            "id": "from[event:StockUnavailable]to[policy:StockUnavailable:sendStockUnavailableNotification]:TRIGGER",
             "source": "event:StockUnavailable",
             "target": "policy:StockUnavailable:sendStockUnavailableNotification",
             "type": "TRIGGER",
@@ -1564,12 +1611,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 185,
+                "column": 5
             }
         },
         {
-            "id": "from[policy:StockUnavailable:sendStockUnavailableNotification]to[command:sendStockUnavailableNotification]",
+            "id": "from[policy:StockUnavailable:sendStockUnavailableNotification]to[command:sendStockUnavailableNotification]:TRIGGER",
             "source": "policy:StockUnavailable:sendStockUnavailableNotification",
             "target": "command:sendStockUnavailableNotification",
             "type": "TRIGGER",
@@ -1577,12 +1624,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 185,
+                "column": 5
             }
         },
         {
-            "id": "from[event:FulfillmentFailed]to[policy:FulfillmentFailed,PaymentCaptureFailed:voidPayment]",
+            "id": "from[event:FulfillmentFailed]to[policy:FulfillmentFailed,PaymentCaptureFailed:voidPayment]:TRIGGER",
             "source": "event:FulfillmentFailed",
             "target": "policy:FulfillmentFailed,PaymentCaptureFailed:voidPayment",
             "type": "TRIGGER",
@@ -1590,12 +1637,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 195,
+                "column": 5
             }
         },
         {
-            "id": "from[event:PaymentCaptureFailed]to[policy:FulfillmentFailed,PaymentCaptureFailed:voidPayment]",
+            "id": "from[event:PaymentCaptureFailed]to[policy:FulfillmentFailed,PaymentCaptureFailed:voidPayment]:TRIGGER",
             "source": "event:PaymentCaptureFailed",
             "target": "policy:FulfillmentFailed,PaymentCaptureFailed:voidPayment",
             "type": "TRIGGER",
@@ -1603,12 +1650,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 195,
+                "column": 5
             }
         },
         {
-            "id": "from[policy:FulfillmentFailed,PaymentCaptureFailed:voidPayment]to[command:voidPayment]",
+            "id": "from[policy:FulfillmentFailed,PaymentCaptureFailed:voidPayment]to[command:voidPayment]:TRIGGER",
             "source": "policy:FulfillmentFailed,PaymentCaptureFailed:voidPayment",
             "target": "command:voidPayment",
             "type": "TRIGGER",
@@ -1616,12 +1663,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 195,
+                "column": 5
             }
         },
         {
-            "id": "from[event:PaymentDeclined]to[policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock]",
+            "id": "from[event:PaymentDeclined]to[policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock]:TRIGGER",
             "source": "event:PaymentDeclined",
             "target": "policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock",
             "type": "TRIGGER",
@@ -1629,12 +1676,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 207,
+                "column": 5
             }
         },
         {
-            "id": "from[event:PaymentRetryExhausted]to[policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock]",
+            "id": "from[event:PaymentRetryExhausted]to[policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock]:TRIGGER",
             "source": "event:PaymentRetryExhausted",
             "target": "policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock",
             "type": "TRIGGER",
@@ -1642,12 +1689,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 207,
+                "column": 5
             }
         },
         {
-            "id": "from[event:PaymentVoided]to[policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock]",
+            "id": "from[event:PaymentVoided]to[policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock]:TRIGGER",
             "source": "event:PaymentVoided",
             "target": "policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock",
             "type": "TRIGGER",
@@ -1655,12 +1702,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 207,
+                "column": 5
             }
         },
         {
-            "id": "from[event:ReservationExpired]to[policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock]",
+            "id": "from[event:ReservationExpired]to[policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock]:TRIGGER",
             "source": "event:ReservationExpired",
             "target": "policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock",
             "type": "TRIGGER",
@@ -1668,12 +1715,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 207,
+                "column": 5
             }
         },
         {
-            "id": "from[policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock]to[command:releaseStock]",
+            "id": "from[policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock]to[command:releaseStock]:TRIGGER",
             "source": "policy:PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired:releaseStock",
             "target": "command:releaseStock",
             "type": "TRIGGER",
@@ -1681,12 +1728,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 207,
+                "column": 5
             }
         },
         {
-            "id": "from[event:StockReleased]to[policy:StockReleased:cancelOrder]",
+            "id": "from[event:StockReleased]to[policy:StockReleased:cancelOrder]:TRIGGER",
             "source": "event:StockReleased",
             "target": "policy:StockReleased:cancelOrder",
             "type": "TRIGGER",
@@ -1694,12 +1741,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 232,
+                "column": 5
             }
         },
         {
-            "id": "from[policy:StockReleased:cancelOrder]to[command:cancelOrder]",
+            "id": "from[policy:StockReleased:cancelOrder]to[command:cancelOrder]:TRIGGER",
             "source": "policy:StockReleased:cancelOrder",
             "target": "command:cancelOrder",
             "type": "TRIGGER",
@@ -1707,12 +1754,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 232,
+                "column": 5
             }
         },
         {
-            "id": "from[event:OrderCancelled]to[policy:OrderCancelled:sendOrderCancelledNotification]",
+            "id": "from[event:OrderCancelled]to[policy:OrderCancelled:sendOrderCancelledNotification]:TRIGGER",
             "source": "event:OrderCancelled",
             "target": "policy:OrderCancelled:sendOrderCancelledNotification",
             "type": "TRIGGER",
@@ -1720,12 +1767,12 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 243,
+                "column": 5
             }
         },
         {
-            "id": "from[policy:OrderCancelled:sendOrderCancelledNotification]to[command:sendOrderCancelledNotification]",
+            "id": "from[policy:OrderCancelled:sendOrderCancelledNotification]to[command:sendOrderCancelledNotification]:TRIGGER",
             "source": "policy:OrderCancelled:sendOrderCancelledNotification",
             "target": "command:sendOrderCancelledNotification",
             "type": "TRIGGER",
@@ -1733,8 +1780,8 @@
             "outcome": null,
             "sourceRef": {
                 "file": "<zfl>",
-                "line": 1,
-                "column": 1
+                "line": 243,
+                "column": 5
             }
         }
     ],
@@ -1748,32 +1795,32 @@
         "x": 0.0,
         "y": 0.0,
         "width": 8032.0,
-        "height": 1661.2
+        "height": 1884.5333333333333
     },
     "systemGroups": [
         {
             "systemName": "OrdersCheckout",
             "bounds": {
                 "x": 292.0,
-                "y": 256.66666666666674,
+                "y": -8.0,
                 "width": 6860.0,
-                "height": 1387.3333333333333
+                "height": 1875.3333333333333
             }
         },
         {
             "systemName": "CatalogInventory",
             "bounds": {
                 "x": 592.0,
-                "y": 12.666666666666742,
+                "y": 215.33333333333326,
                 "width": 5660.0,
-                "height": 1631.3333333333333
+                "height": 1652.0
             }
         },
         {
             "systemName": "PaymentsProcessing",
             "bounds": {
                 "x": 1192.0,
-                "y": -8.0,
+                "y": 215.33333333333326,
                 "width": 4160.0,
                 "height": 1440.5333333333333
             }
@@ -1782,7 +1829,7 @@
             "systemName": "FulfillmentShipping",
             "bounds": {
                 "x": 2992.0,
-                "y": 1005.2,
+                "y": 1228.5333333333333,
                 "width": 560.0,
                 "height": 448.0
             }
@@ -1790,10 +1837,10 @@
         {
             "systemName": "NotificationsConsumer",
             "bounds": {
-                "x": 1192.0,
-                "y": 781.8666666666667,
-                "width": 6860.0,
-                "height": 862.1333333333333
+                "x": 1492.0,
+                "y": 459.33333333333326,
+                "width": 6560.0,
+                "height": 1408.0
             }
         }
     ]

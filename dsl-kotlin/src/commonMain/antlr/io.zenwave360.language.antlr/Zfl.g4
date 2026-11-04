@@ -183,7 +183,7 @@ flow_do_body: flow_do_statement*;
 flow_do_statement: flow_do_service | flow_do_call | flow_do_on | flow_do_signal;
 flow_do_service: SERVICE flow_service_path;
 flow_do_call: ASYNC? CALL flow_command_name;
-flow_do_on: annotations ON flow_event_name (CALL flow_command_name | flow_signal_body);
+flow_do_on: annotations ON flow_event_list (CALL flow_command_name | flow_signal_body);
 flow_do_signal: annotations flow_signal_body;
 flow_signal_body: ((EMITS RESPONSE?) | RESPONSE) flow_event_list;
 flow_event_list: flow_event_name (COMMA flow_event_name)*;

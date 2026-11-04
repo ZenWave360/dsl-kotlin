@@ -659,7 +659,7 @@ class ZflEditorTest {
     fun renameCommand_updatesCallAndOnCallTargets() {
         val source = flow(
             "    when A do x {\n        service S.Svc\n        call y\n        on Ok call y\n        emits E\n    }\n" +
-                "    do y {\n        service S.Svc\n        emits Ok\n    }"
+                "    do y {\n        service S.Svc\n        emits response Ok\n    }"
         )
         val result = editor.renameCommand(source, "F", "y", "renamed")
         assertExact(source, result, source.replace(" y\n", " renamed\n").replace("do y {", "do renamed {"))
@@ -699,7 +699,7 @@ class ZflEditorTest {
     fun renameCommand_doesNotTouchCallsOrCompensatesInAnotherFlow() {
         val source = "systems { S { service Svc } }\n" +
             "flow F {\n    start A {}\n    when A do x {\n        service S.Svc\n        emits E\n    }\n    end { completed: E }\n}\n" +
-            "flow G {\n    start A {}\n    when A do y {\n        service S.Svc\n        call x\n        async call x\n        on E call x\n        @compensates(x) emits N\n    }\n    do x {\n        service S.Svc\n        emits E\n    }\n    end { completed: N }\n}\n"
+            "flow G {\n    start A {}\n    when A do y {\n        service S.Svc\n        call x\n        on E call x\n        async call x\n        @compensates(x) emits N\n    }\n    do x {\n        service S.Svc\n        emits response E\n    }\n    end { completed: N }\n}\n"
         val result = editor.renameCommand(source, "F", "x", "renamed")
         assertExact(source, result, source.replaceOnceIn("F", "do x {", "do renamed {"))
     }

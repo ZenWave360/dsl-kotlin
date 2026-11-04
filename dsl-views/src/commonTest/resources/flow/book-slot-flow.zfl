@@ -1,0 +1,169 @@
+config {
+    version "0.0.0"
+}
+
+systems {
+
+    @zdl("bookings-domain-model.zdl")
+    Bookings {
+        service BookingService for (Booking, SlotOccupancy) {
+            commands: bookSlot
+        }
+    }
+
+    @zdl("facilities-domain-model.zdl")
+    Facilities {
+        service FacilityCatalogService for (BookableUnit) {
+            commands: getBookingTerms
+        }
+    }
+
+    @zdl("accounts-domain-model.zdl")
+    Accounts {
+        service AccountService for (Citizen, Club) {
+            commands: checkBookingHolder
+        }
+    }
+
+    @zdl("notifications-domain-model.zdl")
+    Notifications {
+        service NotificationService {
+            commands: sendBookingConfirmation
+        }
+    }
+
+    @zdl("analytics-domain-model.zdl")
+    Analytics {
+        service AnalyticsService {
+            commands: recordBooking
+        }
+    }
+}
+
+/**
+ * Reservar una franja.
+ *
+ * Cubre desde que una persona pide una franja hasta que la reserva queda
+ * confirmada o rechazada. Hay dos canales: online, hecha por el ciudadano, y
+ * atendida, hecha por el personal de instalación en nombre de un vecino.
+ *
+ * La reserva se confirma al instante. No hay aprobación ni pago, así que no
+ * existe un estado pendiente ni una compensación.
+ *
+ * Todo lo que decide si se puede reservar es síncrono y ocurre antes de
+ * confirmar. Los avisos y los indicadores van después, por eventos: una reserva
+ * no falla porque no salga un correo.
+ */
+flow BookSlotFlow {
+
+    /**
+     * Reserva online. El ciudadano elige una franja y acepta las normas de uso.
+     */
+    @actor(Citizen)
+    start RequestBooking {
+        unitId String
+        startsAt LocalDateTime
+        /** Opcional. Integrantes, solo en unidades con aforo. */
+        partySize Integer
+        /** Opcional. Solo si reserva a nombre de un club del que es miembro. */
+        clubId String
+        acceptedUsageRulesVersion Integer
+    }
+
+    /**
+     * Reserva atendida. El vecino llama o se acerca a la instalación, y el
+     * personal reserva en su nombre. El titular es un ciudadano o una persona
+     * sin cuenta, de la que solo se recogen nombre y teléfono.
+     */
+    @actor(FacilityStaff)
+    start RequestAssistedBooking {
+        unitId String
+        startsAt LocalDateTime
+        /** Opcional. Integrantes, solo en unidades con aforo. */
+        partySize Integer
+        /** Opcional. Solo si el titular tiene cuenta. */
+        citizenId String
+        /** Opcional. Solo si el titular no tiene cuenta. */
+        guestContact GuestContact
+        acceptedUsageRulesVersion Integer
+    }
+
+    /**
+     * Reserva. Se valida contra las reglas y se ocupan las plazas en una sola
+     * transacción, junto con la ocupación de franja.
+     *
+     * Comprueba aquí las reglas de reserva que dependen de sus propios datos:
+     * reservas activas en este concello, contadas aparte para persona y club,
+     * antelación máxima, máximo de integrantes y versión vigente de las normas.
+     *
+     * Si dos personas compiten por la última plaza, la versión de la ocupación
+     * deja pasar a una. La otra recibe SlotFull.
+     */
+    when RequestBooking, RequestAssistedBooking do bookSlot {
+        service Bookings.BookingService
+        call getBookingTerms
+        on SlotNotBookable response SlotNotBookable
+        call checkBookingHolder
+        on HolderNotEligible response BookingRejected
+        @outcome(confirmed)
+        emits response BookingConfirmed
+        @outcome("policy-violated")
+        response BookingRejected
+        @outcome("slot-full")
+        response SlotFull
+    }
+
+    /**
+     * Comprueba que la franja existe según la plantilla en vigor de la unidad y
+     * devuelve el aforo, las reglas de reserva efectivas (las del concello o las
+     * de la unidad, si las sobrescribe) y la versión vigente de las normas de uso.
+     */
+    do getBookingTerms {
+        service Facilities.FacilityCatalogService
+        response BookingTermsResult
+        response SlotNotBookable
+    }
+
+    /**
+     * Comprueba que el titular puede reservar. Si reserva a nombre de un club,
+     * que la asociación esté aprobada por el gestor municipal. No aplica a una
+     * persona sin cuenta.
+     */
+    do checkBookingHolder {
+        service Accounts.AccountService
+        response HolderEligibleResult
+        response HolderNotEligible
+    }
+
+    /**
+     * Aviso de confirmación por correo, con iCalendar adjunto. Una persona sin
+     * cuenta no recibe aviso: el personal le da los datos en ese momento. Si el
+     * correo falla, la reserva sigue confirmada.
+     */
+    when BookingConfirmed do sendBookingConfirmation {
+        service Notifications.NotificationService
+        @outcome(sent)
+        emits BookingConfirmationSent
+        @outcome("no-account")
+        emits BookingConfirmationSkipped
+        @failure @outcome(failed)
+        emits BookingConfirmationFailed
+    }
+
+    /**
+     * Indicadores. Registra la reserva por unidad, franja, canal de reserva y uso
+     * por vecinos y foráneos, según el dato declarado.
+     */
+    when BookingConfirmed do recordBooking {
+        service Analytics.AnalyticsService
+        emits BookingRecorded
+    }
+
+    end {
+        completed: BookingConfirmationSent, BookingConfirmationSkipped
+        confirmedWithoutNotice: BookingConfirmationFailed
+        rejected: BookingRejected
+        slotFull: SlotFull
+        slotNotBookable: SlotNotBookable
+    }
+}

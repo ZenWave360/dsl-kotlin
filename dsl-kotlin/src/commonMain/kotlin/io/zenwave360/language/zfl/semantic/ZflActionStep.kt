@@ -39,7 +39,10 @@ data class ZflSignalStep(
 data class ZflEndOutcomeHandler(
     val endOutcome: String,
     val action: String? = null,
+    /** The call initiated by [action], with the `on` lines that handle its responses. */
+    val chainedCall: ZflCallStep? = null,
     val signal: ZflHandlerSignal? = null,
+    val terminal: Boolean = false,
     val sourceRef: SourceRef? = null,
 )
 

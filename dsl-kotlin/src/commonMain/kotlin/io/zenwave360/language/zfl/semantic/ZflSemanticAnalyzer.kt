@@ -138,7 +138,11 @@ class ZflSemanticAnalyzer {
                 endOutcomes = endOutcomes,
                 sourceRef = sourceRefOf(flowName, "end")
             )
-            diagnostics += validateEndOutcomes(flowName, endOutcomes, events.keys)
+            diagnostics += validateEndOutcomes(
+                flowName,
+                endOutcomes,
+                events.keys + commandByName.values.flatMap { it.responses }
+            )
 
             flows += ZflFlow(
                 name = flowName,
@@ -175,12 +179,14 @@ class ZflSemanticAnalyzer {
         val directEmits = mutableListOf<ZflEmission>()
         val directResponses = mutableListOf<String>()
 
+        var pendingRootCall: MutableCallStep? = null
         var pendingCall: MutableCallStep? = null
 
         actionModel.getMapList("steps").forEach { stepModel ->
             when (stepModel.getString("type")) {
                 "service" -> {
-                    flushPendingCall(pendingCall, steps)
+                    flushPendingCall(pendingRootCall, steps)
+                    pendingRootCall = null
                     pendingCall = null
                     val stepSystem = stepModel.getString("system")
                     val stepService = stepModel.getStringOrNull("service")
@@ -190,11 +196,12 @@ class ZflSemanticAnalyzer {
                 }
 
                 "call" -> {
-                    flushPendingCall(pendingCall, steps)
-                    pendingCall = MutableCallStep(
+                    flushPendingCall(pendingRootCall, steps)
+                    pendingRootCall = MutableCallStep(
                         action = stepModel.getString("action"),
                         async = stepModel.getBoolean("async")
                     )
+                    pendingCall = pendingRootCall
                 }
 
                 "on" -> {
@@ -205,6 +212,9 @@ class ZflSemanticAnalyzer {
                             sourceRef = sourceRefOf(flowName, actionName)
                         )
                     } else {
+                        val call = requireNotNull(pendingCall)
+                        val endOutcomes = stepModel.getList("endOutcomes")
+                            .ifEmpty { listOf(stepModel.getString("endOutcome")) }
                         val events = stepModel.getList("events")
                         val emits = stepModel.getBoolean("emits")
                         val response = stepModel.getBoolean("response")
@@ -215,27 +225,46 @@ class ZflSemanticAnalyzer {
                                 sourceRef = sourceRefOf(flowName, actionName)
                             )
                         }
-                        pendingCall.handlers += ZflEndOutcomeHandler(
-                            endOutcome = stepModel.getString("endOutcome"),
-                            action = stepModel.getStringOrNull("action"),
-                            signal = if (events.isNotEmpty() || emits || response) {
-                                ZflHandlerSignal(
-                                    events = events,
-                                    emits = emits,
-                                    response = response,
-                                    options = stepModel.getStringMap("options"),
-                                    outcome = stepModel.getStringOrNull("outcome")
-                                )
-                            } else {
-                                null
-                            },
-                            sourceRef = sourceRefOf(flowName, "actions.$actionName"),
-                        )
+                        if (call.async) {
+                            diagnostics += ZflSemanticDiagnostic(
+                                message = "Action '$actionName' cannot handle responses from async call '${call.action}'. Async calls do not receive responses.",
+                                severity = Severity.ERROR,
+                                sourceRef = sourceRefOf(flowName, actionName)
+                            )
+                            return@forEach
+                        }
+                        val chainedCall = stepModel.getStringOrNull("action")?.let { MutableCallStep(it) }
+                        endOutcomes.forEach { endOutcome ->
+                            call.handlers += MutableEndOutcomeHandler(
+                                endOutcome = endOutcome,
+                                action = stepModel.getStringOrNull("action"),
+                                chainedCall = chainedCall,
+                                signal = if (events.isNotEmpty() || emits || response) {
+                                    ZflHandlerSignal(
+                                        events = events,
+                                        emits = emits,
+                                        response = response,
+                                        options = stepModel.getStringMap("options"),
+                                        outcome = stepModel.getStringOrNull("outcome"),
+                                        sourceRef = sourceRefOf(flowName, "actions.$actionName"),
+                                    )
+                                } else {
+                                    null
+                                },
+                                terminal = stepModel.getBoolean("terminal"),
+                                sourceRef = sourceRefOf(flowName, "actions.$actionName"),
+                            )
+                            if (response) directResponses += events
+                        }
+                        if (chainedCall != null) {
+                            pendingCall = chainedCall
+                        }
                     }
                 }
 
                 "signal" -> {
-                    flushPendingCall(pendingCall, steps)
+                    flushPendingCall(pendingRootCall, steps)
+                    pendingRootCall = null
                     pendingCall = null
                     val endOutcome = stepModel.getString("endOutcome")
                     val outcome = stepModel.getStringOrNull("outcome")
@@ -270,7 +299,7 @@ class ZflSemanticAnalyzer {
             }
         }
 
-        flushPendingCall(pendingCall, steps)
+        flushPendingCall(pendingRootCall, steps)
 
         if (systemName == null || servicePath == null) {
             diagnostics += ZflSemanticDiagnostic(
@@ -296,9 +325,6 @@ class ZflSemanticAnalyzer {
             )
         }
 
-        val responseDetails = actionModel.getResponseList("responseDetails").ifEmpty {
-            responseOutcomes.map { ZflResponse(it) }
-        }
         val occurrences = if (includeOccurrences) {
             actionModel.getMapList("occurrences").mapIndexed { index, occurrenceModel ->
                 val effective = LinkedHashMap(actionModel)
@@ -328,9 +354,13 @@ class ZflSemanticAnalyzer {
                     servicePath = parsed.servicePath,
                     steps = parsed.steps,
                     emissions = parsed.emits,
-                    responses = effective.getResponseList("responseDetails").ifEmpty {
-                        parsed.responses.map { ZflResponse(it, sourceRef = occurrenceSource) }
-                    },
+                    responses = mergeResponseDetails(
+                        effective.getResponseList("responseDetails").map { response ->
+                            response.copy(sourceRef = response.sourceRef ?: occurrenceSource)
+                        },
+                        terminalHandlerResponses(parsed.steps),
+                        parsed.responses.map { response -> ZflResponse(response, sourceRef = occurrenceSource) },
+                    ),
                     sourceRef = occurrenceSource,
                 )
             }
@@ -347,7 +377,7 @@ class ZflSemanticAnalyzer {
             servicePath = servicePath,
             actor = actionModel.readSingleAnnotation("actor", diagnostics, commandRef),
             emits = emittedOutcomes,
-            responses = responseOutcomes,
+            responses = responseOutcomes.distinct(),
             steps = steps,
             occurrences = occurrences,
             sourceRef = commandRef
@@ -356,7 +386,7 @@ class ZflSemanticAnalyzer {
 
     private fun flushPendingCall(call: MutableCallStep?, steps: MutableList<ZflActionStep>) {
         if (call != null) {
-            steps += ZflCallStep(call.action, call.async, call.handlers.toList(), call.sourceRef)
+            steps += call.toStep()
         }
     }
 
@@ -368,43 +398,105 @@ class ZflSemanticAnalyzer {
         val diagnostics = mutableListOf<ZflSemanticDiagnostic>()
 
         commands.forEach { command ->
-            command.steps.filterIsInstance<ZflCallStep>().forEach { call ->
-                val calledCommand = commands.find { it.name == call.action }
-                if (!call.async && call.action !in commandNames) {
+            command.steps.forEachIndexed { callIndex, step ->
+                val call = step as? ZflCallStep ?: return@forEachIndexed
+                validateCall(command, call, commands, commandNames, flowName, diagnostics)
+                if (command.steps.drop(callIndex + 1).isNotEmpty() &&
+                    callExhaustivelyTerminates(call, commands)
+                ) {
                     diagnostics += ZflSemanticDiagnostic(
-                        message = "Action '${command.name}' calls unknown action '${call.action}'.",
-                        severity = Severity.ERROR,
-                        sourceRef = sourceRefOf(flowName, command.name)
-                    )
-                }
-                if (call.async && calledCommand != null && calledCommand.emits.isEmpty() && calledCommand.responses.isNotEmpty()) {
-                    diagnostics += ZflSemanticDiagnostic(
-                        message = "Action '${command.name}' async-calls '${call.action}', but '${call.action}' only declares response outcomes. Async responses are not published events.",
+                        message = "Action '${command.name}' handles every response from action '${call.action}', so subsequent lines are unreachable.",
                         severity = Severity.WARNING,
                         sourceRef = sourceRefOf(flowName, command.name)
                     )
-                }
-
-                call.handlers.forEach { handler ->
-                    if (!call.async && calledCommand != null && handler.endOutcome !in calledCommand.endOutcomes()) {
-                        diagnostics += ZflSemanticDiagnostic(
-                            message = "Action '${command.name}' handles unknown endOutcome '${handler.endOutcome}' from action '${call.action}'.",
-                            severity = Severity.ERROR,
-                            sourceRef = sourceRefOf(flowName, command.name)
-                        )
-                    }
-                    if (handler.action != null && handler.action !in commandNames) {
-                        diagnostics += ZflSemanticDiagnostic(
-                            message = "Action '${command.name}' handles endOutcome '${handler.endOutcome}' with unknown action '${handler.action}'.",
-                            severity = Severity.ERROR,
-                            sourceRef = sourceRefOf(flowName, command.name)
-                        )
-                    }
                 }
             }
         }
 
         return diagnostics
+    }
+
+    private fun callExhaustivelyTerminates(call: ZflCallStep, commands: List<ZflCommand>): Boolean {
+        val calledCommand = commands.find { it.name == call.action }
+        return !call.async && calledCommand != null && calledCommand.responses.isNotEmpty() &&
+            calledCommand.responses.all { response ->
+                call.handlers.any { handler ->
+                    handler.endOutcome == response &&
+                        (handler.terminal || handler.chainedCall?.let { callExhaustivelyTerminates(it, commands) } == true)
+                }
+            }
+    }
+
+    private fun terminalHandlerResponses(steps: List<ZflActionStep>): List<ZflResponse> =
+        steps.filterIsInstance<ZflCallStep>().flatMap(::terminalHandlerResponses)
+
+    private fun terminalHandlerResponses(call: ZflCallStep): List<ZflResponse> =
+        call.handlers.flatMap { handler ->
+            val signal = handler.signal
+            val responses = if (handler.terminal && signal?.response == true) {
+                signal.events.map { eventName ->
+                    ZflResponse(
+                        name = eventName,
+                        outcome = signal.outcome,
+                        options = signal.options,
+                        sourceRef = signal.sourceRef ?: handler.sourceRef,
+                    )
+                }
+            } else {
+                emptyList()
+            }
+            responses + handler.chainedCall.orEmptyTerminalHandlerResponses()
+        }
+
+    private fun ZflCallStep?.orEmptyTerminalHandlerResponses(): List<ZflResponse> =
+        this?.let(::terminalHandlerResponses).orEmpty()
+
+    private fun mergeResponseDetails(vararg responseLists: List<ZflResponse>): List<ZflResponse> =
+        responseLists.asList().flatten().distinctBy { it.name }
+
+    private fun validateCall(
+        command: ZflCommand,
+        call: ZflCallStep,
+        commands: List<ZflCommand>,
+        commandNames: Set<String>,
+        flowName: String,
+        diagnostics: MutableList<ZflSemanticDiagnostic>,
+    ) {
+        val calledCommand = commands.find { it.name == call.action }
+        if (!call.async && call.action !in commandNames) {
+            diagnostics += ZflSemanticDiagnostic(
+                message = "Action '${command.name}' calls unknown action '${call.action}'.",
+                severity = Severity.ERROR,
+                sourceRef = sourceRefOf(flowName, command.name)
+            )
+        }
+        if (call.async && calledCommand != null && calledCommand.emits.isEmpty() && calledCommand.responses.isNotEmpty()) {
+            diagnostics += ZflSemanticDiagnostic(
+                message = "Action '${command.name}' async-calls '${call.action}', but '${call.action}' only declares response outcomes. Async responses are not published events.",
+                severity = Severity.WARNING,
+                sourceRef = sourceRefOf(flowName, command.name)
+            )
+        }
+
+        call.handlers.forEach { handler ->
+            if (!call.async && calledCommand != null && handler.endOutcome !in calledCommand.responses) {
+                diagnostics += ZflSemanticDiagnostic(
+                    message = "Action '${command.name}' handles event '${handler.endOutcome}' that is not a declared response of action '${call.action}'.",
+                    severity = Severity.ERROR,
+                    sourceRef = sourceRefOf(flowName, command.name)
+                )
+            }
+            if (handler.action != null && handler.action !in commandNames) {
+                diagnostics += ZflSemanticDiagnostic(
+                    message = "Action '${command.name}' handles endOutcome '${handler.endOutcome}' with unknown action '${handler.action}'.",
+                    severity = Severity.ERROR,
+                    sourceRef = sourceRefOf(flowName, command.name)
+                )
+            }
+            handler.chainedCall?.let { chainedCall ->
+                validateCall(command, chainedCall, commands, commandNames, flowName, diagnostics)
+            }
+        }
     }
 
     private fun validateWhenTriggers(
@@ -434,7 +526,7 @@ class ZflSemanticAnalyzer {
     private fun validateEndOutcomes(
         flowName: String,
         endOutcomes: Map<String, List<String>>,
-        declaredEvents: Set<String>
+        declaredEndOutcomes: Set<String>
     ): List<ZflSemanticDiagnostic> {
         val diagnostics = mutableListOf<ZflSemanticDiagnostic>()
 
@@ -448,7 +540,7 @@ class ZflSemanticAnalyzer {
 
         endOutcomes.forEach { (outcomeName, eventNames) ->
             eventNames
-                .filterNot(declaredEvents::contains)
+                .filterNot(declaredEndOutcomes::contains)
                 .forEach { eventName ->
                     diagnostics += ZflSemanticDiagnostic(
                         message = "Flow '$flowName' endOutcome '$outcomeName' references unknown event '$eventName'.",
@@ -475,9 +567,29 @@ class ZflSemanticAnalyzer {
     private data class MutableCallStep(
         val action: String,
         val async: Boolean = false,
-        val handlers: MutableList<ZflEndOutcomeHandler> = mutableListOf(),
+        val handlers: MutableList<MutableEndOutcomeHandler> = mutableListOf(),
         val sourceRef: SourceRef? = null,
-    )
+    ) {
+        fun toStep(): ZflCallStep = ZflCallStep(action, async, handlers.map { it.toHandler() }, sourceRef)
+    }
+
+    private data class MutableEndOutcomeHandler(
+        val endOutcome: String,
+        val action: String? = null,
+        val chainedCall: MutableCallStep? = null,
+        val signal: ZflHandlerSignal? = null,
+        val terminal: Boolean = false,
+        val sourceRef: SourceRef? = null,
+    ) {
+        fun toHandler(): ZflEndOutcomeHandler = ZflEndOutcomeHandler(
+            endOutcome = endOutcome,
+            action = action,
+            chainedCall = chainedCall?.toStep(),
+            signal = signal,
+            terminal = terminal,
+            sourceRef = sourceRef,
+        )
+    }
 
     private inline fun Any?.asMapOrReturn(block: () -> Nothing): Map<String, Any?> =
         this as? Map<String, Any?> ?: block()

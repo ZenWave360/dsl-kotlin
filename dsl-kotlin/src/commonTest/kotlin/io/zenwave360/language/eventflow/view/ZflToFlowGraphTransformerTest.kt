@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ZflToFlowGraphTransformerTest {
 
@@ -50,6 +51,80 @@ class ZflToFlowGraphTransformerTest {
                 it.type == FlowGraphEdgeType.CALL
         }
         assertNotNull(callEdge)
+    }
+
+    @Test
+    fun testTransform_ChainedCallIsOnlyAnOutcomeHandlerEdge() {
+        val graph = ZflToFlowGraphTransformer().transform(
+            ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+                """
+                    flow TestFlow {
+                        when Start do main { service Test.Main call first on X call second on W response Rejected emits Completed }
+                        do first { service Test.First response X response Happy }
+                        do second { service Test.Second response W response Other }
+                        end { completed: Completed rejected: Rejected }
+                    }
+                """.trimIndent()
+            ))
+        )
+
+        assertNotNull(graph.edges.find {
+            it.source == "command:main" && it.target == "command:second" &&
+                it.type == FlowGraphEdgeType.OUTCOME_HANDLER && it.label == "on X"
+        })
+        assertNull(graph.edges.find {
+            it.source == "command:main" && it.target == "command:second" && it.type == FlowGraphEdgeType.CALL
+        })
+        assertNotNull(graph.edges.find {
+            it.source == "command:main" && it.target == "event:Rejected" &&
+                it.type == FlowGraphEdgeType.OUTCOME_HANDLER && it.label == "on W"
+        })
+        assertNull(graph.edges.find {
+            it.source == "command:second" && it.target == "event:Rejected" &&
+                it.type == FlowGraphEdgeType.OUTCOME_HANDLER && it.label == "on W"
+        })
+    }
+
+    @Test
+    fun testTransform_DeepChainedHandlerExitsBelongToTheEnclosingCommand() {
+        val graph = ZflToFlowGraphTransformer().transform(
+            ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+                """
+                    flow TestFlow {
+                        when Start do main { service Test.Main call first on X call second on W call third on Q response Rejected }
+                        do first { service Test.First response X response Happy }
+                        do second { service Test.Second response W response Other }
+                        do third { service Test.Third response Q response ThirdHappy }
+                        end { completed: Rejected }
+                    }
+                """.trimIndent()
+            ))
+        )
+
+        val exit = graph.edges.single {
+            it.target == "event:Rejected" && it.type == FlowGraphEdgeType.OUTCOME_HANDLER && it.label == "on Q"
+        }
+        assertEquals("command:main", exit.source)
+    }
+
+    @Test
+    fun testTransform_EdgeIdsAreUniqueForDistinctHandlerConditions() {
+        val graph = ZflToFlowGraphTransformer().transform(
+            ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+                """
+                    flow TestFlow {
+                        when Start do main { service Test.Main call first on X response Rejected on Happy response Rejected response Rejected }
+                        do first { service Test.First response X response Happy }
+                        end { completed: Rejected }
+                    }
+                """.trimIndent()
+            ))
+        )
+
+        val exits = graph.edges.filter { it.source == "command:main" && it.target == "event:Rejected" }
+        assertEquals(3, exits.size)
+        assertEquals(exits.size, exits.map { it.id }.distinct().size)
+        assertTrue(exits.mapNotNull { it.label }.containsAll(listOf("on X", "on Happy")))
     }
 
     @Test
@@ -103,11 +178,18 @@ class ZflToFlowGraphTransformerTest {
     }
 
     @Test
-    fun testTransform_ResponseOnlyOutcomesDoNotCreateOutcomeNodes() {
+    fun testTransform_ResponseOnlyOutcomesCreateExitOutcomeNodes() {
         val graph = ZflToFlowGraphTransformer()
             .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(responseCallFlow())))
 
-        assertNull(graph.nodes.find { it.id == "event:StockUnavailable" })
+        assertNotNull(graph.nodes.find { it.id == "event:StockUnavailable" })
+        assertNotNull(
+            graph.edges.find {
+                it.source == "command:reserveStock" &&
+                    it.target == "event:StockUnavailable" &&
+                    it.type == FlowGraphEdgeType.CAUSATION
+            }
+        )
         assertNotNull(
             graph.edges.find {
                 it.source == "command:startOrderCheckout" &&

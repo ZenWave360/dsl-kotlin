@@ -1,9 +1,11 @@
 package io.zenwave360.language.zfl.semantic
 
+import io.zenwave360.language.readTestFile
 import io.zenwave360.language.zfl.ZflParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -27,13 +29,15 @@ class ZflSemanticAnalyzerTest {
         assertIs<ZflServiceStep>(startOrderCheckout.steps[0])
         val reserveStockCall = assertIs<ZflCallStep>(startOrderCheckout.steps[1])
         assertEquals("reserveStock", reserveStockCall.action)
-        assertEquals(2, reserveStockCall.handlers.size)
+        assertEquals(1, reserveStockCall.handlers.size)
         assertEquals("StockReserved", reserveStockCall.handlers[0].endOutcome)
         assertEquals("createOrder", reserveStockCall.handlers[0].action)
-        assertEquals("StockUnavailable", reserveStockCall.handlers[1].endOutcome)
-        assertEquals(listOf("StockUnavailable"), reserveStockCall.handlers[1].signal?.events)
-        assertEquals(true, reserveStockCall.handlers[1].signal?.emits)
-        assertEquals("StockUnavailable", reserveStockCall.handlers[1].signal?.outcome)
+        val createOrderCall = assertNotNull(reserveStockCall.handlers[0].chainedCall)
+        assertEquals("createOrder", createOrderCall.action)
+        assertEquals("StockUnavailable", createOrderCall.handlers.single().endOutcome)
+        assertEquals(listOf("StockUnavailable"), createOrderCall.handlers.single().signal?.events)
+        assertEquals(true, createOrderCall.handlers.single().signal?.emits)
+        assertEquals("StockUnavailable", createOrderCall.handlers.single().signal?.outcome)
 
         assertEquals(1, flow.policies.size)
         assertEquals("startOrderCheckout", flow.policies.first().command)
@@ -44,7 +48,7 @@ class ZflSemanticAnalyzerTest {
             setOf("StockReserved", "StockUnavailable", "OrderCreated"),
             emittedNames
         )
-        assertTrue(semanticModel.diagnostics.isEmpty())
+        assertTrue(semanticModel.diagnostics.none { it.severity == Severity.ERROR })
     }
 
     @Test
@@ -118,7 +122,151 @@ class ZflSemanticAnalyzerTest {
             )
         )
 
-        assertTrue(semanticModel.diagnostics.any { it.message.contains("handles unknown endOutcome 'UnknownOutcome'") })
+        assertTrue(semanticModel.diagnostics.any { it.message.contains("not a declared response") })
+    }
+
+    @Test
+    fun testAnalyze_OnListsAreTerminalAndChainToTheNextCall() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    do bookSlot {
+                        service Bookings.BookingService
+                        call getBookingTerms
+                        on SlotNotBookable call checkBookingHolder
+                        on HolderNotEligible, HolderBlocked response BookingRejected
+                        emits Completed
+                    }
+                    do getBookingTerms {
+                        service Facilities.CatalogService
+                        response BookingTermsResult
+                        response SlotNotBookable
+                    }
+                    do checkBookingHolder {
+                        service Accounts.AccountService
+                        response HolderEligible
+                        response HolderNotEligible
+                        response HolderBlocked
+                    }
+                    end { completed: Completed }
+                }
+            """.trimIndent()
+        ))
+
+        val steps = semanticModel.flows.single().commands.first { it.name == "bookSlot" }.steps
+        val getTerms = assertIs<ZflCallStep>(steps[1])
+        assertEquals("SlotNotBookable", getTerms.handlers.single().endOutcome)
+        assertEquals("checkBookingHolder", getTerms.handlers.single().action)
+        val checkHolder = assertNotNull(getTerms.handlers.single().chainedCall)
+        assertEquals(listOf("HolderNotEligible", "HolderBlocked"), checkHolder.handlers.map { it.endOutcome })
+        assertTrue(checkHolder.handlers.all { it.terminal })
+        assertTrue(semanticModel.diagnostics.none { it.severity == Severity.ERROR })
+    }
+
+    @Test
+    fun testAnalyze_ChainedCallHandlersValidateTheChainedResponse() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    do bookSlot {
+                        service Bookings.BookingService
+                        call getBookingTerms
+                        on SlotNotBookable call checkBookingHolder
+                        on UnknownResponse response BookingRejected
+                    }
+                    do getBookingTerms {
+                        service Facilities.CatalogService
+                        response BookingTermsResult
+                        response SlotNotBookable
+                    }
+                    do checkBookingHolder {
+                        service Accounts.AccountService
+                        response HolderNotEligible
+                    }
+                    end { completed: BookingRejected }
+                }
+            """.trimIndent()
+        ))
+
+        assertTrue(semanticModel.diagnostics.any {
+            it.severity == Severity.ERROR &&
+                it.message.contains("UnknownResponse") &&
+                it.message.contains("checkBookingHolder")
+        }, semanticModel.diagnostics.toString())
+    }
+
+    @Test
+    fun testAnalyze_AllHandledResponsesBeforeFurtherLinesAddsWarning() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    do bookSlot {
+                        service Bookings.BookingService
+                        call getBookingTerms
+                        on SlotNotBookable, BookingTermsResult response BookingRejected
+                        emits Completed
+                    }
+                    do getBookingTerms {
+                        service Facilities.CatalogService
+                        response BookingTermsResult
+                        response SlotNotBookable
+                    }
+                    end { completed: Completed }
+                }
+            """.trimIndent()
+        ))
+
+        assertTrue(semanticModel.diagnostics.any {
+            it.severity == Severity.WARNING && it.message.contains("subsequent lines are unreachable")
+        })
+    }
+
+    @Test
+    fun testAnalyze_ExhaustiveNestedHandlersBeforeFurtherLinesAddWarning() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    do main {
+                        service Test.Main
+                        call first
+                        on X call second
+                        on W, Other response Rejected
+                        call tail
+                        emits Completed
+                    }
+                    do first { service Test.First response X }
+                    do second { service Test.Second response W response Other }
+                    do tail { service Test.Tail response TailDone }
+                    end { completed: Completed rejected: Rejected }
+                }
+            """.trimIndent()
+        ))
+
+        assertTrue(semanticModel.diagnostics.any {
+            it.severity == Severity.WARNING && it.message.contains("subsequent lines are unreachable")
+        }, semanticModel.diagnostics.toString())
+
+        val continuingOuterResponse = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    do main {
+                        service Test.Main
+                        call first
+                        on X call second
+                        on W, Other response Rejected
+                        call tail
+                        emits Completed
+                    }
+                    do first { service Test.First response X response Happy }
+                    do second { service Test.Second response W response Other }
+                    do tail { service Test.Tail response TailDone }
+                    end { completed: Completed rejected: Rejected }
+                }
+            """.trimIndent()
+        ))
+        assertTrue(continuingOuterResponse.diagnostics.none {
+            it.severity == Severity.WARNING && it.message.contains("subsequent lines are unreachable")
+        }, continuingOuterResponse.diagnostics.toString())
     }
 
     @Test
@@ -189,6 +337,77 @@ class ZflSemanticAnalyzerTest {
         assertEquals(listOf("PaymentAuthorized"), authorizePayment.emits.map { it.eventName })
         assertTrue(semanticModel.flows.first().events.any { it.name == "PaymentAuthorized" })
         assertTrue(semanticModel.diagnostics.none { it.message.contains("unknown trigger 'PaymentAuthorized'") })
+    }
+
+    @Test
+    fun testAnalyze_OnAfterAsyncCallAddsDiagnostic() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    when Start do main { service Test.Main async call first on Missing response Rejected emits Completed }
+                    do first { service Test.First response X response Happy }
+                    end { completed: Completed }
+                }
+            """.trimIndent()
+        ))
+
+        assertTrue(semanticModel.diagnostics.any {
+            it.severity == Severity.ERROR && it.message.contains("cannot handle responses from async call")
+        })
+    }
+
+    @Test
+    fun testAnalyze_TerminalHandlerResponsesAreCallableAndValidEndOutcomes() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    start Start {}
+                    when Start do main { service Test.Main call book on Rejected emits Done }
+                    do book { service Test.Book call first on X response Rejected response Accepted }
+                    do first { service Test.First response X response Happy }
+                    end { completed: Done rejected: Rejected }
+                }
+            """.trimIndent()
+        ))
+
+        val book = semanticModel.flows.single().commands.first { it.name == "book" }
+        assertEquals(listOf("Rejected", "Accepted"), book.responses)
+        assertTrue(semanticModel.diagnostics.none { it.severity == Severity.ERROR }, semanticModel.diagnostics.toString())
+    }
+
+    @Test
+    fun testAnalyze_OccurrenceResponsesMergeAnnotatedTerminalAndDirectResponses() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    when Start do main {
+                        service Test.Main
+                        call first
+                        @outcome(early) on X response Rejected
+                        @outcome(accepted) response Accepted
+                    }
+                    do first { service Test.First response X response Happy }
+                    end { completed: Accepted rejected: Rejected }
+                }
+            """.trimIndent()
+        ))
+
+        val responses = semanticModel.flows.single().commands.single { it.name == "main" }
+            .occurrences.single().responses
+        assertEquals(listOf("Accepted", "Rejected"), responses.map { it.name })
+        val rejected = responses.single { it.name == "Rejected" }
+        assertEquals("early", rejected.outcome)
+        assertEquals("early", rejected.options["outcome"])
+        assertNotNull(rejected.sourceRef)
+    }
+
+    @Test
+    fun testAnalyze_BookSlotFixtureAllowsResponseOnlyEndOutcomes() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(
+            ZflParser().parseModel(readTestFile("flow/book-slot-flow.zfl"))
+        )
+
+        assertTrue(semanticModel.diagnostics.none { it.severity == Severity.ERROR }, semanticModel.diagnostics.toString())
     }
 
     @Test
@@ -326,8 +545,8 @@ class ZflSemanticAnalyzerTest {
                         }
                         do reserveStock {
                             service CatalogProducts.CatalogProductsService
-                            emits StockReserved
-                            emits StockConfirmed
+                            emits response StockReserved
+                            emits response StockConfirmed
                         }
                         end {
                             completed: OrderCreated, OrderConfirmed, EventB
@@ -608,13 +827,14 @@ class ZflSemanticAnalyzerTest {
 
             do reserveStock {
                 service CatalogProducts.CatalogProductsService
-                emits StockReserved
-                emits StockUnavailable
+                emits response StockReserved
+                emits response StockUnavailable
             }
 
             do createOrder {
                 service OrdersCheckout.OrdersCheckoutService
                 emits OrderCreated
+                response StockUnavailable
             }
 
             end {
