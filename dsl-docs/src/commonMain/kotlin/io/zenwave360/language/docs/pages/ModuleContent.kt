@@ -84,10 +84,10 @@ internal class ModuleContent(
         }
     }
 
-    /** `## Aggregates`: policies, class diagram per aggregate, its lifecycle when it has one, and the entities no aggregate reaches. */
+    /** `## Aggregates`: policies, class diagrams for aggregates, inputs, outputs and unused entities and enums. */
     fun aggregates(): String {
         val classes = ZdlAggregateToMermaidClassDiagramTransformer().transform(domain)
-        if (classes.aggregates.isEmpty() && classes.others == null && policies(null).isEmpty()) return ""
+        if (classes.aggregates.isEmpty() && classes.inputs == null && classes.outputs == null && classes.unused == null && policies(null).isEmpty()) return ""
         val lifecycles = ZdlLifecycleToMermaidStateDiagramTransformer().transform(domain).associateBy { it.aggregate }
         return buildString {
             append(anchors.heading(2, "Aggregates"))
@@ -103,9 +103,19 @@ internal class ModuleContent(
                     append(if (safe) lifecycleCaption(lifecycle) else lifecycle.caption).append("\n\n")
                 }
             }
-            classes.others?.let {
-                append(anchors.heading(3, "Other entities"))
-                append("Entities and enums that no aggregate reaches.\n\n")
+            classes.inputs?.let {
+                append(anchors.heading(3, "Inputs"))
+                append("Inputs and the entities and enums they reach.\n\n")
+                append(Markdown.mermaid(it)).append('\n')
+            }
+            classes.outputs?.let {
+                append(anchors.heading(3, "Outputs"))
+                append("Outputs and the entities and enums they reach.\n\n")
+                append(Markdown.mermaid(it)).append('\n')
+            }
+            classes.unused?.let {
+                append(anchors.heading(3, "Unused entities and enums"))
+                append("Entities and enums that no aggregate, input, output, event or service method reaches.\n\n")
                 append(Markdown.mermaid(it)).append('\n')
             }
         }

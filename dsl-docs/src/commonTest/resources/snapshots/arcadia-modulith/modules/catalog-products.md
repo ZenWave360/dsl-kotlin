@@ -16,13 +16,15 @@ Back to the [architecture](../architecture.md).
   - [ProductCatalogService](#productcatalogservice)
 - [Aggregates](#aggregates)
   - [Product](#product)
+  - [Inputs](#inputs)
+  - [Outputs](#outputs)
 - [Domain events](#domain-events)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
   - [Enums](#enums)
-  - [Inputs](#inputs)
-  - [Outputs](#outputs)
+  - [Inputs](#inputs-1)
+  - [Outputs](#outputs-1)
   - [Domain events](#domain-events-1)
 
 ## Architecture
@@ -170,6 +172,75 @@ stateDiagram-v2
 ```
 
 Field `status`, initial `DRAFT`.
+
+### Inputs
+
+Inputs and the entities and enums they reach.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
+---
+classDiagram
+    class CreateProductInput {
+        <<input>>
+        String sku
+        String name
+        String description
+        BigDecimal price
+        String currency
+        Integer editionSize
+        InventoryTrackingMode trackingMode
+        Instant launchAt
+    }
+    class UpdateProductInput {
+        <<input>>
+        String name
+        String description
+        BigDecimal price
+        String currency
+        Instant launchAt
+    }
+    class InventoryTrackingMode {
+        <<enumeration>>
+        QUANTITY
+        SERIALIZED
+    }
+    CreateProductInput --> InventoryTrackingMode : trackingMode
+    style CreateProductInput fill:#ffffff,stroke:#333333,color:#111111
+    style UpdateProductInput fill:#ffffff,stroke:#333333,color:#111111
+    style InventoryTrackingMode fill:#f2f2f2,stroke:#333333,color:#111111
+```
+
+### Outputs
+
+Outputs and the entities and enums they reach.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
+---
+classDiagram
+    class ProductPublishedResponse {
+        <<output>>
+        String productId
+        String sku
+        Instant publishedAt
+    }
+    style ProductPublishedResponse fill:#ffffff,stroke:#333333,color:#111111
+```
 
 ## Domain events
 

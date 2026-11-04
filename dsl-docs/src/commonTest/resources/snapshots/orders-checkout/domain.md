@@ -16,12 +16,13 @@ Back to the [architecture](architecture.md).
   - [OrdersCheckoutService](#orderscheckoutservice)
 - [Aggregates](#aggregates)
   - [Order](#order)
+  - [Inputs](#inputs)
 - [Domain events](#domain-events)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
   - [Enums](#enums)
-  - [Inputs](#inputs)
+  - [Inputs](#inputs-1)
   - [Domain events](#domain-events-1)
 
 ## Architecture
@@ -172,6 +173,38 @@ stateDiagram-v2
 ```
 
 Field `status`, initial `CREATED`.
+
+### Inputs
+
+Inputs and the entities and enums they reach.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
+---
+classDiagram
+    class StartOrderCheckoutInput {
+        <<input>>
+        String[] items
+    }
+    class ConfirmOrderInput {
+        <<input>>
+        String orderId
+    }
+    class CancelOrderInput {
+        <<input>>
+        String orderId
+    }
+    style StartOrderCheckoutInput fill:#ffffff,stroke:#333333,color:#111111
+    style ConfirmOrderInput fill:#ffffff,stroke:#333333,color:#111111
+    style CancelOrderInput fill:#ffffff,stroke:#333333,color:#111111
+```
 
 ## Domain events
 

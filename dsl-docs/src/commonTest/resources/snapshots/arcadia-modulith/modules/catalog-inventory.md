@@ -18,7 +18,8 @@ Back to the [architecture](../architecture.md).
 - [Aggregates](#aggregates)
   - [StockReservation](#stockreservation)
   - [InventoryPosition](#inventoryposition)
-  - [Other entities](#other-entities)
+  - [Inputs](#inputs)
+  - [Outputs](#outputs)
 - [Domain events](#domain-events)
 - [Commands](#commands)
   - [InventoryService](#inventoryservice-1)
@@ -26,8 +27,8 @@ Back to the [architecture](../architecture.md).
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
   - [Enums](#enums)
-  - [Inputs](#inputs)
-  - [Outputs](#outputs)
+  - [Inputs](#inputs-1)
+  - [Outputs](#outputs-1)
   - [Domain events](#domain-events-1)
 
 ## Architecture
@@ -262,9 +263,9 @@ classDiagram
     style InventoryPosition fill:#fbd3ee,stroke:#333333,color:#111111
 ```
 
-### Other entities
+### Inputs
 
-Entities and enums that no aggregate reaches.
+Inputs and the entities and enums they reach.
 
 ```mermaid
 ---
@@ -277,10 +278,46 @@ config:
     transitionLabelColor: "#111111"
 ---
 classDiagram
-    class ReserveStockOutcome {
+    class ReserveStockInput {
+        <<input>>
+        String orderId
+        ReserveStockItemInput[] items
+    }
+    class ReserveStockItemInput {
+        <<input>>
+        String sku
+        Integer quantity
+    }
+    class ReleaseStockInput {
+        <<input>>
+        String orderId
+        StockReleaseReason reason
+    }
+    class CreateInventoryPositionInput {
+        <<input>>
+        String sku
+        Integer initialQuantity
+    }
+    class ReceiveStockInput {
+        <<input>>
+        String sku
+        Integer quantity
+        String reason
+        String reference
+    }
+    class AdjustStockInput {
+        <<input>>
+        String sku
+        Integer quantityDelta
+        StockAdjustmentReason reason
+        String reference
+    }
+    class StockReleaseReason {
         <<enumeration>>
-        RESERVED
-        UNAVAILABLE
+        PAYMENT_DECLINED
+        PAYMENT_RETRY_EXHAUSTED
+        PAYMENT_VOIDED
+        RESERVATION_EXPIRED
     }
     class StockAdjustmentReason {
         <<enumeration>>
@@ -290,8 +327,75 @@ classDiagram
         MANUAL_CORRECTION
         RETURNED
     }
-    style ReserveStockOutcome fill:#f2f2f2,stroke:#333333,color:#111111
+    ReleaseStockInput --> StockReleaseReason : reason
+    AdjustStockInput --> StockAdjustmentReason : reason
+    style ReserveStockInput fill:#ffffff,stroke:#333333,color:#111111
+    style ReserveStockItemInput fill:#ffffff,stroke:#333333,color:#111111
+    style ReleaseStockInput fill:#ffffff,stroke:#333333,color:#111111
+    style CreateInventoryPositionInput fill:#ffffff,stroke:#333333,color:#111111
+    style ReceiveStockInput fill:#ffffff,stroke:#333333,color:#111111
+    style AdjustStockInput fill:#ffffff,stroke:#333333,color:#111111
+    style StockReleaseReason fill:#f2f2f2,stroke:#333333,color:#111111
     style StockAdjustmentReason fill:#f2f2f2,stroke:#333333,color:#111111
+```
+
+### Outputs
+
+Outputs and the entities and enums they reach.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
+---
+classDiagram
+    class ReserveStockResult {
+        <<output>>
+        ReserveStockOutcome outcome
+        StockReservedResult reserved
+        StockUnavailableResult unavailable
+    }
+    class StockReservedResult {
+        <<output>>
+        String orderId
+        Instant expiresAt
+        StockReservedLine[] reservations
+    }
+    class StockReservedLine {
+        <<output>>
+        String reservationId
+        String sku
+        Integer quantity
+        Instant reservedAt
+    }
+    class StockUnavailableResult {
+        <<output>>
+        String orderId
+        StockUnavailableLine[] unavailableItems
+    }
+    class StockUnavailableLine {
+        <<output>>
+        String sku
+        Integer requestedQuantity
+        Integer availableQuantity
+    }
+    class ReserveStockOutcome {
+        <<enumeration>>
+        RESERVED
+        UNAVAILABLE
+    }
+    ReserveStockResult --> ReserveStockOutcome : outcome
+    style ReserveStockResult fill:#ffffff,stroke:#333333,color:#111111
+    style StockReservedResult fill:#ffffff,stroke:#333333,color:#111111
+    style StockReservedLine fill:#ffffff,stroke:#333333,color:#111111
+    style StockUnavailableResult fill:#ffffff,stroke:#333333,color:#111111
+    style StockUnavailableLine fill:#ffffff,stroke:#333333,color:#111111
+    style ReserveStockOutcome fill:#f2f2f2,stroke:#333333,color:#111111
 ```
 
 ## Domain events

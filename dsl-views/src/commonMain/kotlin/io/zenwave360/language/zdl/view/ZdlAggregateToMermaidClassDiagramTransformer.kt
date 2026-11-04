@@ -6,7 +6,7 @@ import io.zenwave360.language.zdl.view.ZdlToMermaidClassDiagramTransformer.Compa
 import io.zenwave360.language.zdl.view.ZdlToMermaidClassDiagramTransformer.Companion.memberText
 
 /**
- * One Mermaid `classDiagram` per aggregate root, plus one for the entities no aggregate reaches.
+ * One Mermaid `classDiagram` per aggregate root, plus diagrams for inputs, outputs and unused entities and enums.
  *
  * An aggregate diagram holds the root (`<<aggregate>>`) and everything reachable from it through
  * fields of entity or enum type and relationships: entities (`<<entity>>`, `<<embedded>>`) with
@@ -28,9 +28,26 @@ class ZdlAggregateToMermaidClassDiagramTransformer {
             val full = listOf(aggregate.root) + reachable.entities + reachable.enums
             AggregateClassDiagram(aggregate.name, aggregate.root, render(domain, full, reachable.otherRoots.toSet(), aggregate.root))
         }
-        val others = domain.unreachableTypes()
-        val othersDiagram = if (others.isEmpty()) null else render(domain, others, domain.aggregateRoots, null)
-        return AggregateClassDiagrams(diagrams, othersDiagram)
+        val inputs = typesDiagram(domain, ZdlTypeKind.INPUT)
+        val outputs = typesDiagram(domain, ZdlTypeKind.OUTPUT)
+        val unused = unusedTypes(domain)
+        return AggregateClassDiagrams(diagrams, inputs, outputs, unused)
+    }
+
+    /** A class diagram of the inputs, outputs, or unused entities and enums of [model], or null when empty. */
+    fun unusedTypes(model: ZdlModel): String? = unusedTypes(ZdlDomain(model))
+
+    /** A class diagram of the entities and enums no aggregate, input, output, event or service method reaches. */
+    fun unusedTypes(domain: ZdlDomain): String? {
+        val unused = domain.unusedTypes()
+        return unused.takeIf { it.isNotEmpty() }?.let { render(domain, it, emptySet(), null) }
+    }
+
+    private fun typesDiagram(domain: ZdlDomain, kind: ZdlTypeKind): String? {
+        val roots = domain.typesOf(kind).map { it.name }
+        if (roots.isEmpty()) return null
+        val full = roots + domain.reachableEntityAndEnumsFrom(roots).filter { it !in roots }
+        return render(domain, full, emptySet(), null)
     }
 
     /**
@@ -45,7 +62,7 @@ class ZdlAggregateToMermaidClassDiagramTransformer {
         fun reaches(target: String) = target in fullSet || target in stubCandidates
 
         for (name in full) {
-            if (domain.kindOf(name) != ZdlTypeKind.ENTITY) continue
+            if (domain.kindOf(name) !in setOf(ZdlTypeKind.ENTITY, ZdlTypeKind.INPUT, ZdlTypeKind.OUTPUT)) continue
             for (field in domain.fieldsOf(name)) {
                 val target = field.type
                 val kind = domain.kindOf(target)
@@ -84,6 +101,8 @@ class ZdlAggregateToMermaidClassDiagramTransformer {
                 val type = domain.types.getValue(name)
                 val stereotype = when {
                     type.kind == ZdlTypeKind.ENUM -> "enumeration"
+                    type.kind == ZdlTypeKind.INPUT -> "input"
+                    type.kind == ZdlTypeKind.OUTPUT -> "output"
                     name == root -> "aggregate"
                     type.embedded -> "embedded"
                     else -> "entity"
@@ -104,5 +123,10 @@ class ZdlAggregateToMermaidClassDiagramTransformer {
 /** The class diagram of one aggregate: [aggregate] is the aggregate (or root) name, [root] the root entity. */
 data class AggregateClassDiagram(val aggregate: String, val root: String, val mermaid: String)
 
-/** [others] is the diagram of entities and enums no aggregate reaches, null when there are none. */
-data class AggregateClassDiagrams(val aggregates: List<AggregateClassDiagram>, val others: String?)
+/** [unused] is the diagram of entities and enums no aggregate, input, output, event or service method reaches. */
+data class AggregateClassDiagrams(
+    val aggregates: List<AggregateClassDiagram>,
+    val inputs: String?,
+    val outputs: String?,
+    val unused: String?,
+)

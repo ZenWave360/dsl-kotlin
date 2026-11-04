@@ -16,12 +16,13 @@ Back to the [architecture](../architecture.md).
   - [OrdersCheckoutService](#orderscheckoutservice)
 - [Aggregates](#aggregates)
   - [Order](#order)
+  - [Inputs](#inputs)
 - [Domain events](#domain-events)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
   - [Enums](#enums)
-  - [Inputs](#inputs)
+  - [Inputs](#inputs-1)
   - [Domain events](#domain-events-1)
 
 ## Architecture
@@ -234,6 +235,56 @@ stateDiagram-v2
 ```
 
 Field `status`, initial `CREATED`.
+
+### Inputs
+
+Inputs and the entities and enums they reach.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
+---
+classDiagram
+    class StartOrderCheckoutInput {
+        <<input>>
+        String customerId
+        String customerEmail
+        String paymentMethodId
+        String currency
+        OrderItemInput[] items
+        ShippingAddressInput shippingAddress
+    }
+    class OrderItemInput {
+        <<input>>
+        String sku
+        Integer quantity
+        BigDecimal unitPrice
+    }
+    class ShippingAddressInput {
+        <<input>>
+        String name
+        String line1
+        String line2
+        String city
+        String region
+        String postalCode
+        String country
+    }
+    class CancelOrderInput {
+        <<input>>
+        String reason
+    }
+    style StartOrderCheckoutInput fill:#ffffff,stroke:#333333,color:#111111
+    style OrderItemInput fill:#ffffff,stroke:#333333,color:#111111
+    style ShippingAddressInput fill:#ffffff,stroke:#333333,color:#111111
+    style CancelOrderInput fill:#ffffff,stroke:#333333,color:#111111
+```
 
 ## Domain events
 
