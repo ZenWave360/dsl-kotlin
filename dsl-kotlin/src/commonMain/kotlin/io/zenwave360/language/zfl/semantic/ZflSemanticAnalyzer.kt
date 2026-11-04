@@ -245,7 +245,8 @@ class ZflSemanticAnalyzer {
                                         emits = emits,
                                         response = response,
                                         options = stepModel.getStringMap("options"),
-                                        outcome = stepModel.getStringOrNull("outcome")
+                                        outcome = stepModel.getStringOrNull("outcome"),
+                                        sourceRef = sourceRefOf(flowName, "actions.$actionName"),
                                     )
                                 } else {
                                     null
@@ -324,9 +325,6 @@ class ZflSemanticAnalyzer {
             )
         }
 
-        val responseDetails = actionModel.getResponseList("responseDetails").ifEmpty {
-            responseOutcomes.map { ZflResponse(it) }
-        }
         val occurrences = if (includeOccurrences) {
             actionModel.getMapList("occurrences").mapIndexed { index, occurrenceModel ->
                 val effective = LinkedHashMap(actionModel)
@@ -356,9 +354,13 @@ class ZflSemanticAnalyzer {
                     servicePath = parsed.servicePath,
                     steps = parsed.steps,
                     emissions = parsed.emits,
-                    responses = effective.getResponseList("responseDetails").ifEmpty {
-                        parsed.responses.map { ZflResponse(it, sourceRef = occurrenceSource) }
-                    },
+                    responses = mergeResponseDetails(
+                        effective.getResponseList("responseDetails").map { response ->
+                            response.copy(sourceRef = response.sourceRef ?: occurrenceSource)
+                        },
+                        terminalHandlerResponses(parsed.steps),
+                        parsed.responses.map { response -> ZflResponse(response, sourceRef = occurrenceSource) },
+                    ),
                     sourceRef = occurrenceSource,
                 )
             }
@@ -399,11 +401,8 @@ class ZflSemanticAnalyzer {
             command.steps.forEachIndexed { callIndex, step ->
                 val call = step as? ZflCallStep ?: return@forEachIndexed
                 validateCall(command, call, commands, commandNames, flowName, diagnostics)
-                val calledCommand = commands.find { it.name == call.action }
-                if (!call.async && calledCommand != null && calledCommand.responses.isNotEmpty() &&
-                    calledCommand.responses.all { response ->
-                        call.handlers.any { it.endOutcome == response && it.terminal }
-                    } && command.steps.drop(callIndex + 1).isNotEmpty()
+                if (command.steps.drop(callIndex + 1).isNotEmpty() &&
+                    callExhaustivelyTerminates(call, commands)
                 ) {
                     diagnostics += ZflSemanticDiagnostic(
                         message = "Action '${command.name}' handles every response from action '${call.action}', so subsequent lines are unreachable.",
@@ -416,6 +415,44 @@ class ZflSemanticAnalyzer {
 
         return diagnostics
     }
+
+    private fun callExhaustivelyTerminates(call: ZflCallStep, commands: List<ZflCommand>): Boolean {
+        val calledCommand = commands.find { it.name == call.action }
+        return !call.async && calledCommand != null && calledCommand.responses.isNotEmpty() &&
+            calledCommand.responses.all { response ->
+                call.handlers.any { handler ->
+                    handler.endOutcome == response &&
+                        (handler.terminal || handler.chainedCall?.let { callExhaustivelyTerminates(it, commands) } == true)
+                }
+            }
+    }
+
+    private fun terminalHandlerResponses(steps: List<ZflActionStep>): List<ZflResponse> =
+        steps.filterIsInstance<ZflCallStep>().flatMap(::terminalHandlerResponses)
+
+    private fun terminalHandlerResponses(call: ZflCallStep): List<ZflResponse> =
+        call.handlers.flatMap { handler ->
+            val signal = handler.signal
+            val responses = if (handler.terminal && signal?.response == true) {
+                signal.events.map { eventName ->
+                    ZflResponse(
+                        name = eventName,
+                        outcome = signal.outcome,
+                        options = signal.options,
+                        sourceRef = signal.sourceRef ?: handler.sourceRef,
+                    )
+                }
+            } else {
+                emptyList()
+            }
+            responses + handler.chainedCall.orEmptyTerminalHandlerResponses()
+        }
+
+    private fun ZflCallStep?.orEmptyTerminalHandlerResponses(): List<ZflResponse> =
+        this?.let(::terminalHandlerResponses).orEmpty()
+
+    private fun mergeResponseDetails(vararg responseLists: List<ZflResponse>): List<ZflResponse> =
+        responseLists.asList().flatten().distinctBy { it.name }
 
     private fun validateCall(
         command: ZflCommand,

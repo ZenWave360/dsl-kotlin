@@ -76,9 +76,35 @@ class ZflToFlowGraphTransformerTest {
             it.source == "command:main" && it.target == "command:second" && it.type == FlowGraphEdgeType.CALL
         })
         assertNotNull(graph.edges.find {
+            it.source == "command:main" && it.target == "event:Rejected" &&
+                it.type == FlowGraphEdgeType.OUTCOME_HANDLER && it.label == "on W"
+        })
+        assertNull(graph.edges.find {
             it.source == "command:second" && it.target == "event:Rejected" &&
                 it.type == FlowGraphEdgeType.OUTCOME_HANDLER && it.label == "on W"
         })
+    }
+
+    @Test
+    fun testTransform_DeepChainedHandlerExitsBelongToTheEnclosingCommand() {
+        val graph = ZflToFlowGraphTransformer().transform(
+            ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+                """
+                    flow TestFlow {
+                        when Start do main { service Test.Main call first on X call second on W call third on Q response Rejected }
+                        do first { service Test.First response X response Happy }
+                        do second { service Test.Second response W response Other }
+                        do third { service Test.Third response Q response ThirdHappy }
+                        end { completed: Rejected }
+                    }
+                """.trimIndent()
+            ))
+        )
+
+        val exit = graph.edges.single {
+            it.target == "event:Rejected" && it.type == FlowGraphEdgeType.OUTCOME_HANDLER && it.label == "on Q"
+        }
+        assertEquals("command:main", exit.source)
     }
 
     @Test

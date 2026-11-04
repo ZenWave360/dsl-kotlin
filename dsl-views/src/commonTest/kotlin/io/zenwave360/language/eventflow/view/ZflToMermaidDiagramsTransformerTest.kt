@@ -480,6 +480,19 @@ class ZflToMermaidDiagramsTransformerTest {
                 .none { path -> path.messages.any { it.label == "second" } },
             paths.toString()
         )
+        val flowchart = ZflToMermaidDiagramsTransformer().transform(model).flowchart
+        assertTrue(
+            flowchart.contains("action_main -->|on W| outcome_main_W"),
+            flowchart
+        )
+        assertTrue(
+            flowchart.contains("outcome_main_W --> event_Rejected"),
+            flowchart
+        )
+        assertTrue(
+            !flowchart.contains("action_second -->|on W| outcome_second_W"),
+            flowchart
+        )
     }
 
     @Test

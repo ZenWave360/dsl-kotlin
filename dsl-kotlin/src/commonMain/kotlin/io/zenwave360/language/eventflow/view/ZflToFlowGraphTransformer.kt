@@ -273,7 +273,7 @@ class ZflToFlowGraphTransformer {
                     connectOutcomeHandlers(
                         nodeMap,
                         edgeMap,
-                        commands.find { it.name == handler.action } ?: command,
+                        command,
                         chainedCall,
                         commands.find { it.name == chainedCall.action },
                         commands

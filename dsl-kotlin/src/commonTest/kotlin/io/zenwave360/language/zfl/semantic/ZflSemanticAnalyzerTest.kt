@@ -222,6 +222,54 @@ class ZflSemanticAnalyzerTest {
     }
 
     @Test
+    fun testAnalyze_ExhaustiveNestedHandlersBeforeFurtherLinesAddWarning() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    do main {
+                        service Test.Main
+                        call first
+                        on X call second
+                        on W, Other response Rejected
+                        call tail
+                        emits Completed
+                    }
+                    do first { service Test.First response X }
+                    do second { service Test.Second response W response Other }
+                    do tail { service Test.Tail response TailDone }
+                    end { completed: Completed rejected: Rejected }
+                }
+            """.trimIndent()
+        ))
+
+        assertTrue(semanticModel.diagnostics.any {
+            it.severity == Severity.WARNING && it.message.contains("subsequent lines are unreachable")
+        }, semanticModel.diagnostics.toString())
+
+        val continuingOuterResponse = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    do main {
+                        service Test.Main
+                        call first
+                        on X call second
+                        on W, Other response Rejected
+                        call tail
+                        emits Completed
+                    }
+                    do first { service Test.First response X response Happy }
+                    do second { service Test.Second response W response Other }
+                    do tail { service Test.Tail response TailDone }
+                    end { completed: Completed rejected: Rejected }
+                }
+            """.trimIndent()
+        ))
+        assertTrue(continuingOuterResponse.diagnostics.none {
+            it.severity == Severity.WARNING && it.message.contains("subsequent lines are unreachable")
+        }, continuingOuterResponse.diagnostics.toString())
+    }
+
+    @Test
     fun testAnalyze_ResponseOutcomesAreCallableButNotPublishedAsEvents() {
         val semanticModel = ZflSemanticAnalyzer().analyze(
             ZflParser().parseModel(
@@ -325,6 +373,32 @@ class ZflSemanticAnalyzerTest {
         val book = semanticModel.flows.single().commands.first { it.name == "book" }
         assertEquals(listOf("Rejected", "Accepted"), book.responses)
         assertTrue(semanticModel.diagnostics.none { it.severity == Severity.ERROR }, semanticModel.diagnostics.toString())
+    }
+
+    @Test
+    fun testAnalyze_OccurrenceResponsesMergeAnnotatedTerminalAndDirectResponses() {
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    when Start do main {
+                        service Test.Main
+                        call first
+                        @outcome(early) on X response Rejected
+                        @outcome(accepted) response Accepted
+                    }
+                    do first { service Test.First response X response Happy }
+                    end { completed: Accepted rejected: Rejected }
+                }
+            """.trimIndent()
+        ))
+
+        val responses = semanticModel.flows.single().commands.single { it.name == "main" }
+            .occurrences.single().responses
+        assertEquals(listOf("Accepted", "Rejected"), responses.map { it.name })
+        val rejected = responses.single { it.name == "Rejected" }
+        assertEquals("early", rejected.outcome)
+        assertEquals("early", rejected.options["outcome"])
+        assertNotNull(rejected.sourceRef)
     }
 
     @Test
