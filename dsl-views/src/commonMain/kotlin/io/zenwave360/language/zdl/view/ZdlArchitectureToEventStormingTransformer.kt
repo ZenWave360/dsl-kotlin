@@ -7,22 +7,25 @@ import io.zenwave360.language.zdl.view.ZdlToMermaidClassDiagramTransformer.Compa
 /**
  * The whole architecture as one EventStorming-style Mermaid flowchart: a dashed box per module (not the
  * referenced ones) holding each of its services (pink), with an arrow from each command (blue) to its service
- * and from the service to each event it emits (orange). Module events that no command emits hang from the
- * first service. Queries are left out. Layout is Mermaid's own: boxes stack top to bottom, each one left to right.
+ * and from the service to each event it emits (orange). Queries are pale yellow nodes with an arrow to their
+ * service and no event edges. Module events that no command emits hang from the first service. Layout is
+ * Mermaid's own: boxes stack top to bottom, each one left to right.
  */
 class ZdlArchitectureToEventStormingTransformer {
 
-    /** Null when no module has a command or an event. */
+    /** Null when no module has a command, query or event. */
     fun transform(architecture: ZdlArchitecture): String? {
         val boxes = architecture.modules.filter { !it.referenced }.mapNotNull { box(architecture, it) }
         if (boxes.isEmpty()) return null
         val commands = mutableListOf<String>()
+        val queries = mutableListOf<String>()
         val services = mutableListOf<String>()
         val events = mutableListOf<String>()
         return buildString {
             append(MermaidLight.SUBGRAPH_TITLE_FRONT_MATTER)
             append("flowchart LR\n")
             append("  classDef command ").append(ZdlServiceToEventStormingTransformer.COMMAND_STYLE).append('\n')
+            append("  classDef query fill:#fefce8,stroke:#ca8a04,color:#111\n")
             append("  classDef service ").append(ZdlServiceToEventStormingTransformer.AGGREGATE_STYLE).append('\n')
             append("  classDef event ").append(ZdlServiceToEventStormingTransformer.EVENT_STYLE).append('\n')
             for (b in boxes) {
@@ -30,6 +33,7 @@ class ZdlArchitectureToEventStormingTransformer {
                 append("    direction LR\n")
                 for (s in b.services) {
                     s.commands.forEach { (id, name) -> append("    $id[\"${memberText(name)}\"] --> ${s.id}\n"); commands += id }
+                    s.queries.forEach { (id, name) -> append("    $id[\"${memberText(name)}\"] --> ${s.id}\n"); queries += id }
                     if (s.name != null) { append("    ${s.id}([\"${memberText(s.name)}\"])\n"); services += s.id }
                     s.events.forEach { (id, name) ->
                         append("    ").append(if (s.name != null) "${s.id} --> " else "").append("$id[\"${memberText(name)}\"]\n")
@@ -39,6 +43,7 @@ class ZdlArchitectureToEventStormingTransformer {
                 append("  end\n")
             }
             if (commands.isNotEmpty()) append("  class ${commands.joinToString(",")} command\n")
+            if (queries.isNotEmpty()) append("  class ${queries.joinToString(",")} query\n")
             if (services.isNotEmpty()) append("  class ${services.joinToString(",")} service\n")
             if (events.isNotEmpty()) append("  class ${events.joinToString(",")} event\n")
             boxes.forEach { append("  style ").append(it.id).append(' ').append(BOX_STYLE).append('\n') }
@@ -46,28 +51,39 @@ class ZdlArchitectureToEventStormingTransformer {
     }
 
     /** A service of a box; [name] null holds the events of a module without commands. Pairs are (node id, label). */
-    private class Service(val id: String, val name: String?, val commands: List<Pair<String, String>>, val events: List<Pair<String, String>>)
+    private class Service(
+        val id: String,
+        val name: String?,
+        val commands: List<Pair<String, String>>,
+        val queries: List<Pair<String, String>>,
+        val events: List<Pair<String, String>>,
+    )
 
     private class Box(val module: ArchModule, val id: String, val services: List<Service>)
 
     private fun box(a: ZdlArchitecture, module: ArchModule): Box? {
-        val commands = a.commandsOf(module.id).filter { !it.query }
+        val methods = a.commandsOf(module.id)
+        val commands = methods.filter { !it.query }
         val moduleEvents = a.events.filter { it.module == module.id }.map { it.name }
-        if (commands.isEmpty() && moduleEvents.isEmpty()) return null
+        if (methods.isEmpty() && moduleEvents.isEmpty()) return null
         val prefix = id(module.id)
-        val names = commands.map { it.service }.distinct().ifEmpty { listOf(null) }
+        val names = methods.map { it.service }.distinct().ifEmpty { listOf(null) }
         val loose = moduleEvents - commands.flatMap { it.events }.toSet()
         val placed = mutableSetOf<String>()
-        val duplicated = commands.groupBy { it.method }.filter { it.value.size > 1 }.keys
+        val duplicated = methods.groupBy { it.method }.filter { it.value.size > 1 }.keys
         val services = names.mapIndexed { index, service ->
             val own = commands.filter { it.service == service }
             val cmds = own.map { c ->
                 val suffix = if (c.method in duplicated) "_" + id(c.service) else ""
                 "${prefix}_${id(c.method)}$suffix" to c.method
             }
+            val qs = methods.filter { it.query && it.service == service }.map { q ->
+                val suffix = if (q.method in duplicated) "_" + id(q.service) else ""
+                "${prefix}_${id(q.method)}$suffix" to q.method
+            }
             val evts = (own.flatMap { it.events } + if (index == 0) loose else emptyList())
                 .filter { placed.add(it) }.map { "${prefix}_${id(it)}" to it }
-            Service("${prefix}_${id(service ?: "events")}", service, cmds, evts)
+            Service("${prefix}_${id(service ?: "events")}", service, cmds, qs, evts)
         }
         return Box(module, "sg_$prefix", services)
     }

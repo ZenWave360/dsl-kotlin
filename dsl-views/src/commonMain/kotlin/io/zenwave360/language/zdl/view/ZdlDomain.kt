@@ -74,7 +74,8 @@ sealed interface CommandAdapter {
  *
  * [events] holds one list per `withEvents` entry; a list with several names is an alternative
  * (`[A | B]`). A command is a [query] when it has no events, no `@transition`, no `@listener`,
- * no `@asyncapi` and no `@calls`; a query changes nothing and is left out of the flow diagrams.
+ * no `@asyncapi` and no `@calls`; a query changes nothing. EventStorming architecture diagrams show it
+ * without event edges, while service diagrams list it outside their command-and-event flowchart.
  */
 data class ZdlCommand(
     val owner: String,

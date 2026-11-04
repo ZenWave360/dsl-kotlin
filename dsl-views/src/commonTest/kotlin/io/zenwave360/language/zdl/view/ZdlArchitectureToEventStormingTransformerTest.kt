@@ -49,6 +49,7 @@ class ZdlArchitectureToEventStormingTransformerTest {
             ---
             flowchart LR
               classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+              classDef query fill:#fefce8,stroke:#ca8a04,color:#111
               classDef service fill:#fbd3ee,stroke:#c2569b,color:#111
               classDef event fill:#ffb76b,stroke:#d9822b,color:#111
               subgraph sg_Billing["Billing"]
@@ -65,6 +66,7 @@ class ZdlArchitectureToEventStormingTransformerTest {
                 direction LR
                 Orders_placeOrder["placeOrder"] --> Orders_OrderService
                 Orders_cancelOrder["cancelOrder"] --> Orders_OrderService
+                Orders_getOrder["getOrder"] --> Orders_OrderService
                 Orders_OrderService(["OrderService"])
                 Orders_OrderService --> Orders_OrderPlaced["OrderPlaced"]
                 Orders_OrderService --> Orders_OrderCancelled["OrderCancelled"]
@@ -72,6 +74,7 @@ class ZdlArchitectureToEventStormingTransformerTest {
                 Orders_OrderService --> Orders_OrderArchived["OrderArchived"]
               end
               class Billing_issue,Orders_placeOrder,Orders_cancelOrder command
+              class Orders_getOrder query
               class Billing_BillingService,Orders_OrderService service
               class Billing_A,Billing_B,Billing_C,Billing_D,Billing_E,Orders_OrderPlaced,Orders_OrderCancelled,Orders_CancelRejected,Orders_OrderArchived event
               style sg_Billing fill:#ffffff,stroke:#999999,stroke-dasharray:4 3,color:#333333
@@ -84,6 +87,21 @@ class ZdlArchitectureToEventStormingTransformerTest {
     @Test
     fun nullWithoutCommandsOrEvents() {
         assertNull(transformer.transform(read("a.zdl" to "entity A { a String }")))
+    }
+
+    @Test
+    fun queryOnlyServiceGetsAPaleYellowNodeWithoutEventEdges() {
+        val result = transformer.transform(read("orders.zdl" to """
+            entity Order { id String }
+            service Orders for (Order) {
+                getOrder(id) Order?
+            }
+        """.trimIndent()))!!
+
+        assertTrue(result.contains("classDef query fill:#fefce8,stroke:#ca8a04,color:#111"), result)
+        assertTrue(result.contains("Orders_getOrder[\"getOrder\"] --> Orders_Orders"), result)
+        assertTrue(result.contains("class Orders_getOrder query"), result)
+        assertTrue(!result.contains("Orders_getOrder -->"), result)
     }
 
     @Test

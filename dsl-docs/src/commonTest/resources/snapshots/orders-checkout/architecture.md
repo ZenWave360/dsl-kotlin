@@ -18,6 +18,7 @@ config:
 ---
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef query fill:#fefce8,stroke:#ca8a04,color:#111
   classDef service fill:#fbd3ee,stroke:#c2569b,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
   subgraph sg_OrdersCheckout["Orders Checkout"]
