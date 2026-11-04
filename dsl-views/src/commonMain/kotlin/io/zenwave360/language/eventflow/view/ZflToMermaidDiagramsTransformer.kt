@@ -146,9 +146,9 @@ class ZflToMermaidDiagramsTransformer(
                 if (outcomeNodes.add(outcomeNodeId)) {
                     nodeLines += "    $outcomeNodeId([\"${escape(outcome)}\"])"
                     classAssignments += "    class $outcomeNodeId outcomeNode"
-                    val label = edge.label?.let { "|${escape(it)}|" } ?: ""
-                    edgeLines += "    $sourceId -->$label $outcomeNodeId"
                 }
+                val label = edge.label?.let { "|${escape(it)}|" } ?: ""
+                edgeLines += "    $sourceId -->$label $outcomeNodeId"
                 edgeLines += "    $outcomeNodeId --> $targetId"
                 return@forEach
             }

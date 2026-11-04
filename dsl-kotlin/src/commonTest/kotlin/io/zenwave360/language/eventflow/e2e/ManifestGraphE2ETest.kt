@@ -57,11 +57,12 @@ class ManifestGraphE2ETest {
         val flow = semanticModel.flows.single()
         val orchestrate = flow.commands.single { it.name == "orchestrateCheckout" }
         val calls = orchestrate.steps.filterIsInstance<ZflCallStep>()
-        assertEquals(listOf("reserveStock", "completeCheckout", "notifyAudit"), calls.map { it.action })
+        assertEquals(listOf("reserveStock", "notifyAudit"), calls.map { it.action })
         assertTrue(calls.last().async)
         assertEquals("completeCheckout", calls.first().handlers.first().action)
-        assertEquals(listOf("CheckoutRejected"), calls[1].handlers.single().signal?.events)
-        assertEquals("rejected", calls[1].handlers.single().signal?.outcome)
+        val completeCheckout = assertNotNull(calls.first().handlers.first().chainedCall)
+        assertEquals(listOf("CheckoutRejected"), completeCheckout.handlers.single().signal?.events)
+        assertEquals("rejected", completeCheckout.handlers.single().signal?.outcome)
 
         val graph = ZflToFlowGraphTransformer().transform(semanticModel)
         assertNotNull(graph.nodes.singleOrNull { it.id == "command:notifyAudit" })

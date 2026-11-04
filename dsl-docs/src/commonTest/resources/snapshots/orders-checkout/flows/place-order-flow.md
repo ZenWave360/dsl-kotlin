@@ -88,41 +88,48 @@ flowchart TD
     event_PaymentVoided[/PaymentVoided/]
     event_StockReleased[/StockReleased/]
     event_StockReservationConfirmed[/StockReservationConfirmed/]
+    event_StockReservedResult[/StockReservedResult/]
     event_StockUnavailableNotificationSent[/StockUnavailableNotificationSent/]
+    event_StockUnavailableResult[/StockUnavailableResult/]
     event_StockUnavailable[/StockUnavailable/]
     outcome_authorizePayment_authorized(["authorized"])
     outcome_authorizePayment_declined(["declined"])
     outcome_authorizePayment_failed(["failed"])
+    outcome_reserveStock_StockReservedResult(["StockReservedResult"])
+    outcome_reserveStock_StockUnavailableResult(["StockUnavailableResult"])
     outcome_retryPayment_retried(["retried"])
     outcome_retryPayment_retry_exhausted(["retry-exhausted"])
     outcome_startOrderCheckout_StockReservedResult(["StockReservedResult"])
     outcome_startOrderCheckout_StockUnavailableResult(["StockUnavailableResult"])
-    policy_when_FulfillmentFailed_PaymentCaptureFailed_do_voidPayment{{"when FulfillmentFailed,PaymentCaptureFailed do voidPayment"}}
+    policy_when_FulfillmentFailed_PaymentCaptureFailed_do_voidPayment{{"when FulfillmentFailed, PaymentCaptureFailed do voidPayment"}}
     policy_when_FulfillmentScheduled_do_capturePayment{{"when FulfillmentScheduled do capturePayment"}}
     policy_when_OrderCancelled_do_sendOrderCancelledNotification{{"when OrderCancelled do sendOrderCancelledNotification"}}
     policy_when_OrderConfirmed_do_scheduleFulfillment{{"when OrderConfirmed do scheduleFulfillment"}}
     policy_when_OrderCreated_do_authorizePayment{{"when OrderCreated do authorizePayment"}}
     policy_when_PaymentAuthorized_do_confirmOrder{{"when PaymentAuthorized do confirmOrder"}}
     policy_when_PaymentCaptured_do_sendOrderConfirmation{{"when PaymentCaptured do sendOrderConfirmation"}}
-    policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock{{"when PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired do releaseStock"}}
+    policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock{{"when PaymentDeclined, PaymentRetryExhausted, PaymentVoided, ReservationExpired do releaseStock"}}
     policy_when_PaymentFailed_do_retryPayment{{"when PaymentFailed do retryPayment"}}
     policy_when_PaymentRetried_do_authorizePayment{{"when PaymentRetried do authorizePayment"}}
+    policy_when_StartOrderCheckout_do_startOrderCheckout{{"when StartOrderCheckout do startOrderCheckout"}}
     policy_when_StockReleased_do_cancelOrder{{"when StockReleased do cancelOrder"}}
     policy_when_StockUnavailable_do_sendStockUnavailableNotification{{"when StockUnavailable do sendStockUnavailableNotification"}}
-    start_ReservationExpired["ReservationExpired"]
-    start_ReservationExpired["Scheduler"]
-    start_StartOrderCheckout["Customer"]
-    start_StartOrderCheckout["StartOrderCheckout"]
+    start_ReservationExpired["Scheduler<br/>ReservationExpired"]
+    start_StartOrderCheckout["Customer<br/>StartOrderCheckout"]
     terminal_completed(("completed"))
     terminal_orderCancelled(("orderCancelled"))
     terminal_stockGone(("stockGone"))
-    start_StartOrderCheckout --> action_startOrderCheckout
-    start_ReservationExpired --> action_releaseStock
+    start_StartOrderCheckout --> policy_when_StartOrderCheckout_do_startOrderCheckout
+    start_ReservationExpired --> policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock
     action_startOrderCheckout --> action_reserveStock
     action_startOrderCheckout -->|on StockReservedResult| outcome_startOrderCheckout_StockReservedResult
     outcome_startOrderCheckout_StockReservedResult --> event_OrderCreated
     action_startOrderCheckout -->|on StockUnavailableResult| outcome_startOrderCheckout_StockUnavailableResult
     outcome_startOrderCheckout_StockUnavailableResult --> event_StockUnavailable
+    action_reserveStock --> outcome_reserveStock_StockReservedResult
+    outcome_reserveStock_StockReservedResult --> event_StockReservedResult
+    action_reserveStock --> outcome_reserveStock_StockUnavailableResult
+    outcome_reserveStock_StockUnavailableResult --> event_StockUnavailableResult
     action_authorizePayment --> outcome_authorizePayment_authorized
     outcome_authorizePayment_authorized --> event_PaymentAuthorized
     action_authorizePayment --> outcome_authorizePayment_declined
@@ -148,13 +155,8 @@ flowchart TD
     action_sendOrderCancelledNotification --> event_OrderCancelledNotificationSent
     event_OrderCreated --> policy_when_OrderCreated_do_authorizePayment
     policy_when_OrderCreated_do_authorizePayment --> action_authorizePayment
-    action_authorizePayment --> event_PaymentAuthorized
-    action_authorizePayment --> event_PaymentDeclined
-    action_authorizePayment --> event_PaymentFailed
     event_PaymentFailed --> policy_when_PaymentFailed_do_retryPayment
     policy_when_PaymentFailed_do_retryPayment --> action_retryPayment
-    action_retryPayment --> event_PaymentRetried
-    action_retryPayment --> event_PaymentRetryExhausted
     event_PaymentRetried --> policy_when_PaymentRetried_do_authorizePayment
     policy_when_PaymentRetried_do_authorizePayment --> action_authorizePayment
     event_PaymentAuthorized --> policy_when_PaymentAuthorized_do_confirmOrder
@@ -190,10 +192,25 @@ flowchart TD
     classDef terminal fill:#fee2e2,stroke:#b91c1c,color:#0f172a
     class start_StartOrderCheckout actor
     class start_ReservationExpired actor
+    class policy_when_StartOrderCheckout_do_startOrderCheckout policy
+    class policy_when_OrderCreated_do_authorizePayment policy
+    class policy_when_PaymentFailed_do_retryPayment policy
+    class policy_when_PaymentRetried_do_authorizePayment policy
+    class policy_when_PaymentAuthorized_do_confirmOrder policy
+    class policy_when_OrderConfirmed_do_scheduleFulfillment policy
+    class policy_when_FulfillmentScheduled_do_capturePayment policy
+    class policy_when_PaymentCaptured_do_sendOrderConfirmation policy
+    class policy_when_StockUnavailable_do_sendStockUnavailableNotification policy
+    class policy_when_FulfillmentFailed_PaymentCaptureFailed_do_voidPayment policy
+    class policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock policy
+    class policy_when_StockReleased_do_cancelOrder policy
+    class policy_when_OrderCancelled_do_sendOrderCancelledNotification policy
     class action_startOrderCheckout action
     class event_OrderCreated event
     class event_StockUnavailable event
     class action_reserveStock action
+    class event_StockReservedResult event
+    class event_StockUnavailableResult event
     class action_authorizePayment action
     class event_PaymentAuthorized event
     class event_PaymentDeclined event
@@ -223,23 +240,13 @@ flowchart TD
     class event_OrderCancelled event
     class action_sendOrderCancelledNotification action
     class event_OrderCancelledNotificationSent event
-    class policy_when_OrderCreated_do_authorizePayment policy
-    class policy_when_PaymentFailed_do_retryPayment policy
-    class policy_when_PaymentRetried_do_authorizePayment policy
-    class policy_when_PaymentAuthorized_do_confirmOrder policy
-    class policy_when_OrderConfirmed_do_scheduleFulfillment policy
-    class policy_when_FulfillmentScheduled_do_capturePayment policy
-    class policy_when_PaymentCaptured_do_sendOrderConfirmation policy
-    class policy_when_StockUnavailable_do_sendStockUnavailableNotification policy
-    class policy_when_FulfillmentFailed_PaymentCaptureFailed_do_voidPayment policy
-    class policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock policy
-    class policy_when_StockReleased_do_cancelOrder policy
-    class policy_when_OrderCancelled_do_sendOrderCancelledNotification policy
     class terminal_completed terminal
     class terminal_stockGone terminal
     class terminal_orderCancelled terminal
     class outcome_startOrderCheckout_StockReservedResult outcomeNode
     class outcome_startOrderCheckout_StockUnavailableResult outcomeNode
+    class outcome_reserveStock_StockReservedResult outcomeNode
+    class outcome_reserveStock_StockUnavailableResult outcomeNode
     class outcome_authorizePayment_authorized outcomeNode
     class outcome_authorizePayment_declined outcomeNode
     class outcome_authorizePayment_failed outcomeNode

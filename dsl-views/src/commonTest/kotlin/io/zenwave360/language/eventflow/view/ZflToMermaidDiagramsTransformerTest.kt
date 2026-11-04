@@ -3,6 +3,7 @@ package io.zenwave360.language.eventflow.view
 import io.zenwave360.language.readViewsTestFile
 import io.zenwave360.language.zfl.ZflParser
 import io.zenwave360.language.zfl.semantic.ZflSemanticAnalyzer
+import io.zenwave360.language.zfl.semantic.Severity
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -45,8 +46,9 @@ class ZflToMermaidDiagramsTransformerTest {
             }
         """.trimIndent()
 
-        val diagrams = ZflToMermaidDiagramsTransformer()
-            .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)))
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent))
+        assertTrue(semanticModel.diagnostics.none { it.severity == Severity.ERROR }, semanticModel.diagnostics.toString())
+        val diagrams = ZflToMermaidDiagramsTransformer().transform(semanticModel)
 
         assertEquals("zfl.mermaid.view@1", diagrams.schema)
         assertEquals("CheckoutFlow", diagrams.flowName)
@@ -259,8 +261,9 @@ class ZflToMermaidDiagramsTransformerTest {
     fun testTransform_BookSlotFlowchartRoutesStartsThroughPoliciesWithoutDuplicateNodesOrEdges() {
         val zflContent = readViewsTestFile("flow/book-slot-flow.zfl")
 
-        val diagrams = ZflToMermaidDiagramsTransformer()
-            .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent)))
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(zflContent))
+        assertTrue(semanticModel.diagnostics.none { it.severity == Severity.ERROR }, semanticModel.diagnostics.toString())
+        val diagrams = ZflToMermaidDiagramsTransformer().transform(semanticModel)
 
         val flowchart = diagrams.flowchart
         assertTrue(flowchart.contains("start_RequestBooking[\"Citizen<br/>RequestBooking\"]"), flowchart)
@@ -431,6 +434,79 @@ class ZflToMermaidDiagramsTransformerTest {
         assertTrue(completed.mermaid.contains("PaymentService->>PaymentService: async call authorizePayment"), completed.mermaid)
         assertTrue(completed.mermaid.contains("PaymentService-->>OrderService: PaymentAuthorized"), completed.mermaid)
         assertTrue(completed.mermaid.contains("OrderService->>OrderService: confirmOrder"), completed.mermaid)
+    }
+
+    @Test
+    fun testTransform_AnnotatedOnListDrawsEveryCondition() {
+        val diagrams = ZflToMermaidDiagramsTransformer().transform(
+            ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+                """
+                    flow TestFlow {
+                        @actor(User) start Start {}
+                        when Start do main { service Test.Main call first @outcome(early) on X, Happy response Rejected }
+                        do first { service Test.First response X response Happy }
+                        end { completed: Rejected }
+                    }
+                """.trimIndent()
+            ))
+        )
+
+        assertTrue(diagrams.flowchart.contains("|on X|"), diagrams.flowchart)
+        assertTrue(diagrams.flowchart.contains("|on Happy|"), diagrams.flowchart)
+        assertHasUniqueNodeDefinitionsAndEdges(diagrams.flowchart)
+    }
+
+    @Test
+    fun testTransform_ChainedCallHandlersStayOnTheChainedResponsePath() {
+        val model = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    @actor(User) start Start {}
+                    when Start do main { service Test.Main call first on X call second on W response Rejected emits Completed }
+                    do first { service Test.First response X response Happy }
+                    do second { service Test.Second response W response Other }
+                    end { completed: Completed rejected: Rejected }
+                }
+            """.trimIndent()
+        ))
+        val paths = ZflSequencePaths(model.flows.single()).paths()
+
+        assertTrue(paths.any { path ->
+            path.endOutcome == "rejected" && path.messages.any { it.label == "X" } &&
+                path.messages.any { it.label == "W" }
+        }, paths.toString())
+        assertTrue(
+            paths.filter { path -> path.messages.any { it.label == "Happy" } }
+                .none { path -> path.messages.any { it.label == "second" } },
+            paths.toString()
+        )
+    }
+
+    @Test
+    fun testTransform_TerminalHandlersDoNotContinueToFollowingCalls() {
+        listOf("response", "emits", "emits response").forEach { signal ->
+            val model = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+                """
+                    flow TestFlow {
+                        @actor(User) start Start {}
+                        when Start do main {
+                            service Test.Main
+                            call first
+                            @outcome(early) on X, Happy $signal Rejected
+                            call second
+                            emits Completed
+                        }
+                        do first { service Test.First response X response Happy }
+                        do second { service Test.Second response W }
+                        end { completed: Completed rejected: Rejected }
+                    }
+                """.trimIndent()
+            ))
+            val paths = ZflSequencePaths(model.flows.single()).paths()
+
+            assertTrue(paths.isNotEmpty(), signal)
+            assertTrue(paths.none { path -> path.messages.any { it.label == "second" } }, "$signal: $paths")
+        }
     }
 
     private fun assertHasUniqueNodeDefinitionsAndEdges(flowchart: String) {

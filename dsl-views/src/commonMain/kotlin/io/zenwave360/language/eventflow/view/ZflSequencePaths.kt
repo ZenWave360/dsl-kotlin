@@ -277,9 +277,12 @@ internal class ZflSequencePaths(
                         Outcome(next, signal.events, emptyList(), owner)
                     }
                 } else if (action != null) {
-                    val target = calleeFor(action)
-                    val next = replied.add(SequenceMessage(owner, participantOf(action), action, false))
-                    if (target != null) results += run(target, next)
+                    results += call(
+                        handler.chainedCall ?: ZflCallStep(action),
+                        rest,
+                        owner,
+                        replied
+                    )
                 }
             }
         }

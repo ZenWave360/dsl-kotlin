@@ -59,7 +59,6 @@ flow BookSlotFlow {
         call getBookingTerms
         on SlotNotBookable response SlotNotBookable
         call checkBookingHolder
-        on SlotNotBookable response BookingRejected
         on HolderNotEligible response BookingRejected
         @outcome(confirmed)
         emits response BookingConfirmed
