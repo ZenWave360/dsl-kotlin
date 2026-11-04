@@ -399,10 +399,12 @@ class ZflToFlowViewModelTransformerTest {
             viewModel.edges.find {
                 it.source == "command:startOrderCheckout" &&
                     it.target == "event:OrderRejected" &&
-                    it.type == FlowEdgeType.OUTCOME_HANDLER &&
-                    it.label == "on StockUnavailable"
+                    it.type == FlowEdgeType.CAUSATION
             }
         )
+        assertNull(viewModel.edges.find {
+            it.target == "event:OrderRejected" && it.type == FlowEdgeType.OUTCOME_HANDLER
+        })
     }
 
     @Test
@@ -425,8 +427,13 @@ class ZflToFlowViewModelTransformerTest {
         assertNotNull(viewModel.nodes.find {
             it.id == "readModel:StatusReady" && it.type == FlowNodeType.READ_MODEL
         })
-        assertNotNull(viewModel.edges.find {
+        // EF-R18: the event hangs from the read model, not from the command
+        assertNull(viewModel.edges.find {
             it.source == "command:getStatus" && it.target == "event:StatusReady"
+        })
+        assertNotNull(viewModel.edges.find {
+            it.source == "readModel:StatusReady" && it.target == "event:StatusReady" &&
+                it.type == FlowEdgeType.CAUSATION
         })
         assertNotNull(viewModel.edges.find {
             it.source == "command:getStatus" && it.target == "readModel:StatusReady"
@@ -471,14 +478,15 @@ class ZflToFlowViewModelTransformerTest {
     }
 
     @Test
-    fun testTransform_VariantRetainsStartAndResponseReadModel() {
+    fun testTransform_VariantRetainsStartReadModelAndResponseEventPath() {
         val semantic = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
             """
                 flow ReadStatus {
                     @actor(Customer)
                     start Requested {}
-                    when Requested do readStatus { response StatusReady }
-                    end { completed: StatusReady }
+                    when Requested do readStatus { emits response StatusReady }
+                    when StatusReady do persistStatus { emits StatusPersisted }
+                    end { completed: StatusPersisted }
                 }
             """.trimIndent()
         ))
@@ -488,8 +496,12 @@ class ZflToFlowViewModelTransformerTest {
 
         assertNotNull(variant.nodes.find { it.id == "event:Requested" && it.type == FlowNodeType.START })
         assertNotNull(variant.nodes.find { it.id == "readModel:StatusReady" && it.type == FlowNodeType.READ_MODEL })
+        assertNotNull(variant.nodes.find { it.id == "event:StatusReady" && it.type == FlowNodeType.EVENT })
+        assertNotNull(variant.nodes.find { it.id == "policy:StatusReady:persistStatus" && it.type == FlowNodeType.POLICY })
         assertNotNull(variant.edges.find { it.source == "event:Requested" && it.target == "command:readStatus" })
         assertNotNull(variant.edges.find { it.source == "command:readStatus" && it.target == "readModel:StatusReady" })
+        assertNotNull(variant.edges.find { it.source == "readModel:StatusReady" && it.target == "event:StatusReady" })
+        assertNotNull(variant.edges.find { it.source == "event:StatusReady" && it.target == "policy:StatusReady:persistStatus" })
     }
 
     @Test

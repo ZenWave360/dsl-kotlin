@@ -77,7 +77,8 @@ class ManifestGraphE2ETest {
             listOf("rejected"),
             viewModel.nodes.single { it.id == "event:CheckoutRejected" }.endOutcomeLabels,
         )
-        assertTrue(viewModel.edges.any {
+        // EF-R19: a call's responses are not connected to the caller's outcomes
+        assertTrue(viewModel.edges.none {
             it.target == "event:CheckoutRejected" && it.type == FlowEdgeType.OUTCOME_HANDLER
         })
         assertTrue(viewModel.toJsonString().contains("checkout.zfl"))
