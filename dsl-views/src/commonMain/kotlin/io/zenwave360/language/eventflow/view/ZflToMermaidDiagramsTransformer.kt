@@ -109,8 +109,12 @@ class ZflToMermaidDiagramsTransformer(
             val startPolicies = policiesByTrigger[start.name].orEmpty()
             startPolicies.forEach { policy ->
                 val sourceId = flowchartNodeId("start", start.name)
-                val targetId = flowchartPolicyNodeId(policy)
-                edgeLines += "    $sourceId --> $targetId"
+                val policyId = flowchartPolicyNodeId(policy)
+                val commandId = flowchartNodeId("action", policy.command)
+                edgeLines += "    $sourceId --> $policyId"
+                // Actor starts are collapsed to a direct graph edge. The flowchart still
+                // renders their policy, so connect every start-handling policy explicitly.
+                edgeLines += "    $policyId --> $commandId"
             }
         }
 

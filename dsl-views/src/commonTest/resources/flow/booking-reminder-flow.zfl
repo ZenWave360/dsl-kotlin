@@ -1,0 +1,16 @@
+flow BookingLifecycleFlow {
+    @actor(Scheduler)
+    @time("24 hours before the slot starts and Booking is CONFIRMED")
+    start BookingReminderDue {
+        bookingId String
+    }
+
+    when BookingReminderDue do sendBookingReminder {
+        service Notifications.NotificationService
+        emits BookingReminderSent
+    }
+
+    end {
+        completed: BookingReminderSent
+    }
+}
