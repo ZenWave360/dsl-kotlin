@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       publish-snapshots:
-        description: "Also publish the SNAPSHOT to Maven Central and npm next (snapshots always go to zenwave360/maven-snapshots)"
+        description: "Also publish the SNAPSHOT to Maven Central (snapshots always go to zenwave360/maven-snapshots, and npm next on every build)"
         required: false
         type: boolean
         default: false
