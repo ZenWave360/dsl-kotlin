@@ -30,6 +30,9 @@ internal object Markdown {
 
     fun code(text: String): String = if (text.isEmpty()) "" else "`${text.replace("`", "'")}`"
 
+    /** A code block whose contents cannot end the block or become Markdown, even when a model value has newlines. */
+    fun indentedCode(text: String): String = text.lines().joinToString("\n") { "    $it" } + "\n"
+
     /** Text on one line: Javadoc and descriptions often span lines, and tables and headings cannot. */
     fun inline(text: String?): String = text.orEmpty().trim().replace(Regex("\\s+"), " ")
 
@@ -49,13 +52,19 @@ internal object Markdown {
     fun safeLiteral(text: String?): String = safeInline(text).replace("*", "\\*").replace("_", "\\_").replace("`", "\\`").replace("~", "\\~")
 
     /**
-     * [javadoc] with the escaping of [safeInline]. The text is a paragraph of its own, so a start that would make it a heading,
-     * a list, a quote, a rule or a fence (`# x`, `- x`, `> x`, `1. x`, a run of backticks) is escaped: the page has the headings
-     * and blocks the generator wrote and no others.
+     * Javadoc as safe CommonMark. Each source line ends in a CommonMark hard break; empty lines remain paragraph breaks.
+     * Markdown emphasis, lists, inline code and links are retained, while raw HTML and images are text. Headings, quotes,
+     * rules, fences and tables are escaped so the Javadoc cannot alter the page structure or its generated fences.
      */
     fun safeJavadoc(text: String?): String {
-        val line = safeInline(text.orEmpty().lines().joinToString("\n") { it.trim().removePrefix("*") })
-        return line.replace(BLOCK_START) { "\\" + it.value }.replace(LIST_NUMBER) { it.groupValues[1] + "\\" + it.groupValues[2] }
+        val lines = text.orEmpty().lines().map { it.trim().removePrefix("*").trimStart() }
+        return buildString {
+            lines.forEachIndexed { index, line ->
+                append(safeJavadocLine(line))
+                if (line.isNotBlank() && index < lines.lastIndex) append("  ")
+                if (index < lines.lastIndex) append('\n')
+            }
+        }
     }
 
     /**
@@ -77,9 +86,61 @@ internal object Markdown {
         }
     }
 
-    // What can open a block at the start of a paragraph: a marker character, or the number of a list item (its `.` or `)` is escaped).
-    private val BLOCK_START = Regex("^[#>+=~`*_-]")
-    private val LIST_NUMBER = Regex("^(\\d+)([.)])")
+    private fun safeJavadocLine(text: String): String {
+        val escaped = safeJavadocInline(text).replace("|", "\\|")
+        val listItem = LIST_ITEM_START.matchEntire(escaped)
+        return if (listItem != null) listItem.groupValues[1] + safeJavadocContainer(listItem.groupValues[2])
+        else if (BLOCK_START.containsMatchIn(escaped)) "\\$escaped"
+        else escaped
+    }
+
+    /** Preserve links for the preview host to decide where they open, but keep all other user text inert. */
+    private fun safeJavadocInline(text: String): String = buildString {
+        var copied = 0
+        var searchFrom = 0
+        while (searchFrom < text.length) {
+            val start = text.indexOf('[', searchFrom)
+            if (start < 0) break
+            if (start > 0 && text[start - 1] == '!') {
+                searchFrom = start + 1
+                continue
+            }
+            val labelEnd = text.indexOf("](", start + 1)
+            if (labelEnd < 0) {
+                searchFrom = start + 1
+                continue
+            }
+            val destinationEnd = text.indexOf(')', labelEnd + 2)
+            if (destinationEnd < 0) {
+                searchFrom = start + 1
+                continue
+            }
+            append(safeInline(text.substring(copied, start)))
+            append('[').append(safeInline(text.substring(start + 1, labelEnd))).append("](")
+                .append(text.substring(labelEnd + 2, destinationEnd)).append(')')
+            copied = destinationEnd + 1
+            searchFrom = copied
+        }
+        append(safeInline(text.substring(copied)))
+    }
+
+    /** A list item is a container: block markers in its first content line must be neutralized too. */
+    private fun safeJavadocContainer(text: String): String = when {
+        // A backslash before a space is visible in markdown-it. An entity keeps the intended leading space without
+        // leaving the list item's content indented enough to become a code block.
+        text.startsWith("   ") -> "&nbsp;$text"
+        BLOCK_START.containsMatchIn(text) -> "\\$text"
+        else -> text
+    }
+
+    private val HEADING_START = Regex("^#{1,6}(?:\\s|$)")
+    private val QUOTE_START = Regex("^>")
+    private val SETEXT_START = Regex("^[-=]+\\s*$")
+    private val RULE_START = Regex("^(?:[-*_]\\s*){3,}$")
+    private val FENCE_START = Regex("^(?:`{3,}|~{3,})")
+    private val INDENTED_CODE_START = Regex("^ {4}")
+    private val BLOCK_START = Regex("(?:${HEADING_START.pattern}|${QUOTE_START.pattern}|${SETEXT_START.pattern}|${RULE_START.pattern}|${FENCE_START.pattern}|${INDENTED_CODE_START.pattern})")
+    private val LIST_ITEM_START = Regex("^((?:[-+*]|\\d{1,9}[.)])[ \\t])(.*)$")
 
     // Same slug rule as GitHub and VS Code headings.
     fun anchor(heading: String): String =

@@ -16,8 +16,9 @@ class PreviewHardeningTest {
     private val script = "<script>alert(1)</script>"
     private val active = Regex("<script|<img|<iframe|!\\[|(?<!\\\\)\\]\\(http|https?://|(?<!\\\\)://|<https", RegexOption.IGNORE_CASE)
 
-    /** The page without its fenced diagrams, where only the generator and the escaped text write. */
-    private fun prose(page: String) = page.split("```mermaid\n").mapIndexed { i, part -> if (i == 0) part else part.substringAfter("\n```\n") }.joinToString("")
+    /** The page without code blocks, where only the generator and the escaped text write. */
+    private fun prose(page: String) = page.split("```mermaid\n").mapIndexed { i, part -> if (i == 0) part else part.substringAfter("\n```\n") }
+        .joinToString("").lines().filterNot { it.startsWith("    ") }.joinToString("\n")
 
     private fun zdl(text: String) = DslDocs().previewZdl(text)
 
@@ -79,7 +80,7 @@ class PreviewHardeningTest {
         )
 
         assertTrue(page.contains("run"), page)
-        assertFalse(active.containsMatchIn(page), page)
+        assertFalse(active.containsMatchIn(prose(page)), page)
         assertTrue(page.contains("&lt;script&gt;alert(1)&lt;/script&gt;"), page)
         assertTrue(page.contains("!\\[x\\](https\\://evil.test/a.png)"), page)
     }
@@ -127,10 +128,95 @@ class PreviewHardeningTest {
     }
 
     @Test
+    fun multilineJavadocKeepsHardBreaksParagraphsListsAndInlineCode() {
+        val page = zdl(
+            """
+            /**
+             * First line
+             * second line
+             *
+             * Another paragraph:
+             * - first item
+             * - `second` item
+             */
+            config { title "Order" }
+            @aggregate
+            entity Order { id UUID }
+            """.trimIndent(),
+        )
+
+        assertTrue(page.contains("First line  \nsecond line  \n\nAnother paragraph:  \n- first item  \n- `second` item"), page)
+    }
+
+    @Test
+    fun hostileMultilineJavadocCannotAddHtmlImagesHeadingsFencesOrTables() {
+        val page = zdl(
+            """
+            /**
+             * <script>alert(1)</script>
+             * ![x](https://evil.test/a.png)
+             * # Injected heading
+             * ```kotlin
+             * | Name | Value |
+             */
+            config { title "Order" }
+            @aggregate
+            entity Order { id UUID }
+            """.trimIndent(),
+        )
+
+        assertFalse(active.containsMatchIn(page), page)
+        assertFalse(headings(page).any { it.second.contains("Injected") }, page)
+        assertTrue(page.contains("\\```kotlin"), page)
+        assertTrue(page.contains("\\| Name \\| Value \\|"), page)
+        assertEquals(page.lines().count { it.startsWith("```mermaid") }, page.lines().count { it == "```" }, page)
+    }
+
+    @Test
+    fun javadocBlockSyntaxInsideListsAndSetextUnderlinesIsInert() {
+        val fence = "`".repeat(3)
+        val page = zdl(
+            """
+            /**
+             * Title
+             * --
+             * - # Nested heading
+             * - ${fence}kotlin
+             * -    indented code
+             */
+            config { title "Order" }
+            @aggregate
+            entity Order { id UUID }
+            """.trimIndent(),
+        )
+
+        assertFalse(headings(page).any { it.second.contains("Title") || it.second.contains("Nested") }, page)
+        assertTrue(page.contains("\\--"), page)
+        assertTrue(page.contains("- \\# Nested heading"), page)
+        assertTrue(page.contains("- \\${fence}kotlin"), page)
+    }
+
+    @Test
+    fun javadocLinksRemainCommonMarkLinksWhileImagesStayText() {
+        val page = zdl(
+            """
+            /** [go](../apis/a.yml#L8) and [web](https://example.test/docs), but ![image](https://evil.test/a.png) */
+            config { title "Order" }
+            @aggregate
+            entity Order { id UUID }
+            """.trimIndent(),
+        )
+
+        assertTrue(page.contains("[go](../apis/a.yml#L8)"), page)
+        assertTrue(page.contains("[web](https://example.test/docs)"), page)
+        assertTrue(page.contains("!\\[image\\](https\\://evil.test/a.png)"), page)
+    }
+
+    @Test
     fun zwPreviewEscapesTitlePluginNamesAndValues() {
         val page = zw("config { title \"$image\" plugins { P { x \"$script\" y \"$image\" } } }")
 
-        assertFalse(active.containsMatchIn(page), page)
+        assertFalse(active.containsMatchIn(prose(page)), page)
     }
 
     @Test
@@ -237,6 +323,6 @@ class PreviewHardeningTest {
 
         val expected = "{\"n\":\"9223372036854775807\",\"m\":9007199254740991,\"k\":\"9007199254740992\",\"neg\":\"-9007199254740992\",\"small\":2,\"list\":[1,\"9223372036854775807\"]}"
         val escaped = expected.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]").replace("_", "\\_").replace("*", "\\*")
-        assertEquals(2, page.split(escaped).size - 1, page)
+        assertEquals(1, page.split(escaped).size - 1, page)
     }
 }

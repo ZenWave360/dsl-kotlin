@@ -2,6 +2,7 @@
 
 ## Contents
 
+- [APIs](#apis)
 - [Services](#services)
   - [OrdersCheckoutService](#orderscheckoutservice)
 - [Aggregates](#aggregates)
@@ -13,6 +14,16 @@
   - [Enums](#enums)
   - [Inputs](#inputs)
   - [Domain events](#domain-events-1)
+
+## APIs
+
+The APIs this model provides or uses.
+
+| API | Kind | Role | Location |
+| --- | --- | --- | --- |
+| PaymentsProcessingApi | asyncapi | client | [https\://raw.githubusercontent.com/arcadia-editions/payments-processing-api/main/asyncapi.yml](https://raw.githubusercontent.com/arcadia-editions/payments-processing-api/main/asyncapi.yml) |
+| CatalogInventoryApi | asyncapi | client | [https\://raw.githubusercontent.com/arcadia-editions/catalog-inventory-api/main/asyncapi.yml](https://raw.githubusercontent.com/arcadia-editions/catalog-inventory-api/main/asyncapi.yml) |
+| CatalogInventoryZdl | zdl | client | [https\://raw.githubusercontent.com/arcadia-editions/catalog-inventory-api/main/domain-model.zdl](https://raw.githubusercontent.com/arcadia-editions/catalog-inventory-api/main/domain-model.zdl) |
 
 ## Services
 
