@@ -111,6 +111,30 @@ class PreviewZdlTest {
     }
 
     @Test
+    fun aggregatesIncludeInputsOutputsAndOnlyUnusedEntitiesAndEnums() {
+        val page = preview(
+            """
+                input CreateOrder { details InputDetails }
+                entity InputDetails { kind Kind }
+                output OrderView { customer Customer }
+                entity Customer { name String }
+                enum Kind { STANDARD }
+                event OrderPlaced { eventDetail EventDetail }
+                entity EventDetail { value String }
+                service Orders for (ServiceDetail) { find(ServiceDetail) OrderView }
+                entity ServiceDetail { code String }
+                entity Unused { value String }
+            """.trimIndent(),
+        )
+
+        assertTrue(page.contains("### Inputs\n\nInputs and the entities and enums they reach."), page)
+        assertTrue(page.contains("### Outputs\n\nOutputs and the entities and enums they reach."), page)
+        assertTrue(page.contains("### Unused entities and enums\n\nEntities and enums that no aggregate, input, output, event or service method reaches."), page)
+        assertTrue(page.contains("class Unused"), page)
+        assertFalse(page.contains("### Other entities"), page)
+    }
+
+    @Test
     fun apiLocationsThatAreNotWorkspaceOrHttpLinksStayText() {
         val page = preview(
             """
@@ -185,7 +209,7 @@ class PreviewZdlTest {
 
         val page = preview(zdl)
 
-        assertTrue(page.contains("\nclassDiagram\n"), page)
+        assertTrue(page.contains("\nflowchart LR\n"), page)
         assertTrue(page.contains("## Glossary"), page)
     }
 

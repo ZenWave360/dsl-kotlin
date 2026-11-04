@@ -74,7 +74,8 @@ sealed interface CommandAdapter {
  *
  * [events] holds one list per `withEvents` entry; a list with several names is an alternative
  * (`[A | B]`). A command is a [query] when it has no events, no `@transition`, no `@listener`,
- * no `@asyncapi` and no `@calls`; a query changes nothing and is left out of the flow diagrams.
+ * no `@asyncapi` and no `@calls`; a query changes nothing. EventStorming architecture diagrams show it
+ * without event edges, while service diagrams list it outside their command-and-event flowchart.
  */
 data class ZdlCommand(
     val owner: String,
@@ -334,16 +335,37 @@ class ZdlDomain(private val model: ZdlModel) {
         return ZdlReachable(root, entities, enums, others)
     }
 
-    /** Entities and enums that no aggregate root is or reaches (the "other entities"), in declaration order. */
-    fun unreachableTypes(): List<String> {
+    /**
+     * Entities and enums that no aggregate, input, output, event or service method reaches, in declaration order.
+     * Aggregate roots, top-level inputs, outputs and events are the starting points; a service method contributes
+     * its parameter and return type.
+     */
+    fun unusedTypes(): List<String> {
         val reached = mutableSetOf<String>()
-        for (root in aggregateRoots) {
-            val r = reachableFrom(root)
-            reached += root; reached += r.entities; reached += r.enums
-        }
+        val starts = aggregateRoots +
+            typesOf(ZdlTypeKind.INPUT).map { it.name } +
+            typesOf(ZdlTypeKind.OUTPUT).map { it.name } +
+            events.map { it.name } +
+            services.flatMap { service -> service.methods.flatMap { listOfNotNull(it.parameter, it.returnType) } }
+        reached += reachableEntityAndEnumsFrom(starts)
         return types.values
             .filter { (it.kind == ZdlTypeKind.ENTITY || it.kind == ZdlTypeKind.ENUM) && it.name !in reached }
             .map { it.name }
+    }
+
+    /** Entities and enums [starts] reach through fields and relationships, including entity and enum starts. */
+    fun reachableEntityAndEnumsFrom(starts: Collection<String>): List<String> {
+        val result = linkedSetOf<String>()
+        val seen = starts.toMutableSet()
+        val queue = ArrayDeque(starts)
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            if (kindOf(current) in setOf(ZdlTypeKind.ENTITY, ZdlTypeKind.ENUM)) result += current
+            for (target in fieldsOf(current).map { it.type } + relationshipTargets[current].orEmpty()) {
+                if (seen.add(target)) queue.addLast(target)
+            }
+        }
+        return result.toList()
     }
 
     // ---- internals ---------------------------------------------------------------------------

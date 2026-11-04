@@ -16,12 +16,13 @@ Back to the [architecture](../architecture.md).
   - [PaymentsProcessingService](#paymentsprocessingservice)
 - [Aggregates](#aggregates)
   - [Payment](#payment)
+  - [Inputs](#inputs)
 - [Domain events](#domain-events)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
   - [Enums](#enums)
-  - [Inputs](#inputs)
+  - [Inputs](#inputs-1)
   - [Domain events](#domain-events-1)
 
 ## Architecture
@@ -248,6 +249,48 @@ stateDiagram-v2
 ```
 
 Field `status`, initial `AUTHORIZATION_REQUESTED`.
+
+### Inputs
+
+Inputs and the entities and enums they reach.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
+---
+classDiagram
+    class AuthorizePaymentInput {
+        <<input>>
+        String orderId
+        String customerId
+        String customerEmail
+        BigDecimal amount
+        String currency
+        String paymentMethodId
+    }
+    class RetryPaymentInput {
+        <<input>>
+        String orderId
+    }
+    class CapturePaymentInput {
+        <<input>>
+        String orderId
+    }
+    class VoidPaymentInput {
+        <<input>>
+        String reason
+    }
+    style AuthorizePaymentInput fill:#ffffff,stroke:#333333,color:#111111
+    style RetryPaymentInput fill:#ffffff,stroke:#333333,color:#111111
+    style CapturePaymentInput fill:#ffffff,stroke:#333333,color:#111111
+    style VoidPaymentInput fill:#ffffff,stroke:#333333,color:#111111
+```
 
 ## Domain events
 

@@ -16,12 +16,13 @@ Back to the [architecture](../architecture.md).
   - [NotificationsConsumerService](#notificationsconsumerservice)
 - [Aggregates](#aggregates)
   - [Notification](#notification)
+  - [Inputs](#inputs)
 - [Domain events](#domain-events)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
   - [Enums](#enums)
-  - [Inputs](#inputs)
+  - [Inputs](#inputs-1)
   - [Domain events](#domain-events-1)
 
 ## Architecture
@@ -219,6 +220,53 @@ stateDiagram-v2
 ```
 
 Field `status`, initial `PENDING`.
+
+### Inputs
+
+Inputs and the entities and enums they reach.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
+---
+classDiagram
+    class SendOrderConfirmationInput {
+        <<input>>
+        String orderId
+        String customerId
+        String customerEmail
+    }
+    class SendStockUnavailableNotificationInput {
+        <<input>>
+        String orderId
+        String customerId
+        String customerEmail
+        StockUnavailableItemInput[] unavailableItems
+    }
+    class StockUnavailableItemInput {
+        <<input>>
+        String sku
+        Integer requestedQuantity
+        Integer availableQuantity
+    }
+    class SendOrderCancelledNotificationInput {
+        <<input>>
+        String orderId
+        String customerId
+        String reason
+        String customerEmail
+    }
+    style SendOrderConfirmationInput fill:#ffffff,stroke:#333333,color:#111111
+    style SendStockUnavailableNotificationInput fill:#ffffff,stroke:#333333,color:#111111
+    style StockUnavailableItemInput fill:#ffffff,stroke:#333333,color:#111111
+    style SendOrderCancelledNotificationInput fill:#ffffff,stroke:#333333,color:#111111
+```
 
 ## Domain events
 

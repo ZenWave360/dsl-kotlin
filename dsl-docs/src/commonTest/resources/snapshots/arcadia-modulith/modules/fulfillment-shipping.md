@@ -16,12 +16,13 @@ Back to the [architecture](../architecture.md).
   - [FulfillmentShippingService](#fulfillmentshippingservice)
 - [Aggregates](#aggregates)
   - [Fulfillment](#fulfillment)
+  - [Inputs](#inputs)
 - [Domain events](#domain-events)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
   - [Enums](#enums)
-  - [Inputs](#inputs)
+  - [Inputs](#inputs-1)
   - [Domain events](#domain-events-1)
 
 ## Architecture
@@ -199,6 +200,48 @@ stateDiagram-v2
 ```
 
 Field `status`, initial `SCHEDULED`.
+
+### Inputs
+
+Inputs and the entities and enums they reach.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
+---
+classDiagram
+    class ScheduleFulfillmentInput {
+        <<input>>
+        String orderId
+        String customerId
+        ShippingAddressInput shippingAddress
+        FulfillmentItemInput[] items
+    }
+    class ShippingAddressInput {
+        <<input>>
+        String name
+        String line1
+        String line2
+        String city
+        String region
+        String postalCode
+        String country
+    }
+    class FulfillmentItemInput {
+        <<input>>
+        String sku
+        Integer quantity
+    }
+    style ScheduleFulfillmentInput fill:#ffffff,stroke:#333333,color:#111111
+    style ShippingAddressInput fill:#ffffff,stroke:#333333,color:#111111
+    style FulfillmentItemInput fill:#ffffff,stroke:#333333,color:#111111
+```
 
 ## Domain events
 
