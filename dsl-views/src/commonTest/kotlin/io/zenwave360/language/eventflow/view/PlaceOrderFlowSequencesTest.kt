@@ -111,7 +111,7 @@ class PlaceOrderFlowSequencesTest {
         assertEquals(
             listOf(
                 "from StartOrderCheckout to completed",
-                "from StartOrderCheckout to stockGone",
+                "from StartOrderCheckout → StockUnavailableResult to stockGone",
                 "from StartOrderCheckout to orderCancelled",
                 "from ReservationExpired to orderCancelled"
             ),
