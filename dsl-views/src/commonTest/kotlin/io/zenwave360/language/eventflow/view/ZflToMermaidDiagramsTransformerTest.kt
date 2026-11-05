@@ -160,7 +160,7 @@ class ZflToMermaidDiagramsTransformerTest {
         assertHasUniqueNodeDefinitionsAndEdges(diagrams.flowchart)
 
         val done = diagrams.sequences.single { it.endOutcome == "done" }
-        assertEquals("done: from CheckoutStarted", done.title)
+        assertEquals("from CheckoutStarted to done", done.title)
         assertEquals("CheckoutStarted", done.startLabel)
         assertEquals(listOf("PaymentAuthorized", "PaymentDeclined"), done.branchLabels)
         assertTrue(done.mermaid.contains("alt PaymentAuthorized"))
@@ -379,7 +379,7 @@ class ZflToMermaidDiagramsTransformerTest {
             orderCancelled.any { it.mermaid.contains("alt declined") || it.mermaid.contains("else declined") },
             orderCancelled.joinToString("\n---\n") { "${it.title}\n${it.mermaid}" }
         )
-        assertTrue(orderCancelled.any { it.title == "orderCancelled: from ReservationExpired" })
+        assertTrue(orderCancelled.any { it.title == "from ReservationExpired to orderCancelled" })
     }
 
     @Test
@@ -434,8 +434,8 @@ class ZflToMermaidDiagramsTransformerTest {
         val done = diagrams.sequences.filter { it.endOutcome == "done" }
         assertHasUniqueNodeDefinitionsAndEdges(diagrams.flowchart)
         assertEquals(2, done.size)
-        assertTrue(done.any { it.title == "done: from CheckoutStarted via PaymentAuthorized" })
-        assertTrue(done.any { it.title == "done: from CheckoutStarted via PaymentDeclined" })
+        assertTrue(done.any { it.title == "from CheckoutStarted → PaymentAuthorized to done" })
+        assertTrue(done.any { it.title == "from CheckoutStarted → PaymentDeclined to done" })
         assertTrue(done.any { it.branchLabels == listOf("PaymentAuthorized") })
         assertTrue(done.any { it.branchLabels == listOf("PaymentDeclined") })
     }

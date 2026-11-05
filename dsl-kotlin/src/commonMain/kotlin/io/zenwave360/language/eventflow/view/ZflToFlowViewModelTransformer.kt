@@ -29,7 +29,10 @@ class ZflToFlowViewModelTransformer(
                 sourceRef = node.sourceRef,
                 endOutcomeLabels = node.endOutcomeLabels,
                 startKind = node.startKind,
-                actor = node.actor
+                actor = node.actor,
+                title = node.title,
+                policyKind = node.policyKind,
+                timer = node.timer
             )
         }
 

@@ -114,7 +114,15 @@ class ZflToFlowGraphTransformer {
                     label = policyLabel(policy),
                     system = null,
                     service = null,
-                    sourceRef = policy.sourceRef
+                    sourceRef = policy.sourceRef,
+                    actor = policy.actor,
+                    title = policy.title,
+                    policyKind = when {
+                        policy.timer != null -> "timer"
+                        policy.actor != null -> "actor"
+                        else -> null
+                    },
+                    timer = policy.timer
                 )
 
                 val edgeType = if (policy.condition != null) FlowGraphEdgeType.CONDITIONAL else FlowGraphEdgeType.TRIGGER

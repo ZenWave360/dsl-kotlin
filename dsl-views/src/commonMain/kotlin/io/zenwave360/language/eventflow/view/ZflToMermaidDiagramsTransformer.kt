@@ -218,7 +218,7 @@ class ZflToMermaidDiagramsTransformer(
                     val branchLabels = familyLabels(family)
                     MermaidSequenceDiagram(
                         endOutcome = endOutcome,
-                        title = "$endOutcome: from $startLabel",
+                        title = "from $startLabel to $endOutcome",
                         startLabel = startLabel,
                         branchLabels = if (family.size > 1) branchLabels.distinct() else family.first().choiceLabels,
                         mermaid = if (family.size > 1) {
@@ -311,6 +311,10 @@ class ZflToMermaidDiagramsTransformer(
         indent: String = "    "
     ) {
         messages.forEach { message ->
+            if (message.note) {
+                lines += "${indent}Note over ${message.from.alias}: ${escapeSequence(message.label)}"
+                return@forEach
+            }
             val arrow = if (message.dashed) "-->>" else "->>"
             lines += "$indent${message.from.alias}$arrow${message.to.alias}: ${escapeSequence(message.label)}"
         }
@@ -359,9 +363,13 @@ class ZflToMermaidDiagramsTransformer(
     private fun FlowGraphNode.isOutcomeLike(): Boolean =
         type == FlowGraphNodeType.OUTCOME || type == FlowGraphNodeType.READ_MODEL
 
-    private fun policyLabel(policy: ZflPolicy): String =
-        "when ${policy.triggers.joinToString(", ")} do ${policy.command}" +
-            (if (policy.condition != null) " if ${policy.condition}" else "")
+    /** The policy's title, else its `when … do …` text, with its actor or timer as first line like a start. */
+    private fun policyLabel(policy: ZflPolicy): String {
+        val text = policy.title ?: ("when ${policy.triggers.joinToString(", ")} do ${policy.command}" +
+            (if (policy.condition != null) " if ${policy.condition}" else ""))
+        val marker = policy.timer?.let { "⏳ $it" } ?: policy.actor?.let { "👤 $it" }
+        return if (marker == null) text else "$marker<br/>$text"
+    }
 
     private fun flowchartPolicyNodeId(policy: ZflPolicy): String =
         flowchartNodeId(

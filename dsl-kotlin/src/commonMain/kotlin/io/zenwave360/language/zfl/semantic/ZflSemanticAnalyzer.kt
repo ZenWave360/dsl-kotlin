@@ -111,6 +111,17 @@ class ZflSemanticAnalyzer {
                 }
 
                 val whenRef = sourceModel.sourceRef("flows.$flowName.whens[$whenIndex]")
+                val policyTitle = whenModel.readSingleAnnotation("title", diagnostics, whenRef)
+                val policyActor = whenModel.readSingleAnnotation("actor", diagnostics, whenRef)
+                val policyTimer = whenModel.readSingleAnnotation("time", diagnostics, whenRef)
+                    ?: whenModel.readSingleAnnotation("timer", diagnostics, whenRef)
+                if (policyActor != null && policyTimer != null) {
+                    diagnostics += ZflSemanticDiagnostic(
+                        message = "A policy takes either '@actor' or '@timer', not both.",
+                        severity = Severity.ERROR,
+                        sourceRef = whenRef,
+                    )
+                }
                 policies += ZflPolicy(
                     description = whenModel.getString("javadoc"),
                     triggers = whenModel.getList("triggers"),
@@ -118,6 +129,9 @@ class ZflSemanticAnalyzer {
                     compensates = whenModel.readSingleAnnotation("compensates", diagnostics, whenRef)
                         ?: whenModel.readSingleAnnotation("compensate", diagnostics, whenRef),
                     command = actionName,
+                    title = policyTitle,
+                    actor = policyActor,
+                    timer = policyTimer,
                     events = command.emits.map { it.eventName },
                     sourceRef = whenRef
                 )

@@ -4,6 +4,7 @@ import io.zenwave360.language.zfl.semantic.ZflActionStep
 import io.zenwave360.language.zfl.semantic.ZflCallStep
 import io.zenwave360.language.zfl.semantic.ZflCommand
 import io.zenwave360.language.zfl.semantic.ZflFlow
+import io.zenwave360.language.zfl.semantic.ZflPolicy
 import io.zenwave360.language.zfl.semantic.ZflSignalStep
 import io.zenwave360.language.zfl.semantic.ZflStart
 
@@ -20,7 +21,9 @@ data class SequenceMessage(
     val from: SequenceParticipant,
     val to: SequenceParticipant,
     val label: String,
-    val dashed: Boolean
+    val dashed: Boolean,
+    /** A note over [from] (the timer of a policy) instead of an arrow. */
+    val note: Boolean = false
 )
 
 /** The alternative taken at an execution that had more than one. [rank] is its declaration order. */
@@ -127,6 +130,32 @@ class ZflSequencePaths(
         return SequenceParticipant(sequenceParticipantAlias(label), label, kind, if (start.actor != null) null else start.system)
     }
 
+    /** The policy that makes [exec] run on [event], when it declares a title, an actor or a timer. */
+    private fun policyFor(exec: Exec, event: String): ZflPolicy? =
+        flow.policies.firstOrNull {
+            it.command == exec.name && event in it.triggers && (it.title != null || it.actor != null || it.timer != null)
+        }
+
+    private fun participantForActor(name: String) =
+        SequenceParticipant(sequenceParticipantAlias(name), name, ParticipantKind.ACTOR)
+
+    /**
+     * The messages that make [exec] run because of [event] sent by [sender]. A policy with `@actor`
+     * has the actor call the service instead; with `@timer` a note gives the timer; `@title` names the call.
+     */
+    private fun enter(state: State, sender: SequenceParticipant, exec: Exec, event: String, startOfFlow: Boolean): Pair<State, SequenceParticipant?> {
+        val policy = policyFor(exec, event)
+        val name = policy?.title ?: exec.name
+        policy?.actor?.let { actorName ->
+            val actor = participantForActor(actorName)
+            return state.add(SequenceMessage(actor, exec.participant, name, false)) to actor
+        }
+        var next = state.add(SequenceMessage(sender, exec.participant, if (startOfFlow) name else event, !startOfFlow))
+        policy?.timer?.let { next = next.add(SequenceMessage(exec.participant, exec.participant, "⏳ $it", false, note = true)) }
+        if (!startOfFlow) next = next.add(SequenceMessage(exec.participant, exec.participant, name, false))
+        return next to null
+    }
+
     fun paths(): List<SequencePath> {
         val found = mutableListOf<SequencePath>()
         flow.starts.forEachIndexed { index, start ->
@@ -135,9 +164,9 @@ class ZflSequencePaths(
             consumers.forEachIndexed { consumerIndex, exec ->
                 var state = State()
                 if (consumers.size > 1) state = state.choose(SequenceChoice(exec.name, consumerIndex, consumerIndex == 0))
-                state = state.add(SequenceMessage(startParticipant, exec.participant, exec.name, false))
-                run(exec, state).forEach { outcome ->
-                    deliver(listOf(outcome.events, outcome.responses), outcome.emitter, outcome.state, index, start, found)
+                val (entered, actor) = enter(state, startParticipant, exec, start.name, true)
+                run(exec, entered).forEach { outcome ->
+                    deliver(listOf(outcome.events, outcome.responses), outcome.emitter, answered(outcome, actor), index, start, found)
                 }
             }
         }
@@ -195,13 +224,19 @@ class ZflSequencePaths(
         consumers.forEachIndexed { index, exec ->
             var next = state
             if (consumers.size > 1) next = next.choose(SequenceChoice(exec.name, index, index == 0))
-            next = next
-                .add(SequenceMessage(emitter, exec.participant, event, true))
-                .add(SequenceMessage(exec.participant, exec.participant, exec.name, false))
-            run(exec, next).forEach { outcome ->
-                deliver(listOf(outcome.events) + remaining, outcome.emitter, outcome.state, startIndex, start, out)
+            val (entered, actor) = enter(next, emitter, exec, event, false)
+            run(exec, entered).forEach { outcome ->
+                deliver(listOf(outcome.events) + remaining, outcome.emitter, answered(outcome, actor), startIndex, start, out)
             }
         }
+    }
+
+    /** The state after [outcome], with the answer sent back to the actor of a policy with `@actor`. */
+    private fun answered(outcome: Outcome, actor: SequenceParticipant?): State {
+        if (actor == null) return outcome.state
+        val text = (outcome.events.ifEmpty { outcome.responses }).joinToString(", ")
+        if (text.isBlank()) return outcome.state
+        return outcome.state.add(SequenceMessage(outcome.emitter, actor, text, true))
     }
 
     private fun run(exec: Exec, state: State): List<Outcome> {

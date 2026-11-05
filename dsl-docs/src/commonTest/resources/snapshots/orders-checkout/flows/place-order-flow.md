@@ -248,9 +248,9 @@ How the flow can end, the events that end it and the paths that lead there.
 
 | Outcome | Terminal events | Paths |
 | --- | --- | --- |
-| `completed` | `OrderConfirmationSent` | [Happy path](#happy-path)<br>[completed: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptured](#completed-from-startordercheckout-via-stockreservedresult--failed--retried--authorized--fulfillmentscheduled--paymentcaptured) |
-| `stockGone` | `StockUnavailableNotificationSent` | [stockGone: from StartOrderCheckout via StockUnavailableResult](#stockgone-from-startordercheckout-via-stockunavailableresult) |
-| `orderCancelled` | `OrderCancelledNotificationSent` | [orderCancelled: from StartOrderCheckout via StockReservedResult → declined](#ordercancelled-from-startordercheckout-via-stockreservedresult--declined)<br>[orderCancelled: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentFailed](#ordercancelled-from-startordercheckout-via-stockreservedresult--authorized--fulfillmentfailed)<br>[orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retry-exhausted](#ordercancelled-from-startordercheckout-via-stockreservedresult--failed--retry-exhausted)<br>[orderCancelled: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptureFailed](#ordercancelled-from-startordercheckout-via-stockreservedresult--authorized--fulfillmentscheduled--paymentcapturefailed)<br>[orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → declined](#ordercancelled-from-startordercheckout-via-stockreservedresult--failed--retried--declined)<br>[orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentFailed](#ordercancelled-from-startordercheckout-via-stockreservedresult--failed--retried--authorized--fulfillmentfailed)<br>[orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → failed → retry-exhausted](#ordercancelled-from-startordercheckout-via-stockreservedresult--failed--retried--failed--retry-exhausted)<br>[orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed](#ordercancelled-from-startordercheckout-via-stockreservedresult--failed--retried--authorized--fulfillmentscheduled--paymentcapturefailed)<br>[orderCancelled: from ReservationExpired](#ordercancelled-from-reservationexpired) |
+| `completed` | `OrderConfirmationSent` | [Happy path](#happy-path)<br>[from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptured to completed](#from-startordercheckout--stockreservedresult--failed--retried--authorized--fulfillmentscheduled--paymentcaptured-to-completed) |
+| `stockGone` | `StockUnavailableNotificationSent` | [from StartOrderCheckout → StockUnavailableResult to stockGone](#from-startordercheckout--stockunavailableresult-to-stockgone) |
+| `orderCancelled` | `OrderCancelledNotificationSent` | [from StartOrderCheckout → StockReservedResult → declined to orderCancelled](#from-startordercheckout--stockreservedresult--declined-to-ordercancelled)<br>[from StartOrderCheckout → StockReservedResult → authorized → FulfillmentFailed to orderCancelled](#from-startordercheckout--stockreservedresult--authorized--fulfillmentfailed-to-ordercancelled)<br>[from StartOrderCheckout → StockReservedResult → failed → retry-exhausted to orderCancelled](#from-startordercheckout--stockreservedresult--failed--retry-exhausted-to-ordercancelled)<br>[from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled](#from-startordercheckout--stockreservedresult--authorized--fulfillmentscheduled--paymentcapturefailed-to-ordercancelled)<br>[from StartOrderCheckout → StockReservedResult → failed → retried → declined to orderCancelled](#from-startordercheckout--stockreservedresult--failed--retried--declined-to-ordercancelled)<br>[from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentFailed to orderCancelled](#from-startordercheckout--stockreservedresult--failed--retried--authorized--fulfillmentfailed-to-ordercancelled)<br>[from StartOrderCheckout → StockReservedResult → failed → retried → failed → retry-exhausted to orderCancelled](#from-startordercheckout--stockreservedresult--failed--retried--failed--retry-exhausted-to-ordercancelled)<br>[from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled](#from-startordercheckout--stockreservedresult--failed--retried--authorized--fulfillmentscheduled--paymentcapturefailed-to-ordercancelled)<br>[from ReservationExpired to orderCancelled](#from-reservationexpired-to-ordercancelled) |
 
 ## Systems
 
@@ -270,7 +270,7 @@ Every other way through the flow, one diagram per path, grouped by the outcome w
 
 ### completed
 
-#### completed: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptured
+#### from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptured to completed
 
 ```mermaid
 sequenceDiagram
@@ -305,7 +305,7 @@ sequenceDiagram
 
 ### stockGone
 
-#### stockGone: from StartOrderCheckout via StockUnavailableResult
+#### from StartOrderCheckout → StockUnavailableResult to stockGone
 
 ```mermaid
 sequenceDiagram
@@ -324,7 +324,7 @@ sequenceDiagram
 
 ### orderCancelled
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → declined
+#### from StartOrderCheckout → StockReservedResult → declined to orderCancelled
 
 ```mermaid
 sequenceDiagram
@@ -348,7 +348,7 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentFailed
+#### from StartOrderCheckout → StockReservedResult → authorized → FulfillmentFailed to orderCancelled
 
 ```mermaid
 sequenceDiagram
@@ -381,7 +381,7 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retry-exhausted
+#### from StartOrderCheckout → StockReservedResult → failed → retry-exhausted to orderCancelled
 
 ```mermaid
 sequenceDiagram
@@ -407,7 +407,7 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptureFailed
+#### from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled
 
 ```mermaid
 sequenceDiagram
@@ -442,7 +442,7 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → declined
+#### from StartOrderCheckout → StockReservedResult → failed → retried → declined to orderCancelled
 
 ```mermaid
 sequenceDiagram
@@ -470,7 +470,7 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentFailed
+#### from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentFailed to orderCancelled
 
 ```mermaid
 sequenceDiagram
@@ -507,7 +507,7 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → failed → retry-exhausted
+#### from StartOrderCheckout → StockReservedResult → failed → retried → failed → retry-exhausted to orderCancelled
 
 ```mermaid
 sequenceDiagram
@@ -537,7 +537,7 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed
+#### from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled
 
 ```mermaid
 sequenceDiagram
@@ -576,7 +576,7 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from ReservationExpired
+#### from ReservationExpired to orderCancelled
 
 ```mermaid
 sequenceDiagram
