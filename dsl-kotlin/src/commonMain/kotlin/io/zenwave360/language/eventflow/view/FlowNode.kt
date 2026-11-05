@@ -29,6 +29,8 @@ data class FlowNode(
     val policyKind: String? = null,
     /** Timer text of a policy with `@timer`/`@time`. */
     val timer: String? = null,
+    /** Id of the lane band this node is drawn in. Null when the flow is not drawn in lanes. */
+    val lane: String? = null,
     /** Absolute position (x, y) in the canvas. Null until layout is applied. */
     val position: Point? = null,
     /** Width and height of the node. Null until layout is applied. */
