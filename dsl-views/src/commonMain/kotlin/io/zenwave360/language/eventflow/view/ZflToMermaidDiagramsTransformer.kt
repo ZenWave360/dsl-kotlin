@@ -65,7 +65,7 @@ class ZflToMermaidDiagramsTransformer(
             val startId = flowchartNodeId("start", start.name)
             val startLabel = listOfNotNull(start.actor ?: start.timer, start.name)
                 .distinct()
-                .joinToString("<br/>")
+                .joinToString("<br/>") { escape(it) }
             val startShape = "([\"$startLabel\"])"
             nodeLines += "    $startId$startShape"
             classAssignments += "    class $startId start"
@@ -73,7 +73,7 @@ class ZflToMermaidDiagramsTransformer(
 
         flow.policies.forEach { policy ->
             val policyId = flowchartPolicyNodeId(policy)
-            nodeLines += "    $policyId{{\"${escape(policyLabel(policy))}\"}}"
+            nodeLines += "    $policyId{{\"${policyLabel(policy)}\"}}"
             classAssignments += "    class $policyId policy"
         }
 
@@ -87,7 +87,7 @@ class ZflToMermaidDiagramsTransformer(
                 FlowGraphNodeType.ACTION -> "[\"${escape(node.label)}\"]"
                 FlowGraphNodeType.OUTCOME -> "[/${escape(node.label)}/]"
                 FlowGraphNodeType.READ_MODEL -> "[\"${escape(node.label)}\"]"
-                FlowGraphNodeType.POLICY -> "{{\"${escape(policyLabelsById[nodeId] ?: node.label)}\"}}"
+                FlowGraphNodeType.POLICY -> "{{\"${policyLabelsById[nodeId] ?: escape(node.label)}\"}}"
             }
             nodeLines += "    $nodeId$shape"
             val klass = when (node.type) {
@@ -218,7 +218,7 @@ class ZflToMermaidDiagramsTransformer(
                     val branchLabels = familyLabels(family)
                     MermaidSequenceDiagram(
                         endOutcome = endOutcome,
-                        title = "$endOutcome: from $startLabel",
+                        title = if (family.size == 1) sequenceVariantTitle(family.first()) else "from $startLabel to $endOutcome",
                         startLabel = startLabel,
                         branchLabels = if (family.size > 1) branchLabels.distinct() else family.first().choiceLabels,
                         mermaid = if (family.size > 1) {
@@ -287,9 +287,13 @@ class ZflToMermaidDiagramsTransformer(
         participants: List<SequenceParticipant>
     ) {
         lines += "sequenceDiagram"
-        participants.filter { it.kind == ParticipantKind.ACTOR }.forEach { lines += "    actor ${it.alias}" }
+        participants.filter { it.kind == ParticipantKind.ACTOR }.forEach { lines += actorLine(it) }
         participants.filter { it.kind != ParticipantKind.ACTOR }.forEach { lines += participantLine(it) }
     }
+
+    /** The display name is kept with `as` when the alias had to be sanitised. */
+    private fun actorLine(actor: SequenceParticipant): String =
+        if (actor.label == actor.alias) "    actor ${actor.alias}" else "    actor ${actor.alias} as ${escapeSequence(actor.label)}"
 
     private fun participantLine(participant: SequenceParticipant): String =
         "    participant ${participant.alias} as ${escapeSequence(participant.label)}"
@@ -311,6 +315,10 @@ class ZflToMermaidDiagramsTransformer(
         indent: String = "    "
     ) {
         messages.forEach { message ->
+            if (message.note) {
+                lines += "${indent}Note over ${message.from.alias}: ${escapeSequence(message.label)}"
+                return@forEach
+            }
             val arrow = if (message.dashed) "-->>" else "->>"
             lines += "$indent${message.from.alias}$arrow${message.to.alias}: ${escapeSequence(message.label)}"
         }
@@ -359,9 +367,16 @@ class ZflToMermaidDiagramsTransformer(
     private fun FlowGraphNode.isOutcomeLike(): Boolean =
         type == FlowGraphNodeType.OUTCOME || type == FlowGraphNodeType.READ_MODEL
 
-    private fun policyLabel(policy: ZflPolicy): String =
-        "when ${policy.triggers.joinToString(", ")} do ${policy.command}" +
-            (if (policy.condition != null) " if ${policy.condition}" else "")
+    /**
+     * The policy's title, else its `when … do …` text, with its actor or timer as first line like a start.
+     * Already escaped for a quoted flowchart label: its parts are joined with a real `<br/>`.
+     */
+    private fun policyLabel(policy: ZflPolicy): String {
+        val text = policy.title ?: ("when ${policy.triggers.joinToString(", ")} do ${policy.command}" +
+            (if (policy.condition != null) " if ${policy.condition}" else ""))
+        val marker = policy.timer?.let { "⏳ $it" } ?: policy.actor?.let { "👤 $it" }
+        return if (marker == null) escape(text) else "${escape(marker)}<br/>${escape(text)}"
+    }
 
     private fun flowchartPolicyNodeId(policy: ZflPolicy): String =
         flowchartNodeId(
@@ -370,9 +385,15 @@ class ZflToMermaidDiagramsTransformer(
                 (if (policy.condition != null) " if ${policy.condition}" else "")
         )
 
-    private fun escape(value: String): String =
-        value.replace("\"", "\\\"")
+    /** Entity codes (`#quot;`) are Mermaid's way to write these characters inside a quoted flowchart label. */
+    private fun escape(value: String): String = entityCoded(value, flowchartEntities)
 
-    private fun escapeSequence(value: String): String =
-        value.replace("\n", " ").replace(":", " -")
+    /** `:` is allowed after the first one of a message; `#`, `;` and `<`/`>` get entity codes. */
+    private fun escapeSequence(value: String): String = entityCoded(value.replace('\n', ' '), sequenceEntities)
+
+    private val flowchartEntities = mapOf('#' to "#35;", '"' to "#quot;", '<' to "#lt;", '>' to "#gt;")
+    private val sequenceEntities = mapOf('#' to "#35;", ';' to "#59;", '<' to "#lt;", '>' to "#gt;")
+
+    private fun entityCoded(value: String, entities: Map<Char, String>): String =
+        buildString { value.forEach { append(entities[it] ?: it) } }
 }

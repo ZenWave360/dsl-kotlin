@@ -7,6 +7,10 @@ import io.zenwave360.language.zfl.semantic.ZflPolicy
 import io.zenwave360.language.zfl.semantic.ZflSignalStep
 import io.zenwave360.language.zfl.semantic.ZflSemanticModel
 
+/** Id of the POLICY node of [policy] in the flow graph. */
+fun flowPolicyNodeId(policy: ZflPolicy): String =
+    "policy:${policy.triggers.joinToString(",")}:${policy.command}"
+
 class ZflToFlowGraphTransformer {
 
     fun transform(semanticModel: ZflSemanticModel): FlowGraph {
@@ -114,7 +118,15 @@ class ZflToFlowGraphTransformer {
                     label = policyLabel(policy),
                     system = null,
                     service = null,
-                    sourceRef = policy.sourceRef
+                    sourceRef = policy.sourceRef,
+                    actor = policy.actor,
+                    title = policy.title,
+                    policyKind = when {
+                        policy.timer != null -> "timer"
+                        policy.actor != null -> "actor"
+                        else -> null
+                    },
+                    timer = policy.timer
                 )
 
                 val edgeType = if (policy.condition != null) FlowGraphEdgeType.CONDITIONAL else FlowGraphEdgeType.TRIGGER
@@ -175,7 +187,9 @@ class ZflToFlowGraphTransformer {
     }
 
     private fun isDirectActorStartPolicy(policy: ZflPolicy, actorStartNames: Set<String>): Boolean {
+        // a title, an actor or a timer on the policy needs its node to hang from
         return policy.condition == null &&
+            policy.title == null && policy.actor == null && policy.timer == null &&
             policy.triggers.size == 1 &&
             policy.triggers.single() in actorStartNames
     }
@@ -413,8 +427,7 @@ class ZflToFlowGraphTransformer {
         edge.outcome?.let { append(":outcome[").append(it).append(']') }
     }
     private fun edgeId(source: String, target: String): String = "from[$source]to[$target]"
-    private fun policyNodeId(policy: ZflPolicy): String =
-        "policy:${policy.triggers.joinToString(",")}:${policy.command}"
+    private fun policyNodeId(policy: ZflPolicy): String = flowPolicyNodeId(policy)
     private fun policyLabel(policy: ZflPolicy): String =
         "when ${policy.triggers.joinToString(",")} do ${policy.command}" +
             (if (policy.condition != null) " if ${policy.condition}" else "")

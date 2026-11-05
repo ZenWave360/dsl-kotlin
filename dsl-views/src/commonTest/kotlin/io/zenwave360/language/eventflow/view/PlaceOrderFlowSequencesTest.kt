@@ -23,18 +23,18 @@ class PlaceOrderFlowSequencesTest {
 
         assertEquals(
             listOf(
-                "completed: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptured",
-                "completed: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptured",
-                "stockGone: from StartOrderCheckout via StockUnavailableResult",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → declined",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentFailed",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retry-exhausted",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptureFailed",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → declined",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentFailed",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → failed → retry-exhausted",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed",
-                "orderCancelled: from ReservationExpired"
+                "from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptured to completed",
+                "from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptured to completed",
+                "from StartOrderCheckout → StockUnavailableResult to stockGone",
+                "from StartOrderCheckout → StockReservedResult → declined to orderCancelled",
+                "from StartOrderCheckout → StockReservedResult → authorized → FulfillmentFailed to orderCancelled",
+                "from StartOrderCheckout → StockReservedResult → failed → retry-exhausted to orderCancelled",
+                "from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled",
+                "from StartOrderCheckout → StockReservedResult → failed → retried → declined to orderCancelled",
+                "from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentFailed to orderCancelled",
+                "from StartOrderCheckout → StockReservedResult → failed → retried → failed → retry-exhausted to orderCancelled",
+                "from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled",
+                "from ReservationExpired to orderCancelled"
             ),
             titles
         )
@@ -55,7 +55,7 @@ class PlaceOrderFlowSequencesTest {
         assertEquals(1, happy.size)
         assertEquals("completed", happy.single().endOutcome)
         assertEquals(
-            "completed: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptured",
+            "from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptured to completed",
             happy.single().title
         )
         assertEquals(listOf("StockReservedResult", "authorized", "FulfillmentScheduled", "PaymentCaptured"), happy.single().branchLabels)
@@ -110,16 +110,16 @@ class PlaceOrderFlowSequencesTest {
 
         assertEquals(
             listOf(
-                "completed: from StartOrderCheckout",
-                "stockGone: from StartOrderCheckout",
-                "orderCancelled: from StartOrderCheckout",
-                "orderCancelled: from ReservationExpired"
+                "from StartOrderCheckout to completed",
+                "from StartOrderCheckout → StockUnavailableResult to stockGone",
+                "from StartOrderCheckout to orderCancelled",
+                "from ReservationExpired to orderCancelled"
             ),
             view.sequences.map { it.title }
         )
         view.sequences.forEach { assertFalse(it.mermaid.contains("%%"), it.mermaid) }
         assertEquals(1, view.sequences.count { it.happy })
-        assertTrue(view.sequences.single { it.title == "completed: from StartOrderCheckout" }.happy)
+        assertTrue(view.sequences.single { it.title == "from StartOrderCheckout to completed" }.happy)
     }
 
     @Test

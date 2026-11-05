@@ -37,11 +37,9 @@ fun zflFlowVariants(
 }
 
 fun sequenceVariantTitle(path: SequencePath): String = buildString {
-    append(path.endOutcome)
-    append(": from ")
+    append("from ")
     append(path.start.name)
-    if (path.choiceLabels.isNotEmpty()) {
-        append(" via ")
-        append(path.choiceLabels.joinToString(" → "))
-    }
+    path.choiceLabels.forEach { append(" → ").append(it) }
+    append(" to ")
+    append(path.endOutcome)
 }

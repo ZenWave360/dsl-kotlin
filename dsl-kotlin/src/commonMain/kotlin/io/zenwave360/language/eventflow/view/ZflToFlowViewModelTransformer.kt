@@ -29,7 +29,10 @@ class ZflToFlowViewModelTransformer(
                 sourceRef = node.sourceRef,
                 endOutcomeLabels = node.endOutcomeLabels,
                 startKind = node.startKind,
-                actor = node.actor
+                actor = node.actor,
+                title = node.title,
+                policyKind = node.policyKind,
+                timer = node.timer
             )
         }
 
@@ -60,9 +63,8 @@ class ZflToFlowViewModelTransformer(
 
 private fun FlowGraph.forPath(path: SequencePath): FlowGraph {
     val nodesById = nodes.associateBy { it.id }
-    val pathNodeIds = (path.messages.flatMap { message ->
-        listOf("command:${message.label}", "event:${message.label}", "readModel:${message.label}")
-    } + "event:${path.start.name}")
+    // by execution identity, never by the text drawn: a title or an actor arrow changes the label only
+    val pathNodeIds = (path.messages.flatMap { it.refs } + "event:${path.start.name}")
         .filterTo(linkedSetOf()) { it in nodesById }
 
     // Policies are structural links between an event and a command. Keep only

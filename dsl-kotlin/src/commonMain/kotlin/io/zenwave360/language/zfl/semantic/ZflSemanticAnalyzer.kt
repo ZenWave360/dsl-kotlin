@@ -35,6 +35,7 @@ class ZflSemanticAnalyzer {
                 val start = startData.asMapOrReturn { return@forEach }
                 val startName = start.getString("name")
                 val startRef = sourceRefOf(flowName, "starts.$startName")
+                start.reportRepeatedAnnotations(listOf("actor"), listOf("time", "timer"), listOf("system"), diagnostics = diagnostics, sourceRef = startRef)
                 val actor = start.readSingleAnnotation("actor", diagnostics, startRef)
                 val timer = start.readSingleAnnotation("time", diagnostics, startRef)
                     ?: start.readSingleAnnotation("timer", diagnostics, startRef)
@@ -111,6 +112,18 @@ class ZflSemanticAnalyzer {
                 }
 
                 val whenRef = sourceModel.sourceRef("flows.$flowName.whens[$whenIndex]")
+                whenModel.reportRepeatedAnnotations(listOf("title"), listOf("actor"), listOf("time", "timer"), diagnostics = diagnostics, sourceRef = whenRef)
+                val policyTitle = whenModel.readSingleAnnotation("title", diagnostics, whenRef)
+                val policyActor = whenModel.readSingleAnnotation("actor", diagnostics, whenRef)
+                val policyTimer = whenModel.readSingleAnnotation("time", diagnostics, whenRef)
+                    ?: whenModel.readSingleAnnotation("timer", diagnostics, whenRef)
+                if (policyActor != null && policyTimer != null) {
+                    diagnostics += ZflSemanticDiagnostic(
+                        message = "A policy takes either '@actor' or '@timer', not both.",
+                        severity = Severity.ERROR,
+                        sourceRef = whenRef,
+                    )
+                }
                 policies += ZflPolicy(
                     description = whenModel.getString("javadoc"),
                     triggers = whenModel.getList("triggers"),
@@ -118,6 +131,9 @@ class ZflSemanticAnalyzer {
                     compensates = whenModel.readSingleAnnotation("compensates", diagnostics, whenRef)
                         ?: whenModel.readSingleAnnotation("compensate", diagnostics, whenRef),
                     command = actionName,
+                    title = policyTitle,
+                    actor = policyActor,
+                    timer = policyTimer,
                     events = command.emits.map { it.eventName },
                     sourceRef = whenRef
                 )
@@ -599,6 +615,27 @@ class ZflSemanticAnalyzer {
      * A string, number or boolean becomes its text. Absence and null stay null. A list or a map
      * becomes null and adds a warning: those shapes are not a single value.
      */
+    /**
+     * Warns about each group of annotation names (aliases of each other, like `@time` and `@timer`) written more
+     * than once. Reads the ordered `optionsList`: the `options` map has only the last value of a repeat.
+     */
+    private fun Map<String, Any?>.reportRepeatedAnnotations(
+        vararg groups: List<String>,
+        diagnostics: MutableList<ZflSemanticDiagnostic>,
+        sourceRef: SourceRef,
+    ) {
+        val written = (this["optionsList"] as? List<*>).orEmpty().mapNotNull { (it as? Map<*, *>)?.get("name") as? String }
+        groups.forEach { group ->
+            if (written.count { it in group } > 1) {
+                diagnostics += ZflSemanticDiagnostic(
+                    message = "Annotation '@${group.first()}' is declared more than once; only one is allowed.",
+                    severity = Severity.WARNING,
+                    sourceRef = sourceRef,
+                )
+            }
+        }
+    }
+
     private fun Map<String, Any?>.readSingleAnnotation(
         annotation: String,
         diagnostics: MutableList<ZflSemanticDiagnostic>,

@@ -93,6 +93,12 @@ export interface FlowNode {
   startKind: "timer" | "actor" | "system" | null;
   /** Name of the actor that starts this flow, when one is declared. */
   actor: string | null;
+  /** `@title` of a policy; replaces its text. Present for POLICY nodes that declare it. */
+  title: string | null;
+  /** What a policy waits on: actor (name in `actor`) or timer (text in `timer`). Absent when neither. */
+  policyKind: "actor" | "timer" | null;
+  /** Timer text of a policy with `@timer`/`@time`. */
+  timer: string | null;
   /** Null until layout is applied. */
   position: Point | null;
   /** Null until layout is applied. */

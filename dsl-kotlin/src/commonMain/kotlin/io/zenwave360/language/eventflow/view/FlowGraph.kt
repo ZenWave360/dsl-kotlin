@@ -16,7 +16,13 @@ data class FlowGraphNode(
     val sourceRef: SourceRef,
     val endOutcomeLabels: List<String>? = null,
     val startKind: String? = null,
-    val actor: String? = null
+    val actor: String? = null,
+    /** `@title` of a policy; replaces its text. Present for POLICY nodes that declare it. */
+    val title: String? = null,
+    /** What a policy waits on: actor or timer. Absent when it declares neither. */
+    val policyKind: String? = null,
+    /** Timer text of a policy with `@timer`/`@time`. */
+    val timer: String? = null
 )
 
 enum class FlowGraphNodeType {

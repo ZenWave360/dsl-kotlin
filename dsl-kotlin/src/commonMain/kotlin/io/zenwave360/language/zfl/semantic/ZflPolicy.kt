@@ -10,6 +10,12 @@ data class ZflPolicy(
     val condition: String?,
     val compensates: String? = null,
     val command: String,
+    /** `@title`: the text drawn for this policy. */
+    val title: String? = null,
+    /** `@actor`: who acts on the event. */
+    val actor: String? = null,
+    /** `@timer` / `@time`: when the policy runs. */
+    val timer: String? = null,
     val events: List<String>,
     val sourceRef: SourceRef
 )
