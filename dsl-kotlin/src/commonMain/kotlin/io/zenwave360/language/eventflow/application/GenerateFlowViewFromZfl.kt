@@ -2,6 +2,8 @@ package io.zenwave360.language.eventflow.application
 
 import io.zenwave360.language.eventflow.view.ElkFlowLayoutEngine
 import io.zenwave360.language.eventflow.view.FlowBounds
+import io.zenwave360.language.eventflow.view.FlowLaneLayout
+import io.zenwave360.language.eventflow.view.FlowLanes
 import io.zenwave360.language.eventflow.view.FlowSystemGroupView
 import io.zenwave360.language.eventflow.view.FlowViewModel
 import io.zenwave360.language.eventflow.view.Point
@@ -17,30 +19,36 @@ class GenerateFlowViewFromZfl(
     private val transformer: ZflToFlowViewModelTransformer = ZflToFlowViewModelTransformer(),
     private val layoutEngine: ElkFlowLayoutEngine = ElkFlowLayoutEngine()
 ) {
-    suspend fun execute(zflContent: String): FlowViewModel {
+    suspend fun execute(zflContent: String, lanes: FlowLanes = FlowLanes.NONE): FlowViewModel {
         val model = parser.parseModel(zflContent)
         val semantic = semanticAnalyzer.analyze(model)
         val viewModel = transformer.transform(semantic) // FlowViewModel without layout
         val positioned = layoutEngine.layout(viewModel)  // FlowViewModel with layout
-        return positioned
+        return FlowLaneLayout.apply(positioned, lanes)
     }
 
     fun variants(zflContent: String): List<FlowVariant> =
         variants(semanticAnalyzer.analyze(parser.parseModel(zflContent))).map { it.variant }
 
-    suspend fun variant(zflContent: String, id: String): FlowVariantViewResult {
+    suspend fun variant(zflContent: String, id: String, lanes: FlowLanes = FlowLanes.NONE): FlowVariantViewResult {
         val semantic = semanticAnalyzer.analyze(parser.parseModel(zflContent))
         val variant = variants(semantic).firstOrNull { it.variant.id == id }
             ?: return FlowVariantViewResult.UnknownVariant(id)
-        return FlowVariantViewResult.Found(layoutEngine.layout(transformer.transform(semantic, variant.path)))
+        return FlowVariantViewResult.Found(
+            FlowLaneLayout.apply(layoutEngine.layout(transformer.transform(semantic, variant.path)), lanes)
+        )
     }
 
     /**
      * Applies saved positions to the full flow view (spec:flows/eventflow#ef-r14). All or nothing: the positions
      * are applied only when every node of the view has a finite position; ids the view lacks are ignored.
      * Otherwise the automatic layout is returned with the reason and the offending node ids.
+     * With lanes (spec:flows/eventflow#ef-r24) positions are not used: the automatic laned layout is returned as
+     * [FlowPositionsResult.Applied] although nothing was applied. Callers must not report saved positions as applied
+     * when lanes is not NONE; they should not call this with lanes and report the positions as ignored.
      */
-    suspend fun withPositions(zflContent: String, positions: Map<String, Point>): FlowPositionsResult {
+    suspend fun withPositions(zflContent: String, positions: Map<String, Point>, lanes: FlowLanes = FlowLanes.NONE): FlowPositionsResult {
+        if (lanes != FlowLanes.NONE) return FlowPositionsResult.Applied(execute(zflContent, lanes))
         val automatic = execute(zflContent)
         val missing = automatic.nodes.map { it.id }.filter { it !in positions }
         if (missing.isNotEmpty()) return FlowPositionsResult.NotApplied(automatic, FlowPositionsReason.MISSING_NODES, missing)

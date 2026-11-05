@@ -99,6 +99,8 @@ export interface FlowNode {
   policyKind: "actor" | "timer" | null;
   /** Timer text of a policy with `@timer`/`@time`. */
   timer: string | null;
+  /** Id of the lane band this node is drawn in. Null when the flow is not drawn in lanes. */
+  lane: string | null;
   /** Null until layout is applied. */
   position: Point | null;
   /** Null until layout is applied. */
@@ -121,6 +123,24 @@ export interface FlowEdge {
 export interface FlowSystemGroupView {
   systemName: string;
   bounds: FlowBounds;
+}
+
+/**
+ * A full-width horizontal band of a flow drawn in lanes (one per system or per service).
+ * The last band holds the nodes with no system (Systems) or no service (Services) and has no `system`.
+ */
+export interface FlowLane {
+  id: string;
+  kind: "system" | "service";
+  label: string;
+  /** The system of a service band; null otherwise. */
+  system: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** 0-based position from the top: order of first appearance in the flow, the unassigned band last. */
+  order: number;
 }
 
 /** Metadata describing the algorithm used to position the flow. */
@@ -150,5 +170,7 @@ export interface FlowViewModel {
   bounds: FlowBounds | null;
   /** Null until layout is applied. */
   systemGroups: FlowSystemGroupView[] | null;
+  /** Bands, top to bottom, when the flow is drawn in lanes (systems or services). Null otherwise. */
+  lanes: FlowLane[] | null;
 }
 
