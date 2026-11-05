@@ -61,7 +61,7 @@ class GenerateFlowLanesTest {
     fun systemsMembershipAndOrderOfFirstAppearance() = runTest {
         val view = generator.execute(flow, FlowLanes.SYSTEMS)
 
-        assertEquals(listOf("Alpha", "Beta", "No system"), view.lanes!!.map { it.label })
+        assertEquals(listOf("Alpha", "Beta", "No service"), view.lanes!!.map { it.label })
         assertEquals(listOf(0, 1, 2), view.lanes!!.map { it.order })
         assertTrue(view.lanes!!.all { it.kind == FlowLaneKind.SYSTEM && it.system == null })
         assertEquals("Alpha", view.laneOf("command:orderIt").label)
@@ -71,8 +71,8 @@ class GenerateFlowLanesTest {
         assertEquals("Beta", view.laneOf(policy.id).label)
         // a start takes the band of the command its policy calls
         assertEquals("Alpha", view.laneOf("event:Begin").label)
-        assertEquals("No system", view.laneOf("command:notifyIt").label)
-        assertEquals("No system", view.laneOf("event:Notified").label)
+        assertEquals("No service", view.laneOf("command:notifyIt").label)
+        assertEquals("No service", view.laneOf("event:Notified").label)
         // presentation only
         assertNull(view.node("event:Begin").system)
         assertNull(view.node(policy.id).system)
@@ -86,6 +86,90 @@ class GenerateFlowLanesTest {
         assertEquals(listOf("Alpha", "Beta", "Alpha", null), view.lanes!!.map { it.system })
         assertTrue(view.lanes!!.all { it.kind == FlowLaneKind.SERVICE })
         assertEquals("No service", view.laneOf("command:notifyIt").label)
+    }
+
+    @Test
+    fun commandWithASystemButNoServiceIsInTheLastBandInBothModes() = runTest {
+        val content = """
+            flow F {
+                @actor(C)
+                start Go {}
+                when Go do a { service Alpha.AlphaService emits A }
+                when A do b { service Alpha emits B }
+                end { done: B }
+            }
+        """.trimIndent()
+        FlowLanes.entries.filter { it != FlowLanes.NONE }.forEach { lanes ->
+            val view = generator.execute(content, lanes)
+            assertEquals(listOf("No service"), view.lanes!!.map { it.label }.filter { it == "No service" })
+            assertEquals("No service", view.lanes!!.last().label)
+            assertEquals("No service", view.laneOf("command:b").label)
+            assertNotNull(view.lanes!!.firstOrNull { it.label.startsWith("Alpha") })
+        }
+    }
+
+    @Test
+    fun startWhosePoliciesCallCommandsInSeveralBandsTakesTheFirstCommandOfTheFlow() = runTest {
+        val content = """
+            flow F {
+                @actor(C)
+                start One {}
+                @actor(C)
+                start Two {}
+                when One do a { service Alpha.AlphaService emits A }
+                when Two do b { service Beta.BetaService emits B }
+                when Two do c { service Gamma.GammaService emits C }
+                end { done: A }
+            }
+        """.trimIndent()
+        val view = generator.execute(content, FlowLanes.SYSTEMS)
+        assertEquals("Alpha", view.laneOf("event:Two").label)
+        assertEquals("Alpha", view.laneOf("event:One").label)
+    }
+
+    @Test
+    fun variantsKeepEveryNodeInABandWhenAReadModelLosesItsProducer() = runTest {
+        val content = """
+            flow F {
+                @actor(C)
+                start One {}
+                @actor(C)
+                start Two {}
+                when One do answer { service Alpha.AlphaService emits response Done }
+                when Two do produce { service Beta.BetaService emits Done }
+                end { done: Done }
+            }
+        """.trimIndent()
+        val variants = generator.variants(content)
+        assertTrue(variants.isNotEmpty())
+        variants.forEach { variant ->
+            listOf(FlowLanes.SYSTEMS, FlowLanes.SERVICES).forEach { lanes ->
+                val view = assertIs<FlowVariantViewResult.Found>(generator.variant(content, variant.id, lanes)).view
+                assertTrue(view.nodes.all { it.lane != null })
+            }
+        }
+    }
+
+    @Test
+    fun eventRowsAreSeparatedAtTheDrawnSizeOnServerDimensionsOfEitherTarget() {
+        listOf(160.0 to 48.0, 180.0 to 124.0).forEach { (w, h) ->
+            val ref = io.zenwave360.language.source.SourceRef("f.zfl", 1, 1)
+            fun event(id: String, y: Double) = FlowNode(
+                id = id, type = io.zenwave360.language.eventflow.view.FlowNodeType.EVENT, label = id, system = "S",
+                service = "V", sourceRef = ref, position = Point(20.0, y), dimensions = io.zenwave360.language.eventflow.view.Dimensions(w, h)
+            )
+            val view = FlowViewModel(nodes = listOf(event("event:A", 20.0), event("event:B", 100.0), event("event:C", 200.0)), edges = emptyList(), bounds = null)
+            val laned = io.zenwave360.language.eventflow.view.FlowLaneLayout.apply(view, FlowLanes.SYSTEMS)
+            // the page draws each box at least 180 x 112 around the same centre
+            val drawn = laned.nodes.map { n ->
+                val dh = maxOf(n.dimensions!!.height, 112.0)
+                val cy = n.position!!.y + n.dimensions.height / 2
+                (cy - dh / 2) to (cy + dh / 2)
+            }.sortedBy { it.first }
+            drawn.zipWithNext().forEach { (a, b) -> assertTrue(a.second <= b.first, "drawn boxes overlap at $w x $h") }
+            val lane = laned.lanes!!.single()
+            assertTrue(drawn.first().first >= lane.y && drawn.last().second <= lane.y + lane.height)
+        }
     }
 
     @Test

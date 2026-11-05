@@ -43,7 +43,9 @@ class GenerateFlowViewFromZfl(
      * Applies saved positions to the full flow view (spec:flows/eventflow#ef-r14). All or nothing: the positions
      * are applied only when every node of the view has a finite position; ids the view lacks are ignored.
      * Otherwise the automatic layout is returned with the reason and the offending node ids.
-     * With lanes (spec:flows/eventflow#ef-r24) positions are not used: the automatic laned layout is returned as applied.
+     * With lanes (spec:flows/eventflow#ef-r24) positions are not used: the automatic laned layout is returned as
+     * [FlowPositionsResult.Applied] although nothing was applied. Callers must not report saved positions as applied
+     * when lanes is not NONE; they should not call this with lanes and report the positions as ignored.
      */
     suspend fun withPositions(zflContent: String, positions: Map<String, Point>, lanes: FlowLanes = FlowLanes.NONE): FlowPositionsResult {
         if (lanes != FlowLanes.NONE) return FlowPositionsResult.Applied(execute(zflContent, lanes))

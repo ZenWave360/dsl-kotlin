@@ -15,6 +15,13 @@ object FlowLaneLayout {
     private const val ROW_GAP = 40.0
     private const val NODE_GAP_X = 20.0
 
+    // The page draws every node at least this big and keeps its centre, so rows are packed with the drawn size:
+    // max(server size, these). Keep them equal to MIN_NODE_WIDTH and MIN_NODE_HEIGHT in
+    // zenwave-architectural-vistas/packages/eventflow/src/EventFlowVisualizer.tsx (lines 91-92, getRenderedDimensions).
+    // The page's synthetic outcome boxes (32 high, drawn between a node and its targets, centred on them) add no height.
+    private const val DRAWN_MIN_WIDTH = 180.0
+    private const val DRAWN_MIN_HEIGHT = 112.0
+
     /**
      * Places the nodes of [view], already laid out, in bands. With [FlowLanes.NONE] the view is returned unchanged.
      * Bands follow the order of first appearance in the flow; the band of the commands with no system (Systems)
@@ -36,9 +43,11 @@ object FlowLaneLayout {
             val rows = pack(byBand.getValue(key))
             var rowTop = BAND_PADDING
             rows.forEach { row ->
-                val rowHeight = row.maxOf { it.dimensions!!.height }
+                val rowHeight = row.maxOf { drawnHeight(it) }
                 row.forEach { node ->
-                    moved[node.id] = Point(node.position!!.x, top + rowTop + (rowHeight - node.dimensions!!.height) / 2)
+                    // the drawn box is centred on the server box, so the drawn top is at rowTop plus the row's slack
+                    val drawnTop = top + rowTop + (rowHeight - drawnHeight(node)) / 2
+                    moved[node.id] = Point(node.position!!.x, drawnTop + (drawnHeight(node) - node.dimensions!!.height) / 2)
                 }
                 rowTop += rowHeight + ROW_GAP
             }
@@ -56,7 +65,7 @@ object FlowLaneLayout {
         val nodes = view.nodes.map {
             it.copy(position = moved.getValue(it.id), lane = ids.getValue(membership.getValue(it.id)))
         }
-        val width = nodes.maxOf { it.position!!.x + it.dimensions!!.width } + CANVAS_PADDING
+        val width = nodes.maxOf { drawnLeft(it) + drawnWidth(it) } + CANVAS_PADDING
         return view.copy(
             nodes = nodes,
             bounds = FlowBounds(0.0, 0.0, width, top),
@@ -72,7 +81,8 @@ object FlowLaneLayout {
     private val UNASSIGNED = Key(null, null)
 
     private fun keyOf(node: FlowNode, lanes: FlowLanes): Key = when (lanes) {
-        FlowLanes.SYSTEMS -> if (node.system == null) UNASSIGNED else Key(node.system, null)
+        // a command with no service is in the last band in both modes, even when it names a system
+        FlowLanes.SYSTEMS -> if (node.service == null || node.system == null) UNASSIGNED else Key(node.system, null)
         else -> if (node.service == null) UNASSIGNED else Key(node.system, node.service)
     }
 
@@ -97,22 +107,23 @@ object FlowLaneLayout {
                 rank[node.id] = rank.getValue(source.source)
             }
         }
+        // An outcome shared by commands in several bands is drawn with its earliest producer (first in text order).
         view.nodes.filter { it.type == FlowNodeType.READ_MODEL }.forEach(::emitted)
         view.nodes.filter { it.type == FlowNodeType.EVENT }.forEach(::emitted)
-        view.nodes.filter { it.type == FlowNodeType.EVENT && it.id !in result }.forEach { node ->
+        // no retained producer (a variant can drop it): its own system or service, else the first command
+        view.nodes.filter { (it.type == FlowNodeType.EVENT || it.type == FlowNodeType.READ_MODEL) && it.id !in result }.forEach { node ->
             result[node.id] = if (node.service != null || node.system != null) keyOf(node, lanes) else fallback
         }
 
         fun calledBy(node: FlowNode): List<String> =
             outgoing[node.id].orEmpty().map { it.target }.filter { byId[it]?.type == FlowNodeType.COMMAND }
 
-        // one band: that one; several: the first called command in text order; none: the first command in text order
+        // one band: that one; none or several (only a start can): the first command of the flow in text order
         fun chosen(called: List<String>): Key {
             val bands = called.map { result.getValue(it) }.distinct()
             return when {
                 bands.size == 1 -> bands.single()
-                called.isEmpty() -> fallback
-                else -> result.getValue(called.minByOrNull { textOrder.getValue(it) }!!)
+                else -> fallback
             }
         }
         val policyCalls = HashMap<String, List<String>>()
@@ -147,7 +158,7 @@ object FlowLaneLayout {
     }
 
     private fun labelOf(key: Key, lanes: FlowLanes): String = when {
-        key == UNASSIGNED -> if (lanes == FlowLanes.SYSTEMS) "No system" else "No service"
+        key == UNASSIGNED -> "No service"
         lanes == FlowLanes.SYSTEMS -> key.system!!
         else -> key.service!!
     }
@@ -158,15 +169,19 @@ object FlowLaneLayout {
     private fun pack(nodes: List<FlowNode>): List<List<FlowNode>> {
         val rows = ArrayList<MutableList<FlowNode>>()
         nodes.sortedWith(compareBy<FlowNode>({ it.position!!.y }, { it.position!!.x }, { it.id })).forEach { node ->
-            val left = node.position!!.x - NODE_GAP_X
-            val right = node.position.x + node.dimensions!!.width + NODE_GAP_X
+            val left = drawnLeft(node) - NODE_GAP_X
+            val right = drawnLeft(node) + drawnWidth(node) + NODE_GAP_X
             val row = rows.firstOrNull { row ->
-                row.none { o -> o.position!!.x < right && o.position.x + o.dimensions!!.width > left }
+                row.none { o -> drawnLeft(o) < right && drawnLeft(o) + drawnWidth(o) > left }
             } ?: ArrayList<FlowNode>().also { rows += it }
             row += node
         }
         return rows
     }
+
+    private fun drawnWidth(node: FlowNode) = maxOf(node.dimensions!!.width, DRAWN_MIN_WIDTH)
+    private fun drawnHeight(node: FlowNode) = maxOf(node.dimensions!!.height, DRAWN_MIN_HEIGHT)
+    private fun drawnLeft(node: FlowNode) = node.position!!.x - (drawnWidth(node) - node.dimensions!!.width) / 2
 
     // Same formula as the layout engines: system groups stay what automatic layout would give for these nodes.
     private fun systemGroupsOf(nodes: List<FlowNode>): List<FlowSystemGroupView> =
