@@ -146,6 +146,7 @@ class ZflSemanticAnalyzer {
                 declaredEvents = events.keys
             )
             diagnostics += validateCalls(flowName, commandByName.values.toList())
+            diagnostics += validateUnreachableActions(flowName, commandByName.values.toList(), policies)
 
             val endOutcomes = flowModel.getStringListMap("end.endOutcomes")
             val end = ZflEnd(
@@ -319,8 +320,8 @@ class ZflSemanticAnalyzer {
 
         if (systemName == null || servicePath == null) {
             diagnostics += ZflSemanticDiagnostic(
-                message = "Action '$actionName' must declare a service.",
-                severity = Severity.ERROR,
+                message = "Action '$actionName' does not declare a service.",
+                severity = Severity.WARNING,
                 sourceRef = sourceRefOf(flowName, actionName)
             )
         }
@@ -515,6 +516,33 @@ class ZflSemanticAnalyzer {
         }
     }
 
+    private fun validateUnreachableActions(
+        flowName: String,
+        commands: List<ZflCommand>,
+        policies: List<ZflPolicy>,
+    ): List<ZflSemanticDiagnostic> {
+        val reachable = policies.map { it.command }.toMutableSet()
+        fun collect(call: ZflCallStep) {
+            reachable += call.action
+            call.handlers.forEach { handler ->
+                handler.action?.let { reachable += it }
+                handler.chainedCall?.let(::collect)
+            }
+        }
+        commands.forEach { command ->
+            (command.steps + command.occurrences.flatMap { it.steps })
+                .filterIsInstance<ZflCallStep>()
+                .forEach(::collect)
+        }
+        return commands.filter { it.name !in reachable }.map { command ->
+            ZflSemanticDiagnostic(
+                message = "Action '${command.name}' is never triggered nor called.",
+                severity = Severity.WARNING,
+                sourceRef = sourceRefOf(flowName, command.name)
+            )
+        }
+    }
+
     private fun validateWhenTriggers(
         flowName: String,
         startNames: Set<String>,
@@ -549,7 +577,7 @@ class ZflSemanticAnalyzer {
         if (!endOutcomes.containsKey("completed")) {
             diagnostics += ZflSemanticDiagnostic(
                 message = "Flow '$flowName' must define a 'completed' endOutcome.",
-                severity = Severity.ERROR,
+                severity = Severity.WARNING,
                 sourceRef = sourceRefOf(flowName, "end")
             )
         }

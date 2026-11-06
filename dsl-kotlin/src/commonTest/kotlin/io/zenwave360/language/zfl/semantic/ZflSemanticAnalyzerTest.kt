@@ -537,7 +537,8 @@ class ZflSemanticAnalyzerTest {
             ZflParser().parseModel(
                 """
                     flow CheckoutFlow {
-                        do startOrderCheckout {
+                        start Checkout {}
+                        when Checkout do startOrderCheckout {
                             service OrdersCheckout.OrdersCheckoutService
                             call reserveStock
                             @outcome("created") on StockReserved emits response OrderCreated
@@ -792,7 +793,7 @@ class ZflSemanticAnalyzerTest {
 
     private fun assertSingleValueWarning(model: ZflSemanticModel, annotation: String) {
         assertTrue(model.diagnostics.none { it.severity == Severity.ERROR }, model.diagnostics.toString())
-        val warning = model.diagnostics.single { it.severity == Severity.WARNING }
+        val warning = model.diagnostics.single { it.severity == Severity.WARNING && it.message.startsWith("Annotation") }
         assertEquals("Annotation '$annotation' expects a single value.", warning.message)
     }
 
@@ -843,4 +844,130 @@ class ZflSemanticAnalyzerTest {
             }
         }
     """.trimIndent()
+
+    @Test
+    fun testAnalyze_ActionNothingTriggersOrCallsIsAWarning() {
+        val model = analyze(
+            """
+            systems { Bookings { service SlotBlockService } }
+            flow F {
+                do recordGuestCall {
+                    service Bookings.SlotBlockService
+                    emits GuestCallCompleted
+                }
+            }
+            """
+        )
+        assertTrue(model.diagnostics.none { it.severity == Severity.ERROR }, model.diagnostics.toString())
+        assertEquals(
+            listOf("Action 'recordGuestCall' is never triggered nor called."),
+            model.diagnostics.filter { it.severity == Severity.WARNING && it.message.contains("never triggered") }.map { it.message },
+        )
+        assertEquals(1, model.flows.single().commands.size)
+    }
+
+    @Test
+    fun testAnalyze_ActionTriggeredOrCalledIsNotReportedAsUnreachable() {
+        val model = analyze(
+            """
+            systems { S { service Svc } }
+            flow F {
+                start A {}
+                when A do first {
+                    service S.Svc
+                    call second
+                    on Done call third
+                }
+                do second {
+                    service S.Svc
+                    emits response Done
+                }
+                do third {
+                    service S.Svc
+                    emits E
+                }
+                end { completed: E }
+            }
+            """
+        )
+        assertTrue(model.diagnostics.none { it.message.contains("never triggered") }, model.diagnostics.toString())
+    }
+
+    @Test
+    fun testAnalyze_UnreachableCheckIsPerFlow() {
+        val model = analyze(
+            """
+            systems { S { service Svc } }
+            flow One {
+                start A {}
+                when A do shared { service S.Svc
+                    emits E }
+                end { completed: E }
+            }
+            flow Two {
+                do shared { service S.Svc
+                    emits E }
+                end { completed: E }
+            }
+            """
+        )
+        assertEquals(1, model.diagnostics.count { it.message == "Action 'shared' is never triggered nor called." }, model.diagnostics.toString())
+    }
+
+    @Test
+    fun testAnalyze_FlowWithoutEndOrCompletedIsAWarning() {
+        val empty = analyze("flow Booking { }")
+        assertTrue(empty.diagnostics.none { it.severity == Severity.ERROR }, empty.diagnostics.toString())
+        assertTrue(empty.diagnostics.any { it.severity == Severity.WARNING && it.message.contains("'completed'") })
+
+        val noCompleted = analyze(
+            """
+            systems { S { service Svc } }
+            flow F {
+                start A {}
+                when A do x { service S.Svc
+                    emits E }
+                end { failed: E }
+            }
+            """
+        )
+        assertTrue(noCompleted.diagnostics.none { it.severity == Severity.ERROR }, noCompleted.diagnostics.toString())
+        assertTrue(noCompleted.diagnostics.any { it.severity == Severity.WARNING && it.message.contains("'completed'") })
+    }
+
+    @Test
+    fun testAnalyze_OutcomeNamingUnknownEventStaysAnError() {
+        val model = analyze(
+            """
+            systems { S { service Svc } }
+            flow F {
+                start A {}
+                when A do x { service S.Svc
+                    emits E }
+                end { completed: Nope }
+            }
+            """
+        )
+        assertTrue(model.diagnostics.any { it.severity == Severity.ERROR && it.message.contains("unknown event 'Nope'") }, model.diagnostics.toString())
+    }
+
+    @Test
+    fun testAnalyze_CommandWithoutServiceIsAWarning() {
+        val model = analyze(
+            """
+            flow F {
+                start RequestBooking {}
+                when RequestBooking do bookSlot {
+                    emits SlotBooked
+                }
+                end { completed: SlotBooked }
+            }
+            """
+        )
+        assertTrue(model.diagnostics.none { it.severity == Severity.ERROR }, model.diagnostics.toString())
+        assertEquals(
+            listOf("Action 'bookSlot' does not declare a service."),
+            model.diagnostics.filter { it.severity == Severity.WARNING }.map { it.message },
+        )
+    }
 }
