@@ -20,7 +20,7 @@ class ZflSystemsOrganizerTest {
                 }
 
                 Orders {
-                    service OrdersService for(Order) {
+                    service OrdersService for (Order) {
                         commands: createOrder
                     }
                 }
@@ -98,7 +98,7 @@ class ZflSystemsOrganizerTest {
                 }
 
                 Billing {
-                    service Invoices for(Invoice) {
+                    service Invoices for (Invoice) {
                         commands: createInvoice
                     }
                 }
@@ -179,7 +179,7 @@ class ZflSystemsOrganizerTest {
         val organized = ZflParser().organizeSystems(input, ADDITIVE)
 
         assertEquals(
-            "systems { Orders { service Svc for(Order) {\n    commands: create\n} } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
+            "systems { Orders { service Svc for (Order) {\n    commands: create\n} } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
             organized
         )
         assertTrue(ZflParser().parse(organized).syntaxProblems.isEmpty(), "Organized ZFL should remain valid")
@@ -191,22 +191,22 @@ class ZflSystemsOrganizerTest {
         val cases = listOf(
             Triple(
                 "systems { Orders { service Svc } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
-                "systems { Orders { service Svc for(Order) {\n    commands: create\n} } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
-                "a service without for(...)"
+                "systems { Orders { service Svc for (Order) {\n    commands: create\n} } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
+                "a service without for (...)"
             ),
             Triple(
-                "systems { Orders { service OrdersService for(Existing) } }\n\nflow Checkout { when Started do createOrder { service Orders/OrdersService/Order emits Created } }",
-                "systems { Orders { service OrdersService for(Existing, Order) {\n    commands: createOrder\n} } }\n\nflow Checkout { when Started do createOrder { service Orders/OrdersService/Order emits Created } }",
+                "systems { Orders { service OrdersService for (Existing) } }\n\nflow Checkout { when Started do createOrder { service Orders/OrdersService/Order emits Created } }",
+                "systems { Orders { service OrdersService for (Existing, Order) {\n    commands: createOrder\n} } }\n\nflow Checkout { when Started do createOrder { service Orders/OrdersService/Order emits Created } }",
                 "a bodyless service with one existing aggregate"
             ),
             Triple(
-                "systems { Orders { service Svc for(Existing, Legacy) } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
-                "systems { Orders { service Svc for(Existing, Legacy, Order) {\n    commands: create\n} } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
+                "systems { Orders { service Svc for (Existing, Legacy) } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
+                "systems { Orders { service Svc for (Existing, Legacy, Order) {\n    commands: create\n} } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }",
                 "a bodyless service with several aggregates"
             ),
             Triple(
-                "systems { Orders { service Svc for(Existing) } }\n\nflow F { when E do create { service Orders/Svc emits Done } }",
-                "systems { Orders { service Svc for(Existing) {\n    commands: create\n} } }\n\nflow F { when E do create { service Orders/Svc emits Done } }",
+                "systems { Orders { service Svc for (Existing) } }\n\nflow F { when E do create { service Orders/Svc emits Done } }",
+                "systems { Orders { service Svc for (Existing) {\n    commands: create\n} } }\n\nflow F { when E do create { service Orders/Svc emits Done } }",
                 "a bodyless service needing only a body"
             )
         )
@@ -218,8 +218,8 @@ class ZflSystemsOrganizerTest {
 
     @Test
     fun organizeSystems_additively_adds_aggregate_without_changing_existing_body() {
-        val input = "systems { Orders { service Svc for(Existing) { commands: create } } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }"
-        val expected = "systems { Orders { service Svc for(Existing, Order) { commands: create } } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }"
+        val input = "systems { Orders { service Svc for (Existing) { commands: create } } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }"
+        val expected = "systems { Orders { service Svc for (Existing, Order) { commands: create } } }\n\nflow F { when E do create { service Orders/Svc/Order emits Done } }"
 
         assertAdditiveResult(input, expected, "a service needing only an aggregate")
     }
@@ -229,7 +229,7 @@ class ZflSystemsOrganizerTest {
         val input = """
             systems {
                 Orders {
-                    service OrdersService for(
+                    service OrdersService for (
                         Existing,
                         // Keep this comment.
                         Legacy
@@ -247,7 +247,7 @@ class ZflSystemsOrganizerTest {
         val expected = """
             systems {
                 Orders {
-                    service OrdersService for(
+                    service OrdersService for (
                         Existing,
                         // Keep this comment.
                         Legacy, Order
@@ -265,7 +265,7 @@ class ZflSystemsOrganizerTest {
             }
         """.trimIndent()
 
-        assertAdditiveResult(input, expected, "comments and line breaks inside for(...)")
+        assertAdditiveResult(input, expected, "comments and line breaks inside for (...)")
     }
 
     @Test
@@ -279,7 +279,7 @@ class ZflSystemsOrganizerTest {
                 Orders {
                     // keep this comment with OrdersService
                     @sync
-                    service OrdersService for(Product, LegacyOrder) {
+                    service OrdersService for (Product, LegacyOrder) {
                         commands: staleCommand
                     }
                 }
@@ -318,7 +318,7 @@ class ZflSystemsOrganizerTest {
                 Orders {
                     // keep this comment with OrdersService
                     @sync
-                    service OrdersService for(Order) {
+                    service OrdersService for (Order) {
                         commands: createOrder
                     }
                 }
@@ -434,7 +434,7 @@ class ZflSystemsOrganizerTest {
         val expected = """
             systems {
                 Inventory {
-                    service InventoryService for(Product, Warehouse) {
+                    service InventoryService for (Product, Warehouse) {
                         commands: reserveStock, syncInventory
                     }
                 }
@@ -472,7 +472,7 @@ class ZflSystemsOrganizerTest {
                 Catalog {
                     // service note
                     @ownedBy("catalog-team")
-                    service CatalogService for(Product) {
+                    service CatalogService for (Product) {
                         commands: oldCommand
                     }
                 }
@@ -491,7 +491,7 @@ class ZflSystemsOrganizerTest {
                 Catalog {
                     // service note
                     @ownedBy("catalog-team")
-                    service CatalogService for(Product) {
+                    service CatalogService for (Product) {
                         commands: refreshCatalog
                     }
                 }
@@ -515,7 +515,7 @@ class ZflSystemsOrganizerTest {
         val input = """
             systems {
                 Orders {
-                    service OrdersService for(Product, LegacyOrder) {
+                    service OrdersService for (Product, LegacyOrder) {
                         commands: oldCommand
                     }
                 }
@@ -532,7 +532,7 @@ class ZflSystemsOrganizerTest {
         val expected = """
             systems {
                 Orders {
-                    service OrdersService for(Product, LegacyOrder) {
+                    service OrdersService for (Product, LegacyOrder) {
                         commands: createOrder
                     }
                 }

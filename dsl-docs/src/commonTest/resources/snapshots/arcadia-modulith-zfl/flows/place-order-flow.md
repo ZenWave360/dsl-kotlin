@@ -71,30 +71,32 @@ flowchart TD
     action_sendStockUnavailableNotification["sendStockUnavailableNotification"]
     action_startOrderCheckout["startOrderCheckout"]
     action_voidPayment["voidPayment"]
-    event_FulfillmentFailed[/FulfillmentFailed/]
-    event_FulfillmentScheduled[/FulfillmentScheduled/]
-    event_OrderCancelledNotificationSent[/OrderCancelledNotificationSent/]
-    event_OrderCancelled[/OrderCancelled/]
-    event_OrderConfirmationSent[/OrderConfirmationSent/]
-    event_OrderConfirmed[/OrderConfirmed/]
-    event_OrderCreated[/OrderCreated/]
-    event_PaymentAuthorized[/PaymentAuthorized/]
-    event_PaymentCaptureFailed[/PaymentCaptureFailed/]
-    event_PaymentCaptured[/PaymentCaptured/]
-    event_PaymentDeclined[/PaymentDeclined/]
-    event_PaymentFailed[/PaymentFailed/]
-    event_PaymentRetried[/PaymentRetried/]
-    event_PaymentRetryExhausted[/PaymentRetryExhausted/]
-    event_PaymentVoided[/PaymentVoided/]
-    event_StockReleased[/StockReleased/]
-    event_StockReservationConfirmed[/StockReservationConfirmed/]
-    event_StockUnavailableNotificationSent[/StockUnavailableNotificationSent/]
-    event_StockUnavailable[/StockUnavailable/]
-    outcome_authorizePayment_authorized(["authorized"])
-    outcome_authorizePayment_declined(["declined"])
-    outcome_authorizePayment_failed(["failed"])
-    outcome_retryPayment_retried(["retried"])
-    outcome_retryPayment_retry_exhausted(["retry-exhausted"])
+    event_FulfillmentFailed("FulfillmentFailed")
+    event_FulfillmentScheduled("FulfillmentScheduled")
+    event_OrderCancelled("OrderCancelled")
+    event_OrderCancelledNotificationSent("OrderCancelledNotificationSent")
+    event_OrderConfirmationSent("OrderConfirmationSent")
+    event_OrderConfirmed("OrderConfirmed")
+    event_OrderCreated("OrderCreated")
+    event_PaymentAuthorized("PaymentAuthorized")
+    event_PaymentCaptureFailed("PaymentCaptureFailed")
+    event_PaymentCaptured("PaymentCaptured")
+    event_PaymentDeclined("PaymentDeclined")
+    event_PaymentFailed("PaymentFailed")
+    event_PaymentRetried("PaymentRetried")
+    event_PaymentRetryExhausted("PaymentRetryExhausted")
+    event_PaymentVoided("PaymentVoided")
+    event_StockReleased("StockReleased")
+    event_StockReservationConfirmed("StockReservationConfirmed")
+    event_StockUnavailable("StockUnavailable")
+    event_StockUnavailableNotificationSent("StockUnavailableNotificationSent")
+    outcome_authorizePayment_authorized{"authorized"}
+    outcome_authorizePayment_declined{"declined"}
+    outcome_authorizePayment_failed{"failed"}
+    outcome_retryPayment_retried{"retried"}
+    outcome_retryPayment_retry_exhausted{"retry-exhausted"}
+    outcome_startOrderCheckout_StockReservedResult{"StockReservedResult"}
+    outcome_startOrderCheckout_StockUnavailableResult{"StockUnavailableResult"}
     policy_when_FulfillmentFailed_PaymentCaptureFailed_do_voidPayment{{"when FulfillmentFailed, PaymentCaptureFailed do voidPayment"}}
     policy_when_FulfillmentScheduled_do_capturePayment{{"when FulfillmentScheduled do capturePayment"}}
     policy_when_OrderCancelled_do_sendOrderCancelledNotification{{"when OrderCancelled do sendOrderCancelledNotification"}}
@@ -105,7 +107,6 @@ flowchart TD
     policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock{{"when PaymentDeclined, PaymentRetryExhausted, PaymentVoided, ReservationExpired do releaseStock"}}
     policy_when_PaymentFailed_do_retryPayment{{"when PaymentFailed do retryPayment"}}
     policy_when_PaymentRetried_do_authorizePayment{{"when PaymentRetried do authorizePayment"}}
-    policy_when_StartOrderCheckout_do_startOrderCheckout{{"when StartOrderCheckout do startOrderCheckout"}}
     policy_when_StockReleased_do_cancelOrder{{"when StockReleased do cancelOrder"}}
     policy_when_StockUnavailable_do_sendStockUnavailableNotification{{"when StockUnavailable do sendStockUnavailableNotification"}}
     readModel_StockReservedResult["StockReservedResult"]
@@ -115,11 +116,14 @@ flowchart TD
     terminal_completed(("completed"))
     terminal_orderCancelled(("orderCancelled"))
     terminal_stockGone(("stockGone"))
-    start_StartOrderCheckout --> policy_when_StartOrderCheckout_do_startOrderCheckout
-    policy_when_StartOrderCheckout_do_startOrderCheckout --> action_startOrderCheckout
+    start_StartOrderCheckout --> action_startOrderCheckout
     start_ReservationExpired --> policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock
     policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock --> action_releaseStock
     action_startOrderCheckout --> action_reserveStock
+    action_startOrderCheckout --> outcome_startOrderCheckout_StockReservedResult
+    outcome_startOrderCheckout_StockReservedResult --> event_OrderCreated
+    action_startOrderCheckout --> outcome_startOrderCheckout_StockUnavailableResult
+    outcome_startOrderCheckout_StockUnavailableResult --> event_StockUnavailable
     action_reserveStock --> readModel_StockReservedResult
     action_reserveStock --> readModel_StockUnavailableResult
     action_authorizePayment --> outcome_authorizePayment_authorized
@@ -184,7 +188,6 @@ flowchart TD
     classDef endOutcome fill:#ef4444,stroke:#b91c1c,color:#ffffff
     class start_StartOrderCheckout start
     class start_ReservationExpired start
-    class policy_when_StartOrderCheckout_do_startOrderCheckout policy
     class policy_when_OrderCreated_do_authorizePayment policy
     class policy_when_PaymentFailed_do_retryPayment policy
     class policy_when_PaymentRetried_do_authorizePayment policy
@@ -198,6 +201,8 @@ flowchart TD
     class policy_when_StockReleased_do_cancelOrder policy
     class policy_when_OrderCancelled_do_sendOrderCancelledNotification policy
     class action_startOrderCheckout command
+    class event_OrderCreated event
+    class event_StockUnavailable event
     class action_reserveStock command
     class readModel_StockReservedResult readModel
     class readModel_StockUnavailableResult readModel
@@ -230,11 +235,11 @@ flowchart TD
     class event_OrderCancelled event
     class action_sendOrderCancelledNotification command
     class event_OrderCancelledNotificationSent event
-    class event_OrderCreated event
-    class event_StockUnavailable event
     class terminal_completed endOutcome
     class terminal_stockGone endOutcome
     class terminal_orderCancelled endOutcome
+    class outcome_startOrderCheckout_StockReservedResult outcomeNode
+    class outcome_startOrderCheckout_StockUnavailableResult outcomeNode
     class outcome_authorizePayment_authorized outcomeNode
     class outcome_authorizePayment_declined outcomeNode
     class outcome_authorizePayment_failed outcomeNode

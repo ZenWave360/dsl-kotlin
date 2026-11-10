@@ -71,7 +71,11 @@ class ZflToMermaidDiagramsTransformer(
             classAssignments += "    class $startId start"
         }
 
-        flow.policies.forEach { policy ->
+        // the flow graph leaves out the policy that only hands an actor start to its command, so does the flowchart
+        val drawnPolicyIds = graph.nodes.filter { it.type == FlowGraphNodeType.POLICY }.map { it.id }.toSet()
+        fun isDrawn(policy: ZflPolicy) = flowPolicyNodeId(policy) in drawnPolicyIds
+
+        flow.policies.filter(::isDrawn).forEach { policy ->
             val policyId = flowchartPolicyNodeId(policy)
             nodeLines += "    $policyId{{\"${policyLabel(policy)}\"}}"
             classAssignments += "    class $policyId policy"
@@ -85,7 +89,7 @@ class ZflToMermaidDiagramsTransformer(
             val shape = when (node.type) {
                 FlowGraphNodeType.START -> "([\"${escape(node.label)}\"])"
                 FlowGraphNodeType.ACTION -> "[\"${escape(node.label)}\"]"
-                FlowGraphNodeType.OUTCOME -> "[/${escape(node.label)}/]"
+                FlowGraphNodeType.OUTCOME -> "(\"${escape(node.label)}\")"
                 FlowGraphNodeType.READ_MODEL -> "[\"${escape(node.label)}\"]"
                 FlowGraphNodeType.POLICY -> "{{\"${policyLabelsById[nodeId] ?: escape(node.label)}\"}}"
             }
@@ -114,10 +118,12 @@ class ZflToMermaidDiagramsTransformer(
                 val sourceId = flowchartNodeId("start", start.name)
                 val policyId = flowchartPolicyNodeId(policy)
                 val commandId = flowchartNodeId("action", policy.command)
-                edgeLines += "    $sourceId --> $policyId"
-                // Actor starts are collapsed to a direct graph edge. The flowchart still
-                // renders their policy, so connect every start-handling policy explicitly.
-                edgeLines += "    $policyId --> $commandId"
+                if (isDrawn(policy)) {
+                    edgeLines += "    $sourceId --> $policyId"
+                    edgeLines += "    $policyId --> $commandId"
+                } else {
+                    edgeLines += "    $sourceId --> $commandId"
+                }
             }
         }
 
@@ -151,7 +157,7 @@ class ZflToMermaidDiagramsTransformer(
             ) {
                 val outcomeNodeId = flowchartOutcomeNodeId(sourceNode.label, outcome)
                 if (outcomeNodes.add(outcomeNodeId)) {
-                    nodeLines += "    $outcomeNodeId([\"${escape(outcome)}\"])"
+                    nodeLines += "    $outcomeNodeId{\"${escape(outcome)}\"}"
                     classAssignments += "    class $outcomeNodeId outcomeNode"
                 }
                 val label = edge.label?.let { "|${escape(it)}|" } ?: ""
