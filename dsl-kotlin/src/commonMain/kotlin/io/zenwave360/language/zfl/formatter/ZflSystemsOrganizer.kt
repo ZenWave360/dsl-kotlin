@@ -125,7 +125,7 @@ class ZflSystemsOrganizer {
             val insertion = buildString {
                 if (missingAggregates.isNotEmpty()) {
                     if (existingAggregates == null) {
-                        append(" for(${missingAggregates.joinToString(", ")})")
+                        append(" for (${missingAggregates.joinToString(", ")})")
                     }
                 }
                 append(" {${lineEnding(input)}${indent}    commands: ${missingCommands.joinToString(", ")}${lineEnding(input)}$indent}")
@@ -142,7 +142,7 @@ class ZflSystemsOrganizer {
         if (missingAggregates.isNotEmpty()) {
             if (existingAggregates == null) {
                 val insertAt = existingService.system_service_name().stop!!.stopIndex + 1
-                edits += TextEdit(insertAt, insertAt, " for(${missingAggregates.joinToString(", ")})")
+                edits += TextEdit(insertAt, insertAt, " for (${missingAggregates.joinToString(", ")})")
             } else {
                 val insertAt = existingAggregates.ID().last().symbol.stopIndex + 1
                 edits += TextEdit(insertAt, insertAt, ", ${missingAggregates.joinToString(", ")}")
@@ -194,7 +194,7 @@ class ZflSystemsOrganizer {
         if (leadingBlankLine) append(lineEnding)
         append(indent)
         append("service ${service.name}")
-        if (service.aggregates.isNotEmpty()) append(" for(${service.aggregates.joinToString(", ")})")
+        if (service.aggregates.isNotEmpty()) append(" for (${service.aggregates.joinToString(", ")})")
         append(" {")
         append(lineEnding)
         append(indent)
@@ -318,7 +318,7 @@ class ZflSystemsOrganizer {
         val aggregates = if (effectiveAggregates.isEmpty()) {
             ""
         } else {
-            " for(${effectiveAggregates.joinToString(", ")})"
+            " for (${effectiveAggregates.joinToString(", ")})"
         }
         return buildString {
             append(headerPrefix)

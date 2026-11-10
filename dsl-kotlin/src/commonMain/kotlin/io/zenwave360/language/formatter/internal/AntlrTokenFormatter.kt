@@ -114,6 +114,9 @@ internal class AntlrTokenFormatter(
             return whitespace.isNotEmpty()
         }
 
+        // `service X for (A, B)`: the aggregates list is written with a space after `for`.
+        if (currentText == "(" && previousText == "for") return true
+
         if (NO_SPACE_BEFORE.contains(currentText)) return false
         if (NO_SPACE_AFTER.contains(previousText)) return false
 
