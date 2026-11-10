@@ -38,6 +38,12 @@ kotlin {
                 implementation(kotlin("test"))
             }
         }
+        jvmTest {
+            dependencies {
+                // DevViewsExport calls the suspend generators.
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+            }
+        }
     }
 }
 
@@ -49,3 +55,14 @@ tasks.withType<org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest>()
             timeout = "20s"
         }
     }
+
+// Dev loop (see DEV-VIEWS.md): -PdevViewsInput / -PdevViewsDir reach DevViewsExport as system properties.
+tasks.withType<Test>().matching { it.name == "jvmTest" }.configureEach {
+    listOf("devViewsInput" to "zenwave.devViews.input", "devViewsDir" to "zenwave.devViews.dir").forEach { (gradleProperty, systemProperty) ->
+        providers.gradleProperty(gradleProperty).orNull?.let {
+            systemProperty(systemProperty, it)
+            // Same task inputs, different files to export: never reuse a previous result.
+            outputs.upToDateWhen { false }
+        }
+    }
+}
