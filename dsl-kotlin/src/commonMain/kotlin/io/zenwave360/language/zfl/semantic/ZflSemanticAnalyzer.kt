@@ -746,12 +746,13 @@ class ZflSemanticAnalyzer {
     private fun ZflCommand.endOutcomes(): Set<String> =
         (emits.map { it.eventName } + responses).toSet()
 
+    // spec:dsl-kotlin/zfl-language#zfl-r1 - `on X call Z` chains, so events are emitted at any depth of chained calls.
     private fun ZflCommand.publishedEvents(): Set<String> =
-        (emits.map { it.eventName } +
-            steps.filterIsInstance<ZflCallStep>()
-                .flatMap { call ->
-                    call.handlers.flatMap { handler ->
-                        handler.signal?.takeIf { it.emits }?.events.orEmpty()
-                    }
-                }).toSet()
+        (emits.map { it.eventName } + steps.filterIsInstance<ZflCallStep>().flatMap { it.emittedEvents() }).toSet()
+
+    private fun ZflCallStep.emittedEvents(): List<String> =
+        handlers.flatMap { handler ->
+            handler.signal?.takeIf { it.emits }?.events.orEmpty() +
+                handler.chainedCall?.emittedEvents().orEmpty()
+        }
 }
