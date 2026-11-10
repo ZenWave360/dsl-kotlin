@@ -222,6 +222,35 @@ class ZflSemanticAnalyzerTest {
     }
 
     @Test
+    fun testAnalyze_PublishedEventsFollowChainedCalls() {
+        // spec:dsl-kotlin/zfl-language#zfl-r1 - `on X call Z` chains: the `on` lines after it handle Z's responses
+        val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    do main {
+                        service Test.Main
+                        call first
+                        on X call second
+                        on W emits DeepEvent
+                        on V call third
+                        on U emits DeeperEvent
+                        emits Completed
+                    }
+                    do first { service Test.First response X }
+                    do second { service Test.Second response W response V }
+                    do third { service Test.Third response U }
+                    end { completed: Completed }
+                }
+            """.trimIndent()
+        ))
+
+        val eventNames = semanticModel.flows.single().events.map { it.name }
+        assertTrue("DeepEvent" in eventNames, eventNames.toString())
+        assertTrue("DeeperEvent" in eventNames, eventNames.toString())
+        assertTrue("Completed" in eventNames, eventNames.toString())
+    }
+
+    @Test
     fun testAnalyze_ExhaustiveNestedHandlersBeforeFurtherLinesAddWarning() {
         val semanticModel = ZflSemanticAnalyzer().analyze(ZflParser().parseModel(
             """
