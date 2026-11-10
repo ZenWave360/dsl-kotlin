@@ -36,9 +36,12 @@ class ZflToMermaidDiagramsTransformerTest {
         assertTrue(flowchart.contains("start_Requested([\"Customer<br/>Requested\"])"), flowchart)
         assertTrue(flowchart.contains("action_fetchStatus[\"fetchStatus\"]"), flowchart)
         assertTrue(flowchart.contains("readModel_StatusReady[\"StatusReady\"]"), flowchart)
-        assertTrue(flowchart.contains("event_StatusReady[/StatusReady/]"), flowchart)
+        assertTrue(flowchart.contains("event_StatusReady(\"StatusReady\")"), flowchart)
         assertTrue(flowchart.contains("policy_when_StatusReady_do_persistStatus{{\"when StatusReady do persistStatus\"}}"), flowchart)
         assertTrue(flowchart.contains("terminal_completed((\"completed\"))"), flowchart)
+        // the policy that only hands an actor start to its command is not a node, as in the EventFlow diagram
+        assertTrue(!flowchart.contains("policy_when_Requested"), flowchart)
+        assertTrue(flowchart.contains("start_Requested --> action_fetchStatus"), flowchart)
         assertTrue(flowchart.contains("action_fetchStatus --> readModel_StatusReady"), flowchart)
         assertTrue(flowchart.contains("readModel_StatusReady --> event_StatusReady"), flowchart)
         assertTrue(!flowchart.contains("action_fetchStatus --> event_StatusReady"), flowchart)
@@ -198,14 +201,14 @@ class ZflToMermaidDiagramsTransformerTest {
             diagrams.flowchart
         )
         assertTrue(
-            diagrams.flowchart.contains("outcome_authorizePayment_authorized([\"authorized\"])"),
+            diagrams.flowchart.contains("outcome_authorizePayment_authorized{\"authorized\"}"),
             diagrams.flowchart
         )
         assertTrue(diagrams.flowchart.contains("outcome_authorizePayment_authorized --> event_PaymentAuthorized"))
         assertTrue(diagrams.flowchart.contains("outcome_authorizePayment_authorized --> event_OrderUpdated"))
-        assertTrue(diagrams.flowchart.contains("outcome_authorizePayment_declined([\"declined\"])"))
+        assertTrue(diagrams.flowchart.contains("outcome_authorizePayment_declined{\"declined\"}"))
         assertTrue(diagrams.flowchart.contains("classDef outcomeNode"))
-        assertTrue(diagrams.flowchart.contains("event_PaymentAuthorized[/PaymentAuthorized/]"))
+        assertTrue(diagrams.flowchart.contains("event_PaymentAuthorized(\"PaymentAuthorized\")"))
         assertTrue(!diagrams.flowchart.contains("outcome_PaymentAuthorized[/PaymentAuthorized/]"))
         assertHasUniqueNodeDefinitionsAndEdges(diagrams.flowchart)
     }
@@ -355,10 +358,8 @@ class ZflToMermaidDiagramsTransformerTest {
 
         val flowchart = ZflToMermaidDiagramsTransformer().transform(semanticModel).flowchart
 
-        assertTrue(
-            flowchart.contains("policy_when_BookingReminderDue_do_sendBookingReminder --> action_sendBookingReminder"),
-            flowchart
-        )
+        assertTrue(flowchart.contains("start_BookingReminderDue --> action_sendBookingReminder"), flowchart)
+        assertTrue(!flowchart.contains("policy_when_BookingReminderDue_do_sendBookingReminder"), flowchart)
         assertHasUniqueNodeDefinitionsAndEdges(flowchart)
     }
 
