@@ -259,7 +259,7 @@ aggregate_command_name: ID;
 aggregate_command_parameter: ID | ID OPTIONAL;
 
 // services
-service: javadoc? annotations SERVICE service_name FOR LPAREN service_aggregates RPAREN LBRACE service_method* RBRACE;
+service: javadoc? annotations SERVICE service_name FOR? LPAREN service_aggregates RPAREN LBRACE service_method* RBRACE;
 service_name: ID;
 service_aggregates: ID (COMMA ID)*;
 service_method: javadoc? annotations service_method_name
