@@ -65,4 +65,8 @@ tasks.withType<Test>().matching { it.name == "jvmTest" }.configureEach {
             outputs.upToDateWhen { false }
         }
     }
+    // A failed test prints its message (for DevViewsExport: which input failed and why), not only the assertion line.
+    testLogging {
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
 }
