@@ -138,6 +138,23 @@ class ZflToFlowGraphTransformerTest {
     }
 
     @Test
+    fun testTransform_OnHandlerEmitsAloneConnectsCommandToEvent() {
+        val graph = ZflToFlowGraphTransformer()
+            .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(onEmitsOnlyFlow())))
+
+        assertNotNull(graph.edges.find {
+            it.source == "command:startOrderCheckout" &&
+                it.target == "event:OrderCreated" &&
+                it.type == FlowGraphEdgeType.CAUSATION
+        })
+        assertNotNull(graph.edges.find {
+            it.source == "command:startOrderCheckout" &&
+                it.target == "event:StockUnavailable" &&
+                it.type == FlowGraphEdgeType.CAUSATION
+        })
+    }
+
+    @Test
     fun testTransform_CallResponsesDoNotProduceRoutingEdges() {
         val graph = ZflToFlowGraphTransformer()
             .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(callFlow())))
@@ -377,6 +394,27 @@ class ZflToFlowGraphTransformerTest {
             end {
                 completed: OrderCreated
                 stockGone: StockUnavailable
+            }
+        }
+    """.trimIndent()
+
+    private fun onEmitsOnlyFlow() = """
+        flow CallFlow {
+            @actor(Customer)
+            start StartOrderCheckout {
+            }
+
+            when StartOrderCheckout do startOrderCheckout {
+                service OrdersCheckout.OrdersCheckoutService
+                call reserveStock
+                on StockReserved emits OrderCreated
+                on StockUnavailable emits StockUnavailable
+            }
+
+            do reserveStock {
+                service CatalogProducts.CatalogProductsService
+                response StockReserved
+                response StockUnavailable
             }
         }
     """.trimIndent()

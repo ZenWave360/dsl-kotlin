@@ -78,6 +78,7 @@ class ZflToFlowGraphTransformer {
                     }
                 }
                 ensureHandlerSignalNodes(nodeMap, edgeMap, command)
+                connectHandlerEmitsToOutcomes(nodeMap, edgeMap, command)
 
                 connectCommandToDirectOutcomes(nodeMap, edgeMap, command)
                 connectCommandToDirectResponses(nodeMap, edgeMap, command)
@@ -308,6 +309,31 @@ class ZflToFlowGraphTransformer {
                         )
                     )
                 }
+            }
+        }
+    }
+
+    // ZFL-R1: `on X emits Y` is an exit of the command, so the command emits Y even with no `emits Y` line of its own
+    private fun connectHandlerEmitsToOutcomes(
+        nodeMap: MutableMap<String, FlowGraphNode>,
+        edgeMap: MutableMap<String, FlowGraphEdge>,
+        command: ZflCommand
+    ) {
+        val alreadyEmitted = command.emits.map { it.eventName }.toSet()
+        handlerSignals(command).filter { it.emits && !it.response }.forEach { signal ->
+            signal.names.filterNot { it in alreadyEmitted }.forEach { name ->
+                ensureOutcomeNode(nodeMap, name, command)
+                addEdge(
+                    edgeMap,
+                    FlowGraphEdge(
+                        id = edgeId(commandId(command.name), eventId(name)),
+                        source = commandId(command.name),
+                        target = eventId(name),
+                        type = FlowGraphEdgeType.CAUSATION,
+                        outcome = signal.outcome,
+                        sourceRef = signal.sourceRef
+                    )
+                )
             }
         }
     }
