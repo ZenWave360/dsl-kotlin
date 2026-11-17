@@ -90,13 +90,13 @@ flowchart TD
     event_StockReservationConfirmed("StockReservationConfirmed")
     event_StockUnavailable("StockUnavailable")
     event_StockUnavailableNotificationSent("StockUnavailableNotificationSent")
-    outcome_authorizePayment_authorized{"authorized"}
-    outcome_authorizePayment_declined{"declined"}
-    outcome_authorizePayment_failed{"failed"}
-    outcome_retryPayment_retried{"retried"}
-    outcome_retryPayment_retry_exhausted{"retry-exhausted"}
-    outcome_startOrderCheckout_StockReservedResult{"StockReservedResult"}
-    outcome_startOrderCheckout_StockUnavailableResult{"StockUnavailableResult"}
+    outcome_authorizePayment_authorized[/"authorized"/]
+    outcome_authorizePayment_declined[/"declined"/]
+    outcome_authorizePayment_failed[/"failed"/]
+    outcome_retryPayment_retried[/"retried"/]
+    outcome_retryPayment_retry_exhausted[/"retry-exhausted"/]
+    outcome_startOrderCheckout_StockReservedResult[/"StockReservedResult"/]
+    outcome_startOrderCheckout_StockUnavailableResult[/"StockUnavailableResult"/]
     policy_when_FulfillmentFailed_PaymentCaptureFailed_do_voidPayment{{"when FulfillmentFailed, PaymentCaptureFailed do voidPayment"}}
     policy_when_FulfillmentScheduled_do_capturePayment{{"when FulfillmentScheduled do capturePayment"}}
     policy_when_OrderCancelled_do_sendOrderCancelledNotification{{"when OrderCancelled do sendOrderCancelledNotification"}}
