@@ -157,7 +157,7 @@ class ZflToMermaidDiagramsTransformer(
             ) {
                 val outcomeNodeId = flowchartOutcomeNodeId(sourceNode.label, outcome)
                 if (outcomeNodes.add(outcomeNodeId)) {
-                    nodeLines += "    $outcomeNodeId{\"${escape(outcome)}\"}"
+                    nodeLines += "    $outcomeNodeId[/\"${escape(outcome)}\"/]"
                     classAssignments += "    class $outcomeNodeId outcomeNode"
                 }
                 val label = edge.label?.let { "|${escape(it)}|" } ?: ""

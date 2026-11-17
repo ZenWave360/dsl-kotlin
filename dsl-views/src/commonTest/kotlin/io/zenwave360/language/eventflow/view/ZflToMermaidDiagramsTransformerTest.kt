@@ -201,12 +201,12 @@ class ZflToMermaidDiagramsTransformerTest {
             diagrams.flowchart
         )
         assertTrue(
-            diagrams.flowchart.contains("outcome_authorizePayment_authorized{\"authorized\"}"),
+            diagrams.flowchart.contains("outcome_authorizePayment_authorized[/\"authorized\"/]"),
             diagrams.flowchart
         )
         assertTrue(diagrams.flowchart.contains("outcome_authorizePayment_authorized --> event_PaymentAuthorized"))
         assertTrue(diagrams.flowchart.contains("outcome_authorizePayment_authorized --> event_OrderUpdated"))
-        assertTrue(diagrams.flowchart.contains("outcome_authorizePayment_declined{\"declined\"}"))
+        assertTrue(diagrams.flowchart.contains("outcome_authorizePayment_declined[/\"declined\"/]"))
         assertTrue(diagrams.flowchart.contains("classDef outcomeNode"))
         assertTrue(diagrams.flowchart.contains("event_PaymentAuthorized(\"PaymentAuthorized\")"))
         assertTrue(!diagrams.flowchart.contains("outcome_PaymentAuthorized[/PaymentAuthorized/]"))
