@@ -46,7 +46,8 @@ class PlaceOrderFlowSequencesTest {
         val view = diagrams(MermaidSequenceRenderMode.SEPARATE_VARIANTS)
 
         view.sequences.forEach { sequence ->
-            assertFalse(sequence.mermaid.contains("%%"), sequence.mermaid)
+            assertEquals("    %% PlaceOrderFlow: ${sequence.title}", sequence.mermaid.lines()[1])
+            assertFalse(sequence.mermaid.lines().drop(2).any { "%%" in it }, sequence.mermaid)
             val lines = sequence.mermaid.lines()
             assertTrue(lines.last().startsWith("    Note over "), sequence.mermaid)
             assertTrue(lines[lines.size - 2].contains("-->>"), sequence.mermaid)
@@ -68,6 +69,7 @@ class PlaceOrderFlowSequencesTest {
         assertEquals(
             """
             sequenceDiagram
+                %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptured to completed
                 actor Customer
                 participant OrdersCheckoutService as OrdersCheckoutService
                 participant InventoryService as InventoryService
@@ -117,7 +119,7 @@ class PlaceOrderFlowSequencesTest {
             ),
             view.sequences.map { it.title }
         )
-        view.sequences.forEach { assertFalse(it.mermaid.contains("%%"), it.mermaid) }
+        view.sequences.forEach { assertFalse(it.mermaid.lines().drop(2).any { line -> "%%" in line }, it.mermaid) }
         assertEquals(1, view.sequences.count { it.happy })
         assertTrue(view.sequences.single { it.title == "from StartOrderCheckout to completed" }.happy)
     }
@@ -127,8 +129,9 @@ class PlaceOrderFlowSequencesTest {
         val mermaid = diagrams(MermaidSequenceRenderMode.SEPARATE_VARIANTS).sequences.first().mermaid.lines()
 
         assertEquals("sequenceDiagram", mermaid[0])
-        assertEquals("    actor Customer", mermaid[1])
-        assertEquals("    participant OrdersCheckoutService as OrdersCheckoutService", mermaid[2])
+        assertTrue(mermaid[1].startsWith("    %% PlaceOrderFlow: "))
+        assertEquals("    actor Customer", mermaid[2])
+        assertEquals("    participant OrdersCheckoutService as OrdersCheckoutService", mermaid[3])
         assertTrue(mermaid.none { it.trimStart().startsWith("box ") })
     }
 }
