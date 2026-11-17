@@ -209,12 +209,13 @@ class ZflToMermaidDiagramsTransformer(
             val ofOutcome = paths.filter { it.endOutcome == endOutcome }
             if (sequenceRenderMode == MermaidSequenceRenderMode.SEPARATE_VARIANTS) {
                 ofOutcome.map { path ->
+                    val title = sequenceVariantTitle(path)
                     MermaidSequenceDiagram(
                         endOutcome = endOutcome,
-                        title = sequenceVariantTitle(path),
+                        title = title,
                         startLabel = path.start.name,
                         branchLabels = path.choiceLabels,
-                        mermaid = renderSequenceDiagram(endOutcome, path),
+                        mermaid = withTitleComment(renderSequenceDiagram(endOutcome, path), flow.name, title),
                         happy = path === happy
                     )
                 }
@@ -222,21 +223,30 @@ class ZflToMermaidDiagramsTransformer(
                 ofOutcome.groupBy { it.startIndex }.values.map { family ->
                     val startLabel = family.first().start.name
                     val branchLabels = familyLabels(family)
+                    val title = if (family.size == 1) sequenceVariantTitle(family.first()) else "from $startLabel to $endOutcome"
+                    val mermaid = if (family.size > 1) {
+                        renderAltSequenceDiagram(endOutcome, family, branchLabels)
+                    } else {
+                        renderSequenceDiagram(endOutcome, family.first())
+                    }
                     MermaidSequenceDiagram(
                         endOutcome = endOutcome,
-                        title = if (family.size == 1) sequenceVariantTitle(family.first()) else "from $startLabel to $endOutcome",
+                        title = title,
                         startLabel = startLabel,
                         branchLabels = if (family.size > 1) branchLabels.distinct() else family.first().choiceLabels,
-                        mermaid = if (family.size > 1) {
-                            renderAltSequenceDiagram(endOutcome, family, branchLabels)
-                        } else {
-                            renderSequenceDiagram(endOutcome, family.first())
-                        },
+                        mermaid = withTitleComment(mermaid, flow.name, title),
                         happy = family.any { it === happy }
                     )
                 }
             }
         }
+
+    /** The flow and variant title as a Mermaid comment after the header, so copied source says what it shows. */
+    private fun withTitleComment(mermaid: String, flowName: String, title: String): String {
+        val lines = mermaid.lines().toMutableList()
+        lines.add(1, "    %% " + "$flowName: $title".replace(Regex("\\s*[\\r\\n]+\\s*"), " "))
+        return lines.joinToString("\n")
+    }
 
     private fun renderSequenceDiagram(endOutcome: String, path: SequencePath): String {
         val lines = mutableListOf<String>()

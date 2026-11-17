@@ -26,6 +26,7 @@ Starts with `StartOrderCheckout` and ends with the outcome `completed`.
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptured to completed
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -279,6 +280,7 @@ Every other way through the flow, one diagram per path, grouped by the outcome w
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptured to completed
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -314,6 +316,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockUnavailableResult to stockGone
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -333,6 +336,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → declined to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -357,6 +361,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → authorized → FulfillmentFailed to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -390,6 +395,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → failed → retry-exhausted to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -416,6 +422,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -451,6 +458,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → failed → retried → declined to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -479,6 +487,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentFailed to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -516,6 +525,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → failed → retried → failed → retry-exhausted to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -546,6 +556,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -585,6 +596,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from ReservationExpired to orderCancelled
     actor Scheduler
     participant InventoryService as InventoryService
     participant OrdersCheckoutService as OrdersCheckoutService

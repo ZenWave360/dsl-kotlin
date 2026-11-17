@@ -108,6 +108,7 @@ class ZflToMermaidDiagramsTransformerTest {
 
         val completed = diagrams.sequences.single { it.endOutcome == "completed" }
         assertTrue(completed.mermaid.contains("sequenceDiagram"))
+        assertEquals("    %% CheckoutFlow: ${completed.title}", completed.mermaid.lines()[1])
         assertTrue(completed.mermaid.contains("actor Customer"))
         assertTrue(completed.mermaid.contains("Customer->>OrderService: createOrder"))
         assertTrue(completed.mermaid.contains("PaymentService-->>NotificationService: PaymentAuthorized"))

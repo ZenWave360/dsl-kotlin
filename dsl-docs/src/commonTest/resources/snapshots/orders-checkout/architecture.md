@@ -137,6 +137,7 @@ Starts with `StartOrderCheckout` and ends with the outcome `completed`. [All 12 
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptured to completed
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService

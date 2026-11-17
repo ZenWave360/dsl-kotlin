@@ -34,6 +34,7 @@ class PolicyAnnotationsDiagramsTest {
         assertEquals(
             listOf(
                 "sequenceDiagram",
+                "%% GuestCallFlow: from GuestCallRequired to completed",
                 "actor FacilityStaff",
                 "participant GuestCallRequired as GuestCallRequired",
                 "participant SlotBlockService as SlotBlockService",
