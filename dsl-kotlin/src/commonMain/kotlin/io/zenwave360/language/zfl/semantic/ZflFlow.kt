@@ -9,6 +9,8 @@ data class ZflFlow(
     val options: Map<String, String?> = emptyMap(),
     val starts: List<ZflStart>,
     val policies: List<ZflPolicy>,
+    /** Business rules from `rules` blocks. [policies] stays the `when … do` links. */
+    val rules: List<ZflRule> = emptyList(),
     val commands: List<ZflCommand>,
     val events: List<ZflEvent>,
     val end: ZflEnd,

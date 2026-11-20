@@ -50,7 +50,7 @@ internal object PreviewPage {
 
     @Suppress("UNCHECKED_CAST")
     private fun policies(document: ZdlDocument): List<Policy> =
-        (document.model["policies"].let { it as? Map<*, *> }?.values ?: document.model["policies"] as? List<*>)?.mapNotNull { raw ->
+        (document.model["rules"].let { it as? Map<*, *> }?.values ?: document.model["rules"] as? List<*>)?.mapNotNull { raw ->
             val policy = raw as? Map<String, Any?> ?: return@mapNotNull null
             val name = policy["name"] as? String ?: return@mapNotNull null
             val value = policy["value"]?.toString() ?: ""

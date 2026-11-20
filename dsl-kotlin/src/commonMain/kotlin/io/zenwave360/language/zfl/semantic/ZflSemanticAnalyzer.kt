@@ -161,6 +161,15 @@ class ZflSemanticAnalyzer {
                 events.keys + commandByName.values.flatMap { it.responses }
             )
 
+            val rules = flowModel.getMapList("rules").mapIndexed { index, rule ->
+                ZflRule(
+                    name = rule.getString("name"),
+                    value = ruleText(rule["value"]),
+                    aggregate = rule.getStringOrNull("aggregate"),
+                    sourceRef = sourceModel.sourceRef("flows.$flowName.rules[$index]"),
+                )
+            }
+
             flows += ZflFlow(
                 name = flowName,
                 description = flowModel.getString("javadoc"),
@@ -170,6 +179,7 @@ class ZflSemanticAnalyzer {
                 commands = commandByName.values.toList(),
                 events = events.values.toList(),
                 policies = policies,
+                rules = rules,
                 sourceRef = sourceModel.sourceRef("flows.$flowName"),
             )
         }
@@ -730,6 +740,13 @@ class ZflSemanticAnalyzer {
                 sourceRef = response["locationPath"]?.toString()?.let(sourceModel::sourceRef),
             )
         }.orEmpty()
+
+    /** Rule values keep the typed `simple` from the listener. The semantic model stores the text. */
+    private fun ruleText(value: Any?): String = when (value) {
+        null -> ""
+        is String -> value
+        else -> value.toString()
+    }
 
     private fun Map<String, Any?>.getString(key: String): String =
         this[key] as? String ?: ""
