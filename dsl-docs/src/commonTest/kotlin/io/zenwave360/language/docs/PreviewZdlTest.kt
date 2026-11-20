@@ -82,8 +82,11 @@ class PreviewZdlTest {
         assertTrue(page.contains("| API | Kind | Role | Location |"), page)
         assertTrue(page.contains("[./orders.yml](./orders.yml)"), page)
         assertTrue(page.contains("[https\\://example.test/events.yml](https://example.test/events.yml)"), page)
-        assertTrue(page.contains("audit: Every change is audited\n\n### Order\n\norderNumberUnique: Order numbers are unique\n\n```mermaid"), page)
-        assertFalse(page.contains("### Customer\n\norderNumberUnique"), page)
+        assertTrue(page.contains("## Rules"), page)
+        assertTrue(page.contains("### audit"), page)
+        assertTrue(page.contains("### orderNumberUnique"), page)
+        assertTrue(page.contains("Aggregate: Order"), page)
+        assertFalse(page.contains("Aggregate: Customer"), page)
 
         val noApis = preview("@aggregate\nentity Invoice { id UUID }")
         assertFalse(noApis.contains("## APIs"), noApis)
@@ -106,8 +109,8 @@ class PreviewZdlTest {
             """.trimIndent(),
         )
 
-        assertTrue(page.contains("alpha: Alpha rule  \nbeta: Beta rule\n\n### Order"), page)
-        assertTrue(page.contains("first: First rule  \nsecond: Second rule\n\n```mermaid"), page)
+        assertTrue(page.indexOf("### alpha") < page.indexOf("### beta"), page)
+        assertTrue(page.indexOf("### first") < page.indexOf("### second"), page)
     }
 
     @Test

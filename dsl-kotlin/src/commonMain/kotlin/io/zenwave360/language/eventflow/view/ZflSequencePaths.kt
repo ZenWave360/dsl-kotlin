@@ -28,7 +28,9 @@ data class SequenceMessage(
      * Execution identity: the ids of the flow graph nodes (command, events, read models, policy) this
      * message is about. [label] is presentation only (a `@title`, an actor arrow) and is never used to find nodes.
      */
-    val refs: List<String> = emptyList()
+    val refs: List<String> = emptyList(),
+    /** Names of the rules (`@rules(...)`) the command of this message applies; set on the message that runs the command. */
+    val rules: List<String> = emptyList()
 )
 
 /** The alternative taken at an execution that had more than one. [rank] is its declaration order. */
@@ -66,7 +68,9 @@ class ZflSequencePaths(
         val steps: List<ZflActionStep>,
         val participant: SequenceParticipant,
         /** The policy (`when`) this occurrence comes from; null for a command without its own occurrences. */
-        val policy: ZflPolicy? = null
+        val policy: ZflPolicy? = null,
+        /** Rule names of this occurrence (`@rules(...)`). */
+        val rules: List<String> = emptyList()
     )
 
     private data class State(
@@ -104,7 +108,7 @@ class ZflSequencePaths(
     private fun execsOf(command: ZflCommand): List<Exec> {
         if (command.occurrences.isEmpty()) {
             val triggers = flow.policies.filter { it.command == command.name }.flatMap { it.triggers }
-            return listOf(Exec(command.name, triggers, command.steps, participantOf(command)))
+            return listOf(Exec(command.name, triggers, command.steps, participantOf(command), rules = command.rules))
         }
         return command.occurrences.map { occurrence ->
             val label = occurrence.service ?: command.service ?: occurrence.system ?: command.system ?: command.name
@@ -114,7 +118,8 @@ class ZflSequencePaths(
                 triggers = occurrence.triggers,
                 steps = occurrence.steps.ifEmpty { command.steps },
                 participant = SequenceParticipant(sequenceParticipantAlias(label), label, ParticipantKind.PARTICIPANT, system),
-                policy = flow.policies.firstOrNull { it.command == command.name && it.triggers == occurrence.triggers }
+                policy = flow.policies.firstOrNull { it.command == command.name && it.triggers == occurrence.triggers },
+                rules = occurrence.rules
             )
         }
     }
@@ -162,15 +167,15 @@ class ZflSequencePaths(
         val identity = listOfNotNull("command:${exec.name}", found?.let { flowPolicyNodeId(it) }) + eventRefs(listOf(event))
         policy?.actor?.let { actorName ->
             val actor = participantForActor(actorName)
-            return state.add(SequenceMessage(actor, exec.participant, name, false, refs = identity)) to actor
+            return state.add(SequenceMessage(actor, exec.participant, name, false, refs = identity, rules = exec.rules)) to actor
         }
         var next = state
         // a timer on the policy that follows a start is noted before the first arrow naming the command
         if (startOfFlow) policy?.timer?.let { next = next.add(timerNote(exec, it, identity)) }
-        next = next.add(SequenceMessage(sender, exec.participant, if (startOfFlow) name else event, !startOfFlow, refs = identity))
+        next = next.add(SequenceMessage(sender, exec.participant, if (startOfFlow) name else event, !startOfFlow, refs = identity, rules = if (startOfFlow) exec.rules else emptyList()))
         if (!startOfFlow) {
             policy?.timer?.let { next = next.add(timerNote(exec, it, identity)) }
-            next = next.add(SequenceMessage(exec.participant, exec.participant, name, false, refs = identity))
+            next = next.add(SequenceMessage(exec.participant, exec.participant, name, false, refs = identity, rules = exec.rules))
         }
         return next to null
     }
@@ -280,7 +285,7 @@ class ZflSequencePaths(
         val before = if (callIndex < 0) steps else steps.subList(0, callIndex)
         var base = state
         before.filterIsInstance<ZflCallStep>().forEach { call ->
-            base = base.add(SequenceMessage(owner, participantOf(call.action), "async call ${call.action}", false))
+            base = base.add(SequenceMessage(owner, participantOf(call.action), "async call ${call.action}", false, rules = calleeFor(call.action)?.rules.orEmpty()))
         }
         val specs = altSpecs(before)
         val preferred = specs.indexOfFirst { !it.failure }.coerceAtLeast(0)
@@ -302,7 +307,7 @@ class ZflSequencePaths(
         state: State
     ): List<Outcome> {
         val callee = calleeFor(call.action)
-        val sent = state.add(SequenceMessage(owner, participantOf(call.action), call.action, false, refs = listOf("command:${call.action}")))
+        val sent = state.add(SequenceMessage(owner, participantOf(call.action), call.action, false, refs = listOf("command:${call.action}"), rules = callee?.rules.orEmpty()))
         if (callee == null) return walk(rest, owner, sent)
         val replies = run(callee, sent)
         val several = replies.size > 1
