@@ -103,6 +103,7 @@ class ZdlParser {
         if (parseResult.syntaxProblems.isNotEmpty()) {
             listener.model.getProblems().clear()
             listener.model.getProblems().add(parseResult.syntaxProblems.first().toMutableMap())
+            listener.model.getProblems().addAll(listener.policyDeprecations)
             return listener.model
         }
 
@@ -123,6 +124,8 @@ class ZdlParser {
                 )
             )
         }
+        // Validation clears problems. Deprecation warnings are not validation errors, so they go back on afterwards.
+        zdlModel.getProblems().addAll(listener.policyDeprecations)
         return zdlModel
     }
 }

@@ -72,6 +72,22 @@ class ZflListenerImpl : ZflBaseListener() {
         currentStack.removeLast()
     }
 
+    override fun enterFlow_rule(ctx: ZflParser.Flow_ruleContext) {
+        val flow = currentStack.lastOrNull() ?: return
+        val flowName = flow["name"] as? String ?: return
+        val name = getText(ctx.flow_rule_name()) ?: return
+        val value = getValueText(ctx.flow_rule_value().simple())
+        val aggregate = getText((ctx.getParent() as? ZflParser.Flow_rulesContext)?.rules_aggregate())
+        val rule = buildMap()
+            .with("name", name)
+            .with("value", value)
+            .with("aggregate", aggregate)
+        @Suppress("UNCHECKED_CAST")
+        val rules = flow.getOrPut("rules") { mutableListOf<Any?>() } as MutableList<Any?>
+        rules.add(rule)
+        model.setLocation("flows.$flowName.rules[${rules.size - 1}]", getLocations(ctx))
+    }
+
     override fun enterOption(ctx: ZflParser.OptionContext) {
         val name = ctx.option_name().text.replace("@", "")
         val value = getOptionValue(ctx.option_value())

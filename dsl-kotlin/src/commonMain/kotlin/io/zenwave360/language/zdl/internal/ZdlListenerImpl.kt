@@ -10,6 +10,7 @@ import io.zenwave360.language.utils.buildMap
 import io.zenwave360.language.utils.with
 import io.zenwave360.language.zdl.ZdlModel
 import org.antlr.v4.kotlinruntime.ParserRuleContext
+import org.antlr.v4.kotlinruntime.Token
 import org.antlr.v4.kotlinruntime.tree.ErrorNode
 import org.antlr.v4.kotlinruntime.tree.TerminalNode
 import io.zenwave360.language.zdl.internal.ZdlListenerUtils.camelCase
@@ -31,6 +32,8 @@ import kotlin.collections.set
 class ZdlListenerImpl : ZdlBaseListener() {
 
     val model = ZdlModel()
+    /** Deprecation warnings for the `policies` keyword. Validation clears `problems`, so these are reattached afterwards. */
+    internal val policyDeprecations = mutableListOf<MutableMap<String, Any?>>()
     private val currentStack = ArrayDeque<MutableMap<String, Any?>>()
     private var currentCollection: String? = null
     private var currentParentLocation: String? = null
@@ -179,14 +182,41 @@ class ZdlListenerImpl : ZdlBaseListener() {
     @Suppress("UNCHECKED_CAST")
     private fun pluginInstanceCount(): Int = (model["pluginsList"] as? List<*>)?.size ?: 0
 
+    override fun enterPolicies(ctx: ZdlParser.PoliciesContext) {
+        val token = ctx.start ?: return
+        if (token.text != "policies") return
+        policyDeprecations += mutableMapOf(
+            "path" to "policies",
+            "location" to tokenRange(token),
+            "value" to "policies",
+            "message" to "'policies' is deprecated, use 'rules'.",
+            "severity" to "WARNING",
+        )
+    }
+
     override fun enterPolicie_body(ctx: ZdlParser.Policie_bodyContext) {
         val name = getText(ctx.policie_name())!!
         val value = getValueText(ctx.policie_value().simple())
         val aggregate = getText((ctx.getParent()?.getParent() as ZdlParser.PoliciesContext).policy_aggregate())
         // keyed by "<aggregate>.<name>" (just "<name>" without aggregate) so equal names under different aggregates do not collide
         val key = if (aggregate != null) "$aggregate.$name" else name
-        model.appendToWithMap("policies", buildMap().with(key, buildMap().with("name", name).with("value", value).with("aggregate", aggregate)))
+        // `rules` is the model key. `policies` stays filled so zenwave-sdk templates keep working.
+        val entry = buildMap().with(key, buildMap().with("name", name).with("value", value).with("aggregate", aggregate))
+        model.appendToWithMap("rules", entry)
+        model.appendToWithMap("policies", entry)
         super.enterPolicie_body(ctx)
+    }
+
+    private fun tokenRange(token: Token): IntArray {
+        val text = token.text ?: ""
+        return intArrayOf(
+            token.startIndex,
+            token.stopIndex + 1,
+            token.line,
+            token.charPositionInLine,
+            token.line,
+            token.charPositionInLine + text.length,
+        )
     }
 
     override fun enterEntity(ctx: ZdlParser.EntityContext) {

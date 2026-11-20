@@ -42,6 +42,7 @@ IMPORT: 'import';
 CONFIG: 'config';
 // Flow Keywords
 FLOW: 'flow';
+RULES: 'rules';
 SYSTEMS: 'systems';
 ZDL: 'zdl';
 SERVICE: 'service';
@@ -112,7 +113,7 @@ javadoc: JAVADOC;
 suffix_javadoc: JAVADOC;
 
 // values
-keyword: ID | IMPORT | CONFIG | FLOW | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | DO | FOR | END | COMPLETED | SUSPENDED | CANCELLED | AND | ASYNC | RESPONSE | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
+keyword: ID | IMPORT | CONFIG | FLOW | RULES | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | DO | FOR | END | COMPLETED | SUSPENDED | CANCELLED | AND | ASYNC | RESPONSE | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
 
 //complex_value: value | array | object;
 //value: simple | object;
@@ -164,7 +165,7 @@ system_service_command_list: ID (COMMA ID)*;
 // flows
 flow: javadoc? annotations FLOW flow_name LBRACE flow_body RBRACE;
 flow_name: ID;
-flow_body: (flow_start | flow_when | flow_do | flow_end)*;
+flow_body: (flow_start | flow_when | flow_do | flow_end | flow_rules)*;
 
 // start events
 flow_start: javadoc? annotations START flow_start_name LBRACE fields RBRACE;
@@ -198,3 +199,9 @@ flow_end_outcome: flow_end_outcome_name COLON flow_end_outcome_list;
 flow_end_outcome_name: keyword;
 flow_end_outcome_list: flow_end_outcome_event (COMMA flow_end_outcome_event)*;
 flow_end_outcome_event: ID;
+
+flow_rules: RULES (LPAREN rules_aggregate RPAREN)? LBRACE flow_rule* RBRACE;
+rules_aggregate: ID;
+flow_rule: flow_rule_name flow_rule_value;
+flow_rule_name: ID | POLICY_ID;
+flow_rule_value: simple;
