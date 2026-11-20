@@ -66,4 +66,49 @@ class RulesCommentDiagramsTest {
         assertTrue("    %% rules: minimumAmount\n" in mermaid, mermaid)
         assertTrue(mermaid.lines().filter { "%%" in it }.all { it.trim().startsWith("%%") }, mermaid)
     }
+
+    private fun callFlow(call: String, rules: String) = """
+        flow PlaceOrder {
+            rules { audit "Audited"  limit "Limit" }
+            start PlaceOrderRequested {}
+            when PlaceOrderRequested do placeOrder {
+                service Orders.OrderService
+                $call
+                emits OrderPlaced
+            }
+            $rules
+            do checkStock {
+                service Stock.StockService
+                emits StockChecked
+            }
+            end { completed: OrderPlaced }
+        }
+    """.trimIndent()
+
+    private fun sequence(text: String) = ZflToMermaidDiagramsTransformer()
+        .transform(ZflSemanticAnalyzer().analyze(ZflParser().parseModel(text)), MermaidSequenceRenderMode.SEPARATE_VARIANTS)
+        .sequences.first().mermaid.lines().map { it.trim() }
+
+    @Test
+    fun aCommandReachedByCallGetsItsRulesBeforeTheCallMessage() {
+        val lines = sequence(callFlow("call checkStock", "@rules(audit, limit)"))
+        val comment = lines.indexOf("%% rules: audit, limit")
+        assertTrue(comment > 1, lines.toString())
+        assertTrue(lines[comment + 1].endsWith(": checkStock"), lines.toString())
+    }
+
+    @Test
+    fun aCommandReachedByAsyncCallGetsItsRulesBeforeTheCallMessage() {
+        val lines = sequence(callFlow("async call checkStock", "@rules(audit)"))
+        val comment = lines.indexOf("%% rules: audit")
+        assertTrue(comment > 1, lines.toString())
+        assertTrue(lines[comment + 1].endsWith(": async call checkStock"), lines.toString())
+    }
+
+    @Test
+    fun specialCharactersAndLineBreaksInARuleNameStayInOneCommentLine() {
+        val lines = sequence(callFlow("call checkStock", "@rules(\"a;b#c\", audit)"))
+        val comment = lines.single { it.startsWith("%% rules") && "audit" in it }
+        assertEquals("%% rules: a b#c, audit", comment)
+    }
 }

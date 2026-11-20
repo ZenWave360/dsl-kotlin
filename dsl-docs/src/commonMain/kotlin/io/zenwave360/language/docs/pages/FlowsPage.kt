@@ -5,6 +5,9 @@ import io.zenwave360.language.docs.DocsSource
 import io.zenwave360.language.docs.internal.Anchors
 import io.zenwave360.language.docs.internal.Markdown
 import io.zenwave360.language.docs.internal.problemText
+import io.zenwave360.language.docs.internal.resolveRuleRef
+import io.zenwave360.language.docs.internal.ruleAnchor
+import io.zenwave360.language.docs.internal.ruleKey
 import io.zenwave360.language.eventflow.application.GenerateMermaidFromZfl
 import io.zenwave360.language.eventflow.view.MermaidDiagramsView
 import io.zenwave360.language.eventflow.view.MermaidSequenceDiagram
@@ -160,14 +163,15 @@ internal object FlowsPage {
         }
 
         val rules = flow?.rules.orEmpty()
+        val ruleList = rules.map { it.aggregate to it.name }
         if (rules.isNotEmpty()) {
             append(anchors.heading(2, "Rules"))
             append("The business rules of the flow, and the commands that apply them.\n\n")
             for (rule in rules) {
-                append(anchors.heading(3, Markdown.inline(rule.name), "rule:${rule.name}"))
+                append(anchors.heading(3, Markdown.inline(rule.name), ruleAnchor(rule.aggregate, rule.name)))
                 rule.aggregate?.let { append("Aggregate: ").append(Markdown.code(it)).append("\n\n") }
                 if (rule.value.isNotBlank()) append(Markdown.inline(rule.value)).append("\n\n")
-                val appliedBy = flow?.commands.orEmpty().filter { c -> c.rules.any { it == rule.name || it == "${rule.aggregate}.${rule.name}" } }.map { it.name }
+                val appliedBy = flow?.commands.orEmpty().filter { c -> c.rules.any { resolveRuleRef(it, ruleList) == ruleKey(rule.aggregate, rule.name) } }.map { it.name }
                 if (appliedBy.isNotEmpty()) append("Applied by: ").append(appliedBy.joinToString(", ") { Markdown.code(it) }).append("\n\n")
             }
         }
@@ -199,12 +203,13 @@ internal object FlowsPage {
 
     private fun systems(semantic: ZflSemanticModel, flow: ZflFlow?, context: ArchitectureContext?, anchors: Anchors): List<List<String?>> =
         semantic.systems.values.map { system ->
+            val ruleList = flow?.rules.orEmpty().map { it.aggregate to it.name }
             val commands = flow?.commands.orEmpty().filter { it.system == system.name }.distinctBy { it.name }
             listOf(
                 Markdown.code(system.name),
                 system.services.keys.joinToString(", ") { Markdown.code(it) },
                 commands.joinToString(", ") { c ->
-                    Markdown.code(c.name) + if (c.rules.isEmpty()) "" else " (rules: " + c.rules.joinToString(", ") { anchors.link("rule:${it.substringAfterLast('.')}", Markdown.inline(it)) } + ")"
+                    Markdown.code(c.name) + if (c.rules.isEmpty()) "" else " (rules: " + c.rules.joinToString(", ") { resolveRuleRef(it, ruleList)?.let { key -> anchors.link("rule:$key", Markdown.inline(it)) } ?: Markdown.inline(it) } + ")"
                 },
                 moduleLink(context, system.name),
             )

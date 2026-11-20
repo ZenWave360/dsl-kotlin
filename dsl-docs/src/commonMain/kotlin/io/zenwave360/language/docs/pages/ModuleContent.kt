@@ -2,6 +2,9 @@ package io.zenwave360.language.docs.pages
 
 import io.zenwave360.language.docs.internal.Anchors
 import io.zenwave360.language.docs.internal.Markdown
+import io.zenwave360.language.docs.internal.resolveRuleRef
+import io.zenwave360.language.docs.internal.ruleAnchor
+import io.zenwave360.language.docs.internal.ruleKey
 import io.zenwave360.language.zdl.architecture.ZdlArchitecture
 import io.zenwave360.language.zdl.view.AggregateLifecycle
 import io.zenwave360.language.zdl.view.CommandAdapter
@@ -134,15 +137,16 @@ internal class ModuleContent(
      */
     fun rules(): String {
         if (domain.rules.isEmpty()) return ""
+        val ruleList = domain.rules.map { it.aggregate to it.name }
         return buildString {
             append(anchors.heading(2, "Rules"))
             append("The business rules of the module, and the commands that apply them.\n\n")
             for (rule in domain.rules) {
-                append(anchors.heading(3, inline(rule.name), "rule:${rule.name}"))
+                append(anchors.heading(3, inline(rule.name), ruleAnchor(rule.aggregate, rule.name)))
                 rule.aggregate?.let { append("Aggregate: ").append(text(it)).append("\n\n") }
                 if (rule.value.isNotBlank()) append(text(rule.value.replace(Regex("\\s*[\\r\\n]+\\s*"), " ").trim())).append("\n\n")
                 val appliedBy = domain.services.flatMap { s ->
-                    s.methods.filter { m -> m.rules.any { it == rule.name || it == "${rule.aggregate}.${rule.name}" } }.map { "${s.name}.${it.name}" }
+                    s.methods.filter { m -> m.rules.any { resolveRuleRef(it, ruleList) == ruleKey(rule.aggregate, rule.name) } }.map { "${s.name}.${it.name}" }
                 }
                 if (appliedBy.isNotEmpty()) append("Applied by: ").append(appliedBy.joinToString(", ") { code(it) }).append("\n\n")
             }
@@ -157,6 +161,7 @@ internal class ModuleContent(
     fun commands(): String {
         val services = domain.services.filter { it.methods.isNotEmpty() }
         if (services.isEmpty()) return ""
+        val ruleList = domain.rules.map { it.aggregate to it.name }
         val withRules = services.any { s -> s.methods.any { it.rules.isNotEmpty() } }
         val headers = listOf("Command", "Input", "Returns", "Events", "Triggered by") + listOfNotNull(if (withRules) "Rules" else null) + "Description"
         return buildString {
@@ -169,7 +174,7 @@ internal class ModuleContent(
                         text(m.name), input(m), returns(m),
                         m.events.joinToString(", ") { group -> group.joinToString(" | ") { anchors.link("event:$it", text(it)) } },
                         (resolvedAdapters(service.name, m.name) ?: m.adapters).joinToString("<br>") { adapter(it) },
-                    ) + listOfNotNull(if (withRules) m.rules.joinToString(", ") { anchors.link("rule:${it.substringAfterLast('.')}", text(it)) } else null) + javadoc(m.javadoc)
+                    ) + listOfNotNull(if (withRules) m.rules.joinToString(", ") { resolveRuleRef(it, ruleList)?.let { key -> anchors.link("rule:$key", text(it)) } ?: text(it) } else null) + javadoc(m.javadoc)
                 }
                 append(Markdown.table(headers, rows)).append('\n')
             }

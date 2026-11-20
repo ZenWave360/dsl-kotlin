@@ -56,4 +56,68 @@ class RulesPagesTest {
         assertTrue("| Rules |" in page, page)
         assertTrue("[minimumAmount](#minimumamount)" in page, page)
     }
+
+    @Test
+    fun sameRuleNameUnderTwoAggregatesLinksEachReferenceToItsOwnHeading() {
+        val text = """
+            rules (Order) { limit "Order limit" }
+            rules (Payment) { limit "Payment limit" }
+            @aggregate
+            entity Order { name String }
+            @aggregate
+            entity Payment { name String }
+            service OrderService for (Order) {
+                @rules("Order.limit")
+                placeOrder(Order) Order withEvents OrderPlaced
+            }
+            service PaymentService for (Payment) {
+                @rules("Payment.limit")
+                pay(Payment) Payment withEvents Paid
+            }
+            event OrderPlaced { name String }
+            event Paid { name String }
+        """.trimIndent()
+        val page = DslDocs().previewZdl(text)
+
+        assertTrue("[Order.limit](#limit)" in page, page)
+        assertTrue("[Payment.limit](#limit-1)" in page, page)
+    }
+
+    @Test
+    fun anAmbiguousPlainNameIsNotLinked() {
+        val text = """
+            rules (Order) { limit "Order limit" }
+            rules (Payment) { limit "Payment limit" }
+            @aggregate
+            entity Order { name String }
+            service OrderService for (Order) {
+                @rules(limit)
+                placeOrder(Order) Order withEvents OrderPlaced
+            }
+            event OrderPlaced { name String }
+        """.trimIndent()
+        val page = DslDocs().previewZdl(text)
+
+        assertTrue("| limit |" in page, page)
+    }
+
+    @Test
+    fun flowRulesWithTheSameNameLinkEachCommandToItsOwnHeading() {
+        val text = """
+            flow F {
+                rules (Order) { limit "Order limit" }
+                rules (Payment) { limit "Payment limit" }
+                start S {}
+                @rules("Order.limit")
+                when S do a { service X.A emits E1 }
+                @rules("Payment.limit")
+                when E1 do b { service X.B emits E2 }
+                end { done: E2 }
+            }
+        """.trimIndent()
+        val page = DslDocs().generate(DocsInput(listOf(DocsSource(SourceKind.ZFL, "f.zfl", text)))).files.first { it.path == "flows/f.md" }.content
+
+        assertTrue("[Order.limit](#limit)" in page, page)
+        assertTrue("[Payment.limit](#limit-1)" in page, page)
+    }
 }

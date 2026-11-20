@@ -285,7 +285,7 @@ class ZflSequencePaths(
         val before = if (callIndex < 0) steps else steps.subList(0, callIndex)
         var base = state
         before.filterIsInstance<ZflCallStep>().forEach { call ->
-            base = base.add(SequenceMessage(owner, participantOf(call.action), "async call ${call.action}", false))
+            base = base.add(SequenceMessage(owner, participantOf(call.action), "async call ${call.action}", false, rules = calleeFor(call.action)?.rules.orEmpty()))
         }
         val specs = altSpecs(before)
         val preferred = specs.indexOfFirst { !it.failure }.coerceAtLeast(0)
@@ -307,7 +307,7 @@ class ZflSequencePaths(
         state: State
     ): List<Outcome> {
         val callee = calleeFor(call.action)
-        val sent = state.add(SequenceMessage(owner, participantOf(call.action), call.action, false, refs = listOf("command:${call.action}")))
+        val sent = state.add(SequenceMessage(owner, participantOf(call.action), call.action, false, refs = listOf("command:${call.action}"), rules = callee?.rules.orEmpty()))
         if (callee == null) return walk(rest, owner, sent)
         val replies = run(callee, sent)
         val several = replies.size > 1
