@@ -245,6 +245,7 @@ class ZflListenerImpl : ZflBaseListener() {
             options = getOptions(ctx.annotations()),
             definition = false,
             locations = getLocations(ctx),
+            annotations = ctx.annotations(),
         )
 
         val whenBlock = buildMap()
@@ -295,6 +296,7 @@ class ZflListenerImpl : ZflBaseListener() {
             options = getOptions(ctx.annotations()),
             definition = true,
             locations = getLocations(ctx),
+            annotations = ctx.annotations(),
         ))
     }
 
@@ -501,6 +503,7 @@ class ZflListenerImpl : ZflBaseListener() {
         options: MutableMap<String, Any?>,
         definition: Boolean,
         locations: IntArray?,
+        annotations: ZflParser.AnnotationsContext? = null,
     ): MutableMap<String, Any?> {
         val action = getOrCreateAction(flow, actionName, description)
         @Suppress("UNCHECKED_CAST")
@@ -523,6 +526,7 @@ class ZflListenerImpl : ZflBaseListener() {
             .with("javadoc", description)
             .with("triggers", triggers)
             .with("options", options)
+            .with("rules", mutableListOf<Any?>())
             .with("occurrenceKey", key)
             .with("occurrenceIndex", occurrenceIndex)
             .with("definition", definition)
@@ -534,7 +538,29 @@ class ZflListenerImpl : ZflBaseListener() {
             .with("responseDetails", mutableListOf<Any?>())
         occurrences.add(occurrence)
         model.setLocation(locationPath, locations)
+        addRuleNames(occurrence, locationPath, annotations)
         return occurrence
+    }
+
+    /** Names listed in `@rules(a, "b-c")`, each with the location of its token so a warning can point at the name. */
+    @Suppress("UNCHECKED_CAST")
+    private fun addRuleNames(occurrence: MutableMap<String, Any?>, locationPath: String, annotations: ZflParser.AnnotationsContext?) {
+        val rules = occurrence["rules"] as MutableList<Any?>
+        annotations?.option()?.filter { it.option_name().text == "@rules" }?.forEach { option ->
+            val complex = option.option_value()?.complex_value() ?: return@forEach
+            val simples = mutableListOf<ZflParser.SimpleContext>()
+            complex.array_plain()?.simple()?.let { simples += it }
+            complex.value()?.let { value ->
+                value.simple()?.let { simples += it }
+                value.array()?.value()?.forEach { item -> item.simple()?.let { simples += it } }
+            }
+            simples.forEach { simple ->
+                val name = getValueText(simple)?.toString() ?: return@forEach
+                val path = "$locationPath.rules[${rules.size}]"
+                model.setLocation(path, getLocations(simple))
+                rules.add(buildMap().with("name", name).with("locationPath", path))
+            }
+        }
     }
 
     @Suppress("UNCHECKED_CAST")

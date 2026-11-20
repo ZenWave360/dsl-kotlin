@@ -135,6 +135,7 @@ class ZflSemanticAnalyzer {
                     actor = policyActor,
                     timer = policyTimer,
                     events = command.emits.map { it.eventName },
+                    rules = (whenModel["occurrence"] as? Map<String, Any?>)?.ruleNames().orEmpty(),
                     sourceRef = whenRef
                 )
             }
@@ -170,6 +171,8 @@ class ZflSemanticAnalyzer {
                 )
             }
 
+            diagnostics += validateRuleNames(flowName, actionModels.values, rules.map { it.name }.toSet())
+
             flows += ZflFlow(
                 name = flowName,
                 description = flowModel.getString("javadoc"),
@@ -191,6 +194,33 @@ class ZflSemanticAnalyzer {
             diagnostics = diagnostics
         )
     }
+
+    /** ZFL-R12: a name in `@rules(...)` with no rule in the same flow is a warning on that name. */
+    private fun validateRuleNames(
+        flowName: String,
+        actions: Collection<Any?>,
+        declared: Set<String>,
+    ): List<ZflSemanticDiagnostic> {
+        val result = mutableListOf<ZflSemanticDiagnostic>()
+        actions.forEach { action ->
+            (action as? Map<String, Any?>)?.getMapList("occurrences")?.forEach { occurrence ->
+                occurrence.getMapList("rules").forEach { rule ->
+                    val name = rule.getString("name")
+                    if (name !in declared) {
+                        result += ZflSemanticDiagnostic(
+                            message = "Flow '$flowName' has no rule '$name'.",
+                            severity = Severity.WARNING,
+                            sourceRef = sourceModel.sourceRef(rule.getString("locationPath")),
+                        )
+                    }
+                }
+            }
+        }
+        return result
+    }
+
+    private fun Map<String, Any?>.ruleNames(): List<String> =
+        getMapList("rules").map { it.getString("name") }
 
     private fun toCommand(
         flowName: String,
@@ -376,6 +406,7 @@ class ZflSemanticAnalyzer {
                     actor = occurrenceOptions["actor"],
                     timer = occurrenceOptions["time"] ?: occurrenceOptions["timer"],
                     options = occurrenceOptions,
+                    rules = occurrenceModel.ruleNames(),
                     system = parsed.system,
                     service = parsed.service,
                     servicePath = parsed.servicePath,
@@ -407,6 +438,7 @@ class ZflSemanticAnalyzer {
             responses = responseOutcomes.distinct(),
             steps = steps,
             occurrences = occurrences,
+            rules = actionModel.getMapList("occurrences").flatMap { it.ruleNames() }.distinct(),
             sourceRef = commandRef
         )
     }
