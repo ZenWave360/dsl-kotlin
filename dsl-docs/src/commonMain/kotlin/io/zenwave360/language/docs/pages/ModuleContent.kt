@@ -36,7 +36,6 @@ internal class ModuleContent(
     private val resolvedAdapters: (service: String, method: String) -> List<CommandAdapter>? = { _, _ -> null },
     private val modulePage: (moduleId: String) -> String? = { null },
     private val safe: Boolean = false,
-    private val policies: (aggregate: String?) -> List<Pair<String, String>> = { emptyList() },
 ) {
 
     /** The text of a heading. */
@@ -84,18 +83,16 @@ internal class ModuleContent(
         }
     }
 
-    /** `## Aggregates`: policies, class diagrams for aggregates, inputs, outputs and unused entities and enums. */
+    /** `## Aggregates`: class diagrams for aggregates, inputs, outputs and unused entities and enums. */
     fun aggregates(): String {
         val classes = ZdlAggregateToMermaidClassDiagramTransformer().transform(domain)
-        if (classes.aggregates.isEmpty() && classes.inputs == null && classes.outputs == null && classes.unused == null && policies(null).isEmpty()) return ""
+        if (classes.aggregates.isEmpty() && classes.inputs == null && classes.outputs == null && classes.unused == null) return ""
         val lifecycles = ZdlLifecycleToMermaidStateDiagramTransformer().transform(domain).associateBy { it.aggregate }
         return buildString {
             append(anchors.heading(2, "Aggregates"))
             append("Each aggregate root with the entities and enums it owns, and how they relate.\n\n")
-            append(policies(null).joinToString("  \n") { (name, value) -> "${text(name)}: ${text(value)}" }.takeIf { it.isNotEmpty() }?.plus("\n\n").orEmpty())
             for (diagram in classes.aggregates) {
                 append(anchors.heading(3, inline(diagram.aggregate)))
-                append(policies(diagram.aggregate).joinToString("  \n") { (name, value) -> "${text(name)}: ${text(value)}" }.takeIf { it.isNotEmpty() }?.plus("\n\n").orEmpty())
                 append(Markdown.mermaid(diagram.mermaid)).append('\n')
                 lifecycles[diagram.aggregate]?.let { lifecycle ->
                     append(anchors.heading(4, "Lifecycle"))
@@ -132,6 +129,27 @@ internal class ModuleContent(
     }
 
     /**
+     * `## Rules`: one `### <rule>` per business rule with its aggregate, its text and the commands that apply it
+     * (`@rules(...)`); the Commands table links back to these headings.
+     */
+    fun rules(): String {
+        if (domain.rules.isEmpty()) return ""
+        return buildString {
+            append(anchors.heading(2, "Rules"))
+            append("The business rules of the module, and the commands that apply them.\n\n")
+            for (rule in domain.rules) {
+                append(anchors.heading(3, inline(rule.name), "rule:${rule.name}"))
+                rule.aggregate?.let { append("Aggregate: ").append(text(it)).append("\n\n") }
+                if (rule.value.isNotBlank()) append(text(rule.value.replace(Regex("\\s*[\\r\\n]+\\s*"), " ").trim())).append("\n\n")
+                val appliedBy = domain.services.flatMap { s ->
+                    s.methods.filter { m -> m.rules.any { it == rule.name || it == "${rule.aggregate}.${rule.name}" } }.map { "${s.name}.${it.name}" }
+                }
+                if (appliedBy.isNotEmpty()) append("Applied by: ").append(appliedBy.joinToString(", ") { code(it) }).append("\n\n")
+            }
+        }
+    }
+
+    /**
      * `## Commands`: the methods of the services; input, return type and events link to their headings, and
      * `Triggered by` lists the REST endpoints, listeners and AsyncAPI channels. One `### <Service>` table per
      * service when there are several.
@@ -139,7 +157,8 @@ internal class ModuleContent(
     fun commands(): String {
         val services = domain.services.filter { it.methods.isNotEmpty() }
         if (services.isEmpty()) return ""
-        val headers = listOf("Command", "Input", "Returns", "Events", "Triggered by", "Description")
+        val withRules = services.any { s -> s.methods.any { it.rules.isNotEmpty() } }
+        val headers = listOf("Command", "Input", "Returns", "Events", "Triggered by") + listOfNotNull(if (withRules) "Rules" else null) + "Description"
         return buildString {
             append(anchors.heading(2, "Commands"))
             append("The methods of the module's services, the events each one emits and what triggers it.\n\n")
@@ -150,8 +169,7 @@ internal class ModuleContent(
                         text(m.name), input(m), returns(m),
                         m.events.joinToString(", ") { group -> group.joinToString(" | ") { anchors.link("event:$it", text(it)) } },
                         (resolvedAdapters(service.name, m.name) ?: m.adapters).joinToString("<br>") { adapter(it) },
-                        javadoc(m.javadoc),
-                    )
+                    ) + listOfNotNull(if (withRules) m.rules.joinToString(", ") { anchors.link("rule:${it.substringAfterLast('.')}", text(it)) } else null) + javadoc(m.javadoc)
                 }
                 append(Markdown.table(headers, rows)).append('\n')
             }

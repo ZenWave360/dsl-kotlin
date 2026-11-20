@@ -35,9 +35,8 @@ internal object PreviewPage {
 
         // Before the sections, so its heading is numbered in page order, as the client numbers it.
         val toc = anchors.toc()
-        val policies = policies(document)
-        val content = ModuleContent(domain, anchors, safe = true, policies = { aggregate -> policies.filter { it.aggregate == aggregate }.map { it.name to it.value } })
-        val sections = apis(document, anchors) + content.services() + content.aggregates() + content.domainEvents() + content.commands() + content.glossary()
+        val content = ModuleContent(domain, anchors, safe = true)
+        val sections = apis(document, anchors) + content.services() + content.aggregates() + content.rules() + content.domainEvents() + content.commands() + content.glossary()
         if (sections.isEmpty()) {
             append("This model has no services, entities or events to show yet.\n")
             return@buildString
@@ -45,17 +44,6 @@ internal object PreviewPage {
         append(toc)
         append(sections)
     }
-
-    private data class Policy(val name: String, val value: String, val aggregate: String?)
-
-    @Suppress("UNCHECKED_CAST")
-    private fun policies(document: ZdlDocument): List<Policy> =
-        (document.model["rules"].let { it as? Map<*, *> }?.values ?: document.model["rules"] as? List<*>)?.mapNotNull { raw ->
-            val policy = raw as? Map<String, Any?> ?: return@mapNotNull null
-            val name = policy["name"] as? String ?: return@mapNotNull null
-            val value = policy["value"]?.toString() ?: ""
-            Policy(name, value, policy["aggregate"] as? String)
-        }.orEmpty()
 
     @Suppress("UNCHECKED_CAST")
     private fun apis(document: ZdlDocument, anchors: Anchors): String {

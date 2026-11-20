@@ -69,6 +69,9 @@ sealed interface CommandAdapter {
     data class AsyncApi(val channel: String, val api: String?, val module: String? = null, val event: String? = null) : CommandAdapter
 }
 
+/** A business rule: [aggregate] is the optional `rules (Aggregate)`. */
+data class ZdlRule(val name: String, val value: String, val aggregate: String?)
+
 /**
  * A service method or an aggregate command.
  *
@@ -92,6 +95,8 @@ data class ZdlCommand(
     val javadoc: String?,
     /** The adapters that trigger the command, in declaration order. Queries may have a REST adapter too. */
     val adapters: List<CommandAdapter> = emptyList(),
+    /** Names in the method's `@rules(...)`, in order. */
+    val rules: List<String> = emptyList(),
 ) {
     /** Every event name, in order of appearance, without repeats. */
     val eventNames: List<String>
@@ -159,12 +164,20 @@ class ZdlDomain(private val model: ZdlModel) {
     val types: Map<String, ZdlType>
 
     val services: List<ZdlService>
+
+    /** The business rules (`rules`, or the deprecated `policies`), in declaration order. */
+    val rules: List<ZdlRule>
     val aggregates: List<ZdlAggregate>
 
     /** Entities that are the root of an aggregate. */
     val aggregateRoots: Set<String>
 
     init {
+        rules = (model["rules"].let { it as? Map<*, *> }?.values ?: model["rules"] as? List<*>).orEmpty().mapNotNull { raw ->
+            val rule = raw.asMap()
+            val name = rule["name"] as? String ?: return@mapNotNull null
+            ZdlRule(name, rule["value"]?.toString().orEmpty(), rule.text("aggregate"))
+        }
         val all = linkedMapOf<String, ZdlType>()
         for (kind in listOf(ZdlTypeKind.ENTITY, ZdlTypeKind.ENUM, ZdlTypeKind.INPUT, ZdlTypeKind.OUTPUT, ZdlTypeKind.EVENT)) {
             for ((name, declaration) in sections.getValue(kind)) {
@@ -435,6 +448,7 @@ class ZdlDomain(private val model: ZdlModel) {
             owner, name, m["paramId"] != null, m.text("parameter"), m["parameterIsOptional"] == true,
             m.text("returnType"), m["returnTypeIsArray"] == true, m["returnTypeIsOptional"] == true,
             events, query, parsed, m.text("javadoc"), adaptersOf(m, restBase),
+            (m["rules"] as? List<*>).orEmpty().mapNotNull { it?.toString() },
         )
     }
 

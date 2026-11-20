@@ -335,6 +335,9 @@ class ZflToMermaidDiagramsTransformer(
                 lines += "${indent}Note over ${message.from.alias}: ${escapeSequence(message.label)}"
                 return@forEach
             }
+            if (message.rules.isNotEmpty()) {
+                lines += "$indent%% rules: " + message.rules.joinToString(", ") { it.replace(Regex("\\s+"), " ").trim() }
+            }
             val arrow = if (message.dashed) "-->>" else "->>"
             lines += "$indent${message.from.alias}$arrow${message.to.alias}: ${escapeSequence(message.label)}"
         }

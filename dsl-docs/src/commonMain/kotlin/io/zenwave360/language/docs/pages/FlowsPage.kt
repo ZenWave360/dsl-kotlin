@@ -150,13 +150,26 @@ internal object FlowsPage {
             append(Markdown.table(listOf("Outcome", "Terminal events", "Paths"), rows)).append('\n')
         }
 
-        val systems = systems(semantic, flow, context)
+        val systems = systems(semantic, flow, context, anchors)
         if (systems.isNotEmpty()) {
             append(anchors.heading(2, "Systems"))
             append("The systems that take part, the services they expose in this flow and the commands they run.")
             if (context != null) append(" A system with the name of a module links to the page of that module.")
             append("\n\n")
             append(Markdown.table(listOf("System", "Services", "Commands", "Module"), systems)).append('\n')
+        }
+
+        val rules = flow?.rules.orEmpty()
+        if (rules.isNotEmpty()) {
+            append(anchors.heading(2, "Rules"))
+            append("The business rules of the flow, and the commands that apply them.\n\n")
+            for (rule in rules) {
+                append(anchors.heading(3, Markdown.inline(rule.name), "rule:${rule.name}"))
+                rule.aggregate?.let { append("Aggregate: ").append(Markdown.code(it)).append("\n\n") }
+                if (rule.value.isNotBlank()) append(Markdown.inline(rule.value)).append("\n\n")
+                val appliedBy = flow?.commands.orEmpty().filter { c -> c.rules.any { it == rule.name || it == "${rule.aggregate}.${rule.name}" } }.map { it.name }
+                if (appliedBy.isNotEmpty()) append("Applied by: ").append(appliedBy.joinToString(", ") { Markdown.code(it) }).append("\n\n")
+            }
         }
 
         if (others.isNotEmpty()) {
@@ -184,13 +197,15 @@ internal object FlowsPage {
         return if (text.isEmpty()) "" else "$text\n\n"
     }
 
-    private fun systems(semantic: ZflSemanticModel, flow: ZflFlow?, context: ArchitectureContext?): List<List<String?>> =
+    private fun systems(semantic: ZflSemanticModel, flow: ZflFlow?, context: ArchitectureContext?, anchors: Anchors): List<List<String?>> =
         semantic.systems.values.map { system ->
-            val commands = flow?.commands.orEmpty().filter { it.system == system.name }.map { it.name }.distinct()
+            val commands = flow?.commands.orEmpty().filter { it.system == system.name }.distinctBy { it.name }
             listOf(
                 Markdown.code(system.name),
                 system.services.keys.joinToString(", ") { Markdown.code(it) },
-                commands.joinToString(", ") { Markdown.code(it) },
+                commands.joinToString(", ") { c ->
+                    Markdown.code(c.name) + if (c.rules.isEmpty()) "" else " (rules: " + c.rules.joinToString(", ") { anchors.link("rule:${it.substringAfterLast('.')}", Markdown.inline(it)) } + ")"
+                },
                 moduleLink(context, system.name),
             )
         }
