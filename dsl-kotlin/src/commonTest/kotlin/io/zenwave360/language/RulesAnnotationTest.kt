@@ -146,4 +146,49 @@ class RulesAnnotationTest {
         val warnings = model.getProblems().filter { it["severity"] == "WARNING" }
         assertEquals(listOf("'policies' is deprecated, use 'rules'."), warnings.map { it["message"] })
     }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun method(model: Map<String, Any?>) =
+        (((model["services"] as Map<String, Any?>)["OrderService"] as Map<String, Any?>)["methods"]
+            as Map<String, Any?>)["placeOrder"] as Map<String, Any?>
+
+    @Test
+    fun zdlMethod_rulesMirroredIntoPolicyOption_likePolicy() {
+        val viaRules = method(zdl("""@rules(minimumAmount, "stock-first")
+            placeOrder(Order) Order"""))
+        val viaPolicy = method(zdl("""@policy(minimumAmount, "stock-first")
+            placeOrder(Order) Order"""))
+        @Suppress("UNCHECKED_CAST")
+        fun policy(m: Map<String, Any?>) = (m["options"] as Map<String, Any?>)["policy"]
+        @Suppress("UNCHECKED_CAST")
+        fun listed(m: Map<String, Any?>) = (m["optionsList"] as List<Map<String, Any?>>).filter { it["name"] == "policy" }
+        assertEquals(listOf("minimumAmount", "stock-first"), policy(viaRules))
+        assertEquals(policy(viaPolicy), policy(viaRules))
+        assertEquals(listed(viaPolicy), listed(viaRules))
+        val single = method(zdl("""@rules(minimumAmount)
+            placeOrder(Order) Order"""))
+        assertEquals("minimumAmount", policy(single))
+    }
+
+    @Test
+    fun zdlMethod_rulesAndPolicyTogether_mergeWithoutDuplicates() {
+        val m = method(zdl("""@policy(minimumAmount)
+            @rules(minimumAmount, "stock-first")
+            placeOrder(Order) Order"""))
+        @Suppress("UNCHECKED_CAST")
+        val options = m["options"] as Map<String, Any?>
+        assertEquals(listOf("minimumAmount", "stock-first"), options["policy"])
+        assertEquals(listOf("minimumAmount", "stock-first"), m["rules"])
+        @Suppress("UNCHECKED_CAST")
+        assertEquals(1, (m["optionsList"] as List<Map<String, Any?>>).count { it["name"] == "policy" })
+    }
+
+    @Test
+    fun zdlPolicyDeprecation_rangeCoversTheWholeAnnotation_inOffsets() {
+        val text = zdlRules.replace("%s", """@policy(minimumAmount, "stock-first")
+            placeOrder(Order) Order""")
+        val warning = ZdlParser().parseModel(text).getProblems().single { it["message"].toString().startsWith("'@policy'") }
+        val loc = warning["location"] as IntArray
+        assertEquals("""@policy(minimumAmount, "stock-first")""", text.substring(loc[0], loc[1]))
+    }
 }
