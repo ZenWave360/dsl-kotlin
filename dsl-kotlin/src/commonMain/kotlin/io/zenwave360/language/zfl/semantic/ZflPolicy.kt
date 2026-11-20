@@ -17,5 +17,7 @@ data class ZflPolicy(
     /** `@timer` / `@time`: when the policy runs. */
     val timer: String? = null,
     val events: List<String>,
+    /** Rule names from `@rules(...)` on the `when … do`. */
+    val rules: List<String> = emptyList(),
     val sourceRef: SourceRef
 )

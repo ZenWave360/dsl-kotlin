@@ -34,6 +34,9 @@ class ZdlListenerImpl : ZdlBaseListener() {
     val model = ZdlModel()
     /** Deprecation warnings for the `policies` keyword. Validation clears `problems`, so these are reattached afterwards. */
     internal val policyDeprecations = mutableListOf<MutableMap<String, Any?>>()
+    /** A name in a method's `@rules(...)` / `@policy(...)`, kept to warn when no rule of that name is declared. */
+    private class RuleRef(val name: String, val location: IntArray)
+    private val ruleRefs = mutableListOf<RuleRef>()
     private val currentStack = ArrayDeque<MutableMap<String, Any?>>()
     private var currentCollection: String? = null
     private var currentParentLocation: String? = null
@@ -727,6 +730,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
             .with("transition", null)
             .with("withEvents", withEvents)
             .with("javadoc", jd)
+            .with("rules", collectMethodRules(ctx.annotations()))
         currentStack.last().appendTo("methods", methodName, method)
         currentStack.addLast(method)
 
@@ -736,7 +740,74 @@ class ZdlListenerImpl : ZdlBaseListener() {
         model.setLocation("$location.returnType", getLocations(ctx.service_method_return()))
     }
 
+    /**
+     * ZFL-R12: names from `@rules(a, "b-c")` and from its deprecated alias `@policy(...)`.
+     * `@policy` also stays in `options.policy`, which zenwave-sdk reads.
+     */
+    private fun collectMethodRules(annotations: ZdlParser.AnnotationsContext?): MutableList<String> {
+        val names = mutableListOf<String>()
+        annotations?.option()?.forEach { option ->
+            val annotation = option.option_name().text
+            if (annotation != "@rules" && annotation != "@policy") return@forEach
+            if (annotation == "@policy") {
+                policyDeprecations += mutableMapOf(
+                    "path" to "policy",
+                    "location" to getLocations(option),
+                    "value" to "policy",
+                    "message" to "'@policy' is deprecated, use '@rules'.",
+                    "severity" to "WARNING",
+                )
+            }
+            val complex = option.option_value()?.complex_value() ?: return@forEach
+            val simples = mutableListOf<ZdlParser.SimpleContext>()
+            complex.array_plain()?.simple()?.let { simples += it }
+            complex.value()?.let { value ->
+                value.simple()?.let { simples += it }
+                value.array()?.value()?.forEach { item -> item.simple()?.let { simples += it } }
+            }
+            simples.forEach { simple ->
+                val name = getValueText(simple)?.toString() ?: return@forEach
+                names += name
+                ruleRefs += RuleRef(name, getLocations(simple) ?: return@forEach)
+            }
+        }
+        return names.distinct().toMutableList()
+    }
+
+    /**
+     * `@rules(a, b)` is mirrored into the `policy` option, as `@policy(a, b)` would produce it, because the
+     * released zenwave-sdk reads `policy`. Names from both annotations merge without duplicates.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun mirrorRulesAsPolicyOption(method: MutableMap<String, Any?>) {
+        val options = method["options"] as? MutableMap<String, Any?> ?: return
+        if (!options.containsKey("rules")) return
+        val names = (method["rules"] as? List<String>).orEmpty().distinct()
+        if (names.isEmpty()) return
+        val value: Any = if (names.size == 1) names.single() else names.toMutableList()
+        options["policy"] = value
+        val optionsList = method.getOrPut("optionsList") { mutableListOf<Any?>() } as MutableList<Any?>
+        optionsList.removeAll { (it as? Map<*, *>)?.get("name") == "policy" }
+        optionsList.add(buildMap().with("name", "policy").with("value", value))
+    }
+
+    /** Warnings for method rule names with no rule declared in this document. Call after the walk. */
+    internal fun unknownRuleWarnings(): List<MutableMap<String, Any?>> {
+        val declared = (model["rules"] as? Map<*, *>)?.values
+            ?.mapNotNull { (it as? Map<*, *>)?.get("name")?.toString() }?.toSet().orEmpty()
+        return ruleRefs.filter { it.name !in declared }.map {
+            mutableMapOf(
+                "path" to "rules",
+                "location" to it.location,
+                "value" to it.name,
+                "message" to "No rule '${it.name}' is declared.",
+                "severity" to "WARNING",
+            )
+        }
+    }
+
     override fun exitService_method(ctx: ZdlParser.Service_methodContext) {
+        mirrorRulesAsPolicyOption(currentStack.last())
         // Extract from/to transition from @transition annotation (after options have been merged)
         val transitionOption = JSONPath.get<Map<*, *>>(currentStack.last(), "options.transition")
         if (transitionOption != null) {
