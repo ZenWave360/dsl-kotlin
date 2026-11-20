@@ -771,7 +771,24 @@ class ZdlListenerImpl : ZdlBaseListener() {
                 ruleRefs += RuleRef(name, getLocations(simple) ?: return@forEach)
             }
         }
-        return names
+        return names.distinct().toMutableList()
+    }
+
+    /**
+     * `@rules(a, b)` is mirrored into the `policy` option, as `@policy(a, b)` would produce it, because the
+     * released zenwave-sdk reads `policy`. Names from both annotations merge without duplicates.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun mirrorRulesAsPolicyOption(method: MutableMap<String, Any?>) {
+        val options = method["options"] as? MutableMap<String, Any?> ?: return
+        if (!options.containsKey("rules")) return
+        val names = (method["rules"] as? List<String>).orEmpty().distinct()
+        if (names.isEmpty()) return
+        val value: Any = if (names.size == 1) names.single() else names.toMutableList()
+        options["policy"] = value
+        val optionsList = method.getOrPut("optionsList") { mutableListOf<Any?>() } as MutableList<Any?>
+        optionsList.removeAll { (it as? Map<*, *>)?.get("name") == "policy" }
+        optionsList.add(buildMap().with("name", "policy").with("value", value))
     }
 
     /** Warnings for method rule names with no rule declared in this document. Call after the walk. */
@@ -790,6 +807,7 @@ class ZdlListenerImpl : ZdlBaseListener() {
     }
 
     override fun exitService_method(ctx: ZdlParser.Service_methodContext) {
+        mirrorRulesAsPolicyOption(currentStack.last())
         // Extract from/to transition from @transition annotation (after options have been merged)
         val transitionOption = JSONPath.get<Map<*, *>>(currentStack.last(), "options.transition")
         if (transitionOption != null) {
