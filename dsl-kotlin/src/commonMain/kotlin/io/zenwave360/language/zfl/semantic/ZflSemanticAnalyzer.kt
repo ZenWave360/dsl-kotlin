@@ -146,16 +146,52 @@ class ZflSemanticAnalyzer {
                 whens = flowModel.getMapList("whens"),
                 declaredEvents = events.keys
             )
+            val view = toView(flowName, flowModel, diagnostics)
+            val timers = flowModel.getMapList("timers").mapIndexed { index, timer ->
+                ZflTimer(
+                    command = timer.getString("action"),
+                    after = timer.getStringOrNull("after"),
+                    duration = timer.getStringOrNull("duration"),
+                    at = timer.getStringOrNull("at"),
+                    unless = timer.getList("unless"),
+                    description = timer.getStringOrNull("javadoc"),
+                    options = timer.getStringMap("options"),
+                    sourceRef = sourceModel.sourceRef("flows.$flowName.timers[$index]"),
+                )
+            }
+
+            // a timer is drawn as a policy with a timer, armed by its event, like a `when` with `@time`
+            flowModel.getMapList("timers").forEachIndexed { index, timerModel ->
+                val timer = timers[index]
+                policies += ZflPolicy(
+                    description = timer.description,
+                    triggers = listOfNotNull(timer.after),
+                    condition = null,
+                    compensates = timer.options["compensates"] ?: timer.options["compensate"],
+                    command = timer.command,
+                    title = timer.options["title"],
+                    timer = timerLabel(timer),
+                    events = commandByName[timer.command]?.emits?.map { it.eventName }.orEmpty(),
+                    rules = (timerModel["occurrence"] as? Map<String, Any?>)?.ruleNames().orEmpty(),
+                    sourceRef = timer.sourceRef,
+                )
+            }
+
             diagnostics += validateCalls(flowName, commandByName.values.toList())
             diagnostics += validateUnreachableActions(flowName, commandByName.values.toList(), policies)
 
             val endOutcomes = flowModel.getStringListMap("end.endOutcomes")
+            val endLines = flowModel.getMap("end").getMapList("outcomes")
             val end = ZflEnd(
                 description = flowModel.getStringOrNull("end.javadoc")
                     ?: flowModel.getMap("end").getStringOrNull("javadoc"),
                 endOutcomes = endOutcomes,
+                outcomes = toEndOutcomes(flowName, endLines),
                 sourceRef = sourceRefOf(flowName, "end")
             )
+            diagnostics += validateTimers(flowName, timers, view, starts.map { it.name }.toSet() + events.keys, commandByName)
+            diagnostics += validateEndStates(flowName, end, endLines, view)
+            diagnostics += validateFailureEvents(flowName, events.values, end, flowModel.getMapList("whens"), timers)
             diagnostics += validateEndOutcomes(
                 flowName,
                 endOutcomes,
@@ -190,6 +226,8 @@ class ZflSemanticAnalyzer {
                 events = events.values.toList(),
                 policies = policies,
                 rules = rules,
+                view = view,
+                timers = timers,
                 sourceRef = sourceModel.sourceRef("flows.$flowName"),
             )
         }
@@ -201,6 +239,180 @@ class ZflSemanticAnalyzer {
             diagnostics = diagnostics
         )
     }
+
+    private fun toView(
+        flowName: String,
+        flowModel: Map<String, Any?>,
+        diagnostics: MutableList<ZflSemanticDiagnostic>,
+    ): ZflView? {
+        val views = flowModel.getMapList("views")
+        views.drop(1).forEachIndexed { index, _ ->
+            diagnostics += warning(
+                "Flow '$flowName' declares more than one view; only '${views.first().getString("name")}' is used.",
+                sourceModel.sourceRef("flows.$flowName.views[${index + 1}]"),
+            )
+        }
+        val viewModel = views.firstOrNull() ?: return null
+        val path = "flows.$flowName.views[0]"
+        val view = ZflView(
+            name = viewModel.getString("name"),
+            keyAggregate = viewModel.getString("keyAggregate"),
+            keyPath = viewModel.getList("keyPath"),
+            members = viewModel.getMapList("members").mapIndexed { index, member ->
+                ZflViewMember(
+                    aggregate = member.getString("aggregate"),
+                    path = member.getList("path"),
+                    many = member.getBoolean("many"),
+                    sourceRef = sourceModel.sourceRef("$path.members[$index]"),
+                )
+            },
+            description = viewModel.getStringOrNull("javadoc"),
+            options = viewModel.getStringMap("options"),
+            sourceRef = sourceModel.sourceRef(path),
+        )
+        diagnostics += validateView(flowName, view, viewModel.getBoolean("first"))
+        return view
+    }
+
+    /** one view, first in the flow, its root listed without a path and every other member with one. */
+    private fun validateView(flowName: String, view: ZflView, first: Boolean): List<ZflSemanticDiagnostic> {
+        val result = mutableListOf<ZflSemanticDiagnostic>()
+        if (!first) {
+            result += warning("View '${view.name}' must be the first block of flow '$flowName'.", view.sourceRef)
+        }
+        if (view.member(view.keyAggregate) == null) {
+            result += warning("View '${view.name}' must list its root '${view.keyAggregate}' as a member.", view.sourceRef)
+        }
+        view.members.forEachIndexed { index, member ->
+            if (view.members.take(index).any { it.aggregate == member.aggregate }) {
+                result += warning("Aggregate '${member.aggregate}' is listed more than once in view '${view.name}'.", member.sourceRef)
+                return@forEachIndexed
+            }
+            val isRoot = member.aggregate == view.keyAggregate
+            if (isRoot && member.path.isNotEmpty()) {
+                result += warning("Root '${member.aggregate}' of view '${view.name}' takes no path: it holds the key.", member.sourceRef)
+            }
+            if (isRoot && member.many) {
+                result += warning("Root '${member.aggregate}' of view '${view.name}' is one per instance; it cannot be '[]'.", member.sourceRef)
+            }
+            if (!isRoot && member.path.isEmpty()) {
+                result += warning(
+                    "Member '${member.aggregate}' of view '${view.name}' needs the path of a field pointing to the key.",
+                    member.sourceRef,
+                )
+            }
+        }
+        return result
+    }
+
+    /** `10 minutes after OrderCreated, unless A, B` or `at Booking.endsAt, unless C`. */
+    private fun timerLabel(timer: ZflTimer): String {
+        val arming = timer.at?.let { "at $it" } ?: listOfNotNull(timer.duration, "after ${timer.after}").joinToString(" ")
+        return arming + if (timer.unless.isEmpty()) "" else ", unless ${timer.unless.joinToString(", ")}"
+    }
+
+    private fun toEndOutcomes(flowName: String, lines: List<Map<String, Any?>>): List<ZflEndOutcome> {
+        val byName = linkedMapOf<String, MutableList<ZflEndVariant>>()
+        lines.forEachIndexed { index, line ->
+            byName.getOrPut(line.getString("name")) { mutableListOf() } += ZflEndVariant(
+                events = line.getList("events"),
+                expectedStates = line.getMapList("states").associate { it.getString("aggregate") to it.getList("values") },
+                sourceRef = sourceModel.sourceRef("flows.$flowName.end.outcomes[$index]"),
+            )
+        }
+        return byName.map { (name, variants) -> ZflEndOutcome(name, variants) }
+    }
+
+    /** `after`/`unless` events of the flow, a command the flow defines, `at` a datum of a view member. */
+    private fun validateTimers(
+        flowName: String,
+        timers: List<ZflTimer>,
+        view: ZflView?,
+        flowEvents: Set<String>,
+        commands: Map<String, ZflCommand>,
+    ): List<ZflSemanticDiagnostic> {
+        val result = mutableListOf<ZflSemanticDiagnostic>()
+        timers.forEach { timer ->
+            timer.after?.takeIf { it !in flowEvents }?.let {
+                result += warning("Timer of '${timer.command}' is armed by '$it', which flow '$flowName' does not emit.", timer.sourceRef)
+            }
+            timer.unless.filterNot(flowEvents::contains).forEach {
+                result += warning("Timer of '${timer.command}' is disarmed by '$it', which flow '$flowName' does not emit.", timer.sourceRef)
+            }
+            val command = commands[timer.command]
+            if (command == null || (command.servicePath == null && command.steps.isEmpty())) {
+                result += warning("Timer runs '${timer.command}', which flow '$flowName' does not define.", timer.sourceRef)
+            }
+            timer.at?.let { at ->
+                val aggregate = at.substringBefore('.')
+                when {
+                    view == null -> result += warning("Timer of '${timer.command}' fires at '$at', but flow '$flowName' has no view.", timer.sourceRef)
+                    view.member(aggregate) == null -> result += warning(
+                        "Timer of '${timer.command}' fires at '$at', but '$aggregate' is not a member of view '${view.name}'.",
+                        timer.sourceRef,
+                    )
+                }
+            }
+        }
+        return result
+    }
+
+    /** expected states name view members, once per line; an event ends one outcome line only. */
+    private fun validateEndStates(
+        flowName: String,
+        end: ZflEnd,
+        lines: List<Map<String, Any?>>,
+        view: ZflView?,
+    ): List<ZflSemanticDiagnostic> {
+        val result = mutableListOf<ZflSemanticDiagnostic>()
+        val outcomeOf = mutableMapOf<String, String>()
+        end.outcomes.forEach { outcome ->
+            outcome.variants.forEach { variant ->
+                variant.events.forEach { event ->
+                    when (val previous = outcomeOf[event]) {
+                        null -> outcomeOf[event] = outcome.name
+                        outcome.name -> result += warning("Event '$event' ends more than one line of outcome '${outcome.name}'.", variant.sourceRef)
+                        else -> result += warning("Event '$event' ends both outcome '$previous' and outcome '${outcome.name}'.", variant.sourceRef)
+                    }
+                }
+            }
+        }
+        lines.forEachIndexed { index, line ->
+            val ref = sourceModel.sourceRef("flows.$flowName.end.outcomes[$index]")
+            val name = line.getString("name")
+            val aggregates = line.getMapList("states").map { it.getString("aggregate") }
+            if (aggregates.isNotEmpty() && view == null) {
+                result += warning("Outcome '$name' declares expected states, but flow '$flowName' has no view.", ref)
+                return@forEachIndexed
+            }
+            aggregates.forEachIndexed { i, aggregate ->
+                if (aggregate in aggregates.take(i)) {
+                    result += warning("Outcome '$name' declares the state of '$aggregate' more than once.", ref)
+                } else if (view != null && view.member(aggregate) == null) {
+                    result += warning("Outcome '$name' expects a state of '$aggregate', which is not a member of view '${view.name}'.", ref)
+                }
+            }
+        }
+        return result
+    }
+
+    /** a failure event is consumed by a step or ends the flow. */
+    private fun validateFailureEvents(
+        flowName: String,
+        events: Collection<ZflEvent>,
+        end: ZflEnd,
+        whens: List<Map<String, Any?>>,
+        timers: List<ZflTimer>,
+    ): List<ZflSemanticDiagnostic> {
+        val consumed = whens.flatMap { it.getList("triggers") }.toSet() + timers.mapNotNull { it.after }
+        val ends = end.endOutcomes.values.flatten().toSet()
+        return events.filter { it.isError && it.name !in consumed && it.name !in ends }.map {
+            warning("Failure event '${it.name}' of flow '$flowName' has no consumer and is not an end.", it.sourceRef)
+        }
+    }
+
+    private fun warning(message: String, sourceRef: SourceRef?) =
+        ZflSemanticDiagnostic(message = message, severity = Severity.WARNING, sourceRef = sourceRef)
 
     /** ZFL-R12: a name in `@rules(...)` with no rule in the same flow is a warning on that name. */
     private fun validateRuleNames(
