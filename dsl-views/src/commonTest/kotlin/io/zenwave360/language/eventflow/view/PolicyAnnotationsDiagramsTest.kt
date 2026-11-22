@@ -157,8 +157,8 @@ class PolicyAnnotationsDiagramsTest {
                         start Begin {}
                         when Begin do run {
                             service Jobs.JobService
-                            emits Ok @outcome(good)
-                            emits Bad @outcome(bad)
+                            @outcome(good) emits Ok
+                            @outcome(bad) emits Bad
                         }
                         end {
                             $end

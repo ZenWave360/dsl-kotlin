@@ -173,6 +173,7 @@ class ZflSemanticAnalyzer {
                     timer = timerLabel(timer),
                     events = commandByName[timer.command]?.emits?.map { it.eventName }.orEmpty(),
                     rules = (timerModel["occurrence"] as? Map<String, Any?>)?.ruleNames().orEmpty(),
+                    fromTimerBlock = true,
                     sourceRef = timer.sourceRef,
                 )
             }

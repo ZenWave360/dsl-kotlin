@@ -9,7 +9,9 @@ import io.zenwave360.language.zfl.semantic.ZflSemanticModel
 
 /** Id of the POLICY node of [policy] in the flow graph. */
 fun flowPolicyNodeId(policy: ZflPolicy): String =
-    "policy:${policy.triggers.joinToString(",")}:${policy.command}"
+    "policy:${policy.triggers.joinToString(",")}:${policy.command}" +
+        // a `timer` block and a `when` can name the same event and command, and so can several timers
+        if (policy.fromTimerBlock) ":timer:${policy.timer}" else ""
 
 class ZflToFlowGraphTransformer {
 

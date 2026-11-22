@@ -74,7 +74,9 @@ class ZflZdlLinter {
             val view = view ?: return
             val names = correlationFields(view)
             val starts = flow.starts.map { it.name }.toSet()
-            val responses = flow.commands.flatMap { it.responses }.toSet()
+            // a call response that nothing publishes is not an event of the flow: `emits response E` is published
+            val published = flow.commands.flatMap { it.publishedEvents() }.toSet()
+            val responses = flow.commands.flatMap { it.responses }.toSet() - published
             val used = (flow.events.map { it.name } + flow.policies.flatMap { it.triggers } +
                 flow.timers.flatMap { listOfNotNull(it.after) + it.unless } + flow.end.endOutcomes.values.flatten())
                 .distinct().filterNot { it in starts || it in responses }
@@ -241,14 +243,15 @@ class ZflZdlLinter {
 
         /**
          * Follows [path] from [entity] through its fields and nested types. `id` is the implicit identifier of an
-         * entity: present, unique, and of a type that the ZDL leaves to the generator.
+         * entity or aggregate, not of an input, output or event: present, unique, and of a type that the ZDL leaves to the generator.
          */
         fun resolve(model: ZdlModel, entity: Map<String, Any?>, path: List<String>): ResolvedField {
             var current: Map<String, Any?> = entity
+            var isEntity = true
             path.forEachIndexed { index, segment ->
                 val field = current.fieldMap()[segment] as? Map<*, *>
                 if (field == null) {
-                    if (segment == "id" && index == path.lastIndex) return ResolvedField(type = IMPLICIT_ID, unique = true)
+                    if (segment == "id" && index == path.lastIndex && isEntity) return ResolvedField(type = IMPLICIT_ID, unique = true)
                     return ResolvedField(missing = "'${current["name"]}' has no field '$segment'")
                 }
                 val type = field["type"] as? String
@@ -256,7 +259,9 @@ class ZflZdlLinter {
                     val unique = (field["validations"] as? Map<*, *>)?.containsKey("unique") == true
                     return ResolvedField(type = type + if (field["isArray"] == true) "[]" else "", unique = unique)
                 }
-                current = type?.let { model.getEntities().map(it) ?: model.getInputs().map(it) ?: model.getOutputs().map(it) ?: model.getEvents().map(it) }
+                val entityType = type?.let { model.getEntities().map(it) }
+                isEntity = entityType != null
+                current = type?.let { entityType ?: model.getInputs().map(it) ?: model.getOutputs().map(it) ?: model.getEvents().map(it) }
                     ?: return ResolvedField(missing = "'$segment' of '${current["name"]}' is $type, which has no fields")
             }
             return ResolvedField(missing = "the path is empty")
