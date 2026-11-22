@@ -19,10 +19,28 @@ class ZflFlowVariantsTest {
 
             assertEquals(
                 sequences.mapIndexed { index, sequence ->
-                    FlowVariant("sequence:${sequence.endOutcome}:$index", sequence.title)
+                    "sequence:${sequence.endOutcome}:$index" to sequence.title
                 },
-                variants
+                variants.map { it.id to it.title }
             )
         }
+    }
+
+    @Test
+    fun aTreeLineIsOneSequenceWithAltBlocksAndALeafIsItsVariant() {
+        val content = readViewsTestFile("flow/place-order-flow.zfl")
+        val generator = GenerateMermaidFromZfl()
+        val tree = GenerateFlowViewFromZfl().variantTree(content)
+        val line = tree.flatMap { it.nodes }.first { it.children.isNotEmpty() }
+
+        val set = generator.variants(content, line.id)!!
+        assertEquals(line.title, set.title)
+        assertEquals(true, set.mermaid.contains("alt "))
+        assertEquals(line.children.size >= 2, set.mermaid.contains("else "))
+
+        val leaf = generateSequence(line) { it.children.firstOrNull() }.last()
+        val single = generator.variants(content, leaf.id)!!
+        assertEquals(false, single.mermaid.contains("alt "))
+        assertEquals(null, generator.variants(content, "branch:missing:0"))
     }
 }

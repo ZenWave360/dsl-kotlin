@@ -5,7 +5,11 @@ import io.zenwave360.language.zfl.semantic.ZflFlow
 /** A selectable execution path through a ZFL flow. */
 data class FlowVariant(
     val id: String,
-    val title: String
+    val title: String,
+    /** The end outcome of the path. Empty when the variant does not say. */
+    val outcome: String = "",
+    /** The start followed by the choices taken, in order: what [title] is written from (spec:flows/eventflow#ef-r25). */
+    val steps: List<String> = emptyList()
 )
 
 data class ZflFlowVariant(
@@ -29,17 +33,24 @@ fun zflFlowVariants(
             ZflFlowVariant(
                 variant = FlowVariant(
                     id = "sequence:${path.endOutcome}:$index",
-                    title = sequenceVariantTitle(path)
+                    title = sequenceVariantTitle(path),
+                    outcome = path.endOutcome,
+                    steps = sequenceVariantSteps(path)
                 ),
                 path = path
             )
         }
 }
 
-fun sequenceVariantTitle(path: SequencePath): String = buildString {
+fun sequenceVariantSteps(path: SequencePath): List<String> = listOf(path.start.name) + path.choiceLabels
+
+fun sequenceVariantTitle(path: SequencePath): String = variantTitle(sequenceVariantSteps(path), path.endOutcome)
+
+/** `from X → a → b to Z`: the start, the choices taken and the end outcome (spec:flows/eventflow#ef-r20). */
+fun variantTitle(steps: List<String>, outcome: String): String = buildString {
     append("from ")
-    append(path.start.name)
-    path.choiceLabels.forEach { append(" → ").append(it) }
+    append(steps.firstOrNull().orEmpty())
+    steps.drop(1).forEach { append(" → ").append(it) }
     append(" to ")
-    append(path.endOutcome)
+    append(outcome)
 }
