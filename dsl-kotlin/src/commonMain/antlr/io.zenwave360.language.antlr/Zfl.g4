@@ -62,6 +62,12 @@ COMPLETED: 'completed';
 SUSPENDED: 'suspended';
 CANCELLED: 'cancelled';
 AND: 'and';
+VIEW: 'view';
+BY: 'by';
+TIMER: 'timer';
+AFTER: 'after';
+AT: 'at';
+UNLESS: 'unless';
 
 // field validators
 REQUIRED: 'required';
@@ -113,7 +119,7 @@ javadoc: JAVADOC;
 suffix_javadoc: JAVADOC;
 
 // values
-keyword: ID | IMPORT | CONFIG | FLOW | RULES | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | DO | FOR | END | COMPLETED | SUSPENDED | CANCELLED | AND | ASYNC | RESPONSE | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
+keyword: ID | IMPORT | CONFIG | FLOW | RULES | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | DO | FOR | END | COMPLETED | SUSPENDED | CANCELLED | AND | VIEW | BY | TIMER | AFTER | AT | UNLESS | ASYNC | RESPONSE | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
 
 //complex_value: value | array | object;
 //value: simple | object;
@@ -165,7 +171,15 @@ system_service_command_list: ID (COMMA ID)*;
 // flows
 flow: javadoc? annotations FLOW flow_name LBRACE flow_body RBRACE;
 flow_name: ID;
-flow_body: (flow_start | flow_when | flow_do | flow_end | flow_rules)*;
+flow_body: (flow_view | flow_start | flow_when | flow_timer | flow_do | flow_end | flow_rules)*;
+
+// view: the aggregates of one flow instance and how each reaches the instance key
+flow_view: javadoc? annotations VIEW flow_view_name BY flow_view_key LBRACE (flow_view_member COMMA?)* RBRACE;
+flow_view_name: ID;
+flow_view_key: flow_view_aggregate flow_view_path;
+flow_view_member: flow_view_aggregate ARRAY? flow_view_path?;
+flow_view_aggregate: ID;
+flow_view_path: (DOT keyword)+;
 
 // start events
 flow_start: javadoc? annotations START flow_start_name LBRACE fields RBRACE;
@@ -177,6 +191,14 @@ flow_when_trigger: flow_when_trigger_group (AND flow_when_trigger_group)*;
 flow_when_trigger_group: flow_when_event_trigger ((COMMA | OR) flow_when_event_trigger)* (COMMA | OR)?;
 flow_when_event_trigger: ID;
 flow_command_name: ID;
+
+// timers: armed by an event or at a view datum, disarmed by any `unless` event
+flow_timer: javadoc? annotations TIMER (flow_timer_after | flow_timer_at) (UNLESS flow_timer_unless)? DO flow_command_name (LBRACE flow_do_body RBRACE)?;
+flow_timer_after: AFTER flow_timer_event flow_timer_duration;
+flow_timer_event: ID;
+flow_timer_duration: DOUBLE_QUOTED_STRING | SINGLE_QUOTED_STRING;
+flow_timer_at: AT flow_view_aggregate flow_view_path;
+flow_timer_unless: flow_timer_event (COMMA flow_timer_event)*;
 
 // action blocks
 flow_do: javadoc? annotations DO flow_command_name LBRACE flow_do_body RBRACE;
@@ -195,10 +217,14 @@ flow_event_name: ID;
 // end block
 flow_end: javadoc? annotations END LBRACE flow_end_outcomes RBRACE;
 flow_end_outcomes: flow_end_outcome+;
-flow_end_outcome: flow_end_outcome_name COLON flow_end_outcome_list;
+flow_end_outcome: flow_end_outcome_name COLON flow_end_outcome_list flow_end_states?;
 flow_end_outcome_name: keyword;
 flow_end_outcome_list: flow_end_outcome_event (COMMA flow_end_outcome_event)*;
 flow_end_outcome_event: ID;
+// expected state of each view aggregate once the instance is at rest; `none`: it does not exist
+flow_end_states: LBRACE (flow_end_state (COMMA flow_end_state)* COMMA?)? RBRACE;
+flow_end_state: flow_view_aggregate COLON flow_end_state_value;
+flow_end_state_value: keyword | LBRACK keyword (COMMA keyword)* RBRACK;
 
 flow_rules: RULES (LPAREN rules_aggregate RPAREN)? LBRACE flow_rule* RBRACE;
 rules_aggregate: ID;

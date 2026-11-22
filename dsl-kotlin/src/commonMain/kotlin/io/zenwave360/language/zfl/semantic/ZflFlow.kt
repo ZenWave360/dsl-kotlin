@@ -14,5 +14,8 @@ data class ZflFlow(
     val commands: List<ZflCommand>,
     val events: List<ZflEvent>,
     val end: ZflEnd,
+    /** The `view` block: the aggregates of one flow instance. */
+    val view: ZflView? = null,
+    val timers: List<ZflTimer> = emptyList(),
     val sourceRef: io.zenwave360.language.source.SourceRef? = null,
 )
