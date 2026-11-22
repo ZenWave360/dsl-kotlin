@@ -173,7 +173,12 @@ class ZflSemanticAnalyzer {
                 )
             }
 
-            diagnostics += validateRuleNames(flowName, actionModels.values, rules.map { it.name }.toSet())
+            // A rule is named bare (`limit`) or qualified by its aggregate (`Order.limit`).
+            diagnostics += validateRuleNames(
+                flowName,
+                actionModels.values,
+                rules.flatMap { listOfNotNull(it.name, it.aggregate?.let { aggregate -> "$aggregate.${it.name}" }) }.toSet(),
+            )
 
             flows += ZflFlow(
                 name = flowName,

@@ -799,8 +799,10 @@ class ZdlListenerImpl : ZdlBaseListener() {
 
     /** Warnings for method rule names with no rule declared in this document. Call after the walk. */
     internal fun unknownRuleWarnings(): List<MutableMap<String, Any?>> {
-        val declared = (model["rules"] as? Map<*, *>)?.values
-            ?.mapNotNull { (it as? Map<*, *>)?.get("name")?.toString() }?.toSet().orEmpty()
+        // a rule is named bare (`limit`) or qualified by its aggregate (`Order.limit`, the model key)
+        val rules = model["rules"] as? Map<*, *>
+        val declared = (rules?.values?.mapNotNull { (it as? Map<*, *>)?.get("name")?.toString() }.orEmpty() +
+            rules?.keys?.map { it.toString() }.orEmpty()).toSet()
         return ruleRefs.filter { it.name !in declared }.map {
             mutableMapOf(
                 "path" to "rules",

@@ -192,19 +192,57 @@ class RulesAnnotationTest {
         assertEquals("""@policy(minimumAmount, "stock-first")""", text.substring(loc[0], loc[1]))
     }
 
+    private fun zflAggregate(refs: String) = """
+        flow PlaceOrder {
+            rules (Order) {
+                limit "At most 100 EUR"
+            }
+            rules (Payment) {
+                limit "Payment limit"
+            }
+            start PlaceOrderRequested {}
+            @rules($refs)
+            when PlaceOrderRequested do placeOrder
+        }
+    """.trimIndent()
+
     @Test
-    fun zflUnquotedQualifiedName_sameModelAsQuoted_andWarnsOnTheWholeName() {
+    fun zflQualifiedNameResolvesToTheAggregateRule_quotedAndUnquoted_andBareStillMatches() {
+        for (refs in listOf("Order.limit", "\"Order.limit\"", "Payment.limit", "limit", "Order.limit, limit")) {
+            val semantic = analyze(zflAggregate(refs))
+            assertTrue(semantic.diagnostics.none { "rule" in it.message }, "$refs: ${semantic.diagnostics}")
+        }
+        assertEquals(
+            listOf("Order.limit"),
+            analyze(zflAggregate("Order.limit")).flows.single().commands.single().rules,
+        )
+    }
+
+    @Test
+    fun zflUnknownQualifiedNameWarnsOnTheWholeName() {
+        val text = zflAggregate("Order.nope, Shipping.limit")
+        val warnings = analyze(text).diagnostics.filter { "rule" in it.message }
+        assertEquals(listOf("Flow 'PlaceOrder' has no rule 'Order.nope'.", "Flow 'PlaceOrder' has no rule 'Shipping.limit'."), warnings.map { it.message })
+        val at = text.indexOf("Order.nope")
+        assertEquals(at - (text.lastIndexOf('\n', at) + 1) + 1, warnings.first().sourceRef!!.column)
+    }
+
+    @Test
+    fun zflUnquotedQualifiedName_sameModelAsQuoted() {
         val quoted = analyze(zfl("""@rules("Order.limit", audit)
             when PlaceOrderRequested do placeOrder""")).flows.single().commands.single()
-        val text = zfl("""@rules(Order.limit, audit)
-            when PlaceOrderRequested do placeOrder""")
-        val semantic = analyze(text)
-        assertEquals(listOf("Order.limit", "audit"), semantic.flows.single().commands.single().rules)
-        assertEquals(quoted.rules, semantic.flows.single().commands.single().rules)
-        val warning = semantic.diagnostics.single { "rule" in it.message }
-        assertEquals("Flow 'PlaceOrder' has no rule 'Order.limit'.", warning.message)
-        val at = text.indexOf("Order.limit")
-        assertEquals(at - (text.lastIndexOf('\n', at) + 1) + 1, warning.sourceRef!!.column)
+        val unquoted = analyze(zfl("""@rules(Order.limit, audit)
+            when PlaceOrderRequested do placeOrder""")).flows.single().commands.single()
+        assertEquals(listOf("Order.limit", "audit"), unquoted.rules)
+        assertEquals(quoted.rules, unquoted.rules)
+    }
+
+    @Test
+    fun zdlQualifiedNameResolvesToTheAggregateRule() {
+        val text = zdlRules.replace("%s", """@rules(Order.minimumAmount, "Order.stock-first")
+            placeOrder(Order) Order""")
+        val model = ZdlParser().parseModel(text)
+        assertTrue(model.getProblems().isEmpty(), model.getProblems().toString())
     }
 
     @Test
