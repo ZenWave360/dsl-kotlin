@@ -10,7 +10,11 @@ class ZflToFlowViewModelTransformer(
         transformGraph(graphTransformer.transform(semanticModel))
 
     fun transform(semanticModel: ZflSemanticModel, path: SequencePath): FlowViewModel =
-        transformGraph(graphTransformer.transform(semanticModel).forPath(path))
+        transform(semanticModel, listOf(path))
+
+    /** The union of the paths: every node and edge any of them reaches (spec:flows/eventflow#ef-r25). */
+    fun transform(semanticModel: ZflSemanticModel, paths: List<SequencePath>): FlowViewModel =
+        transformGraph(graphTransformer.transform(semanticModel).forPaths(paths))
 
     fun transformGraph(graph: FlowGraph): FlowViewModel {
         val nodes = graph.nodes.map { node ->
@@ -61,10 +65,10 @@ class ZflToFlowViewModelTransformer(
     }
 }
 
-private fun FlowGraph.forPath(path: SequencePath): FlowGraph {
+private fun FlowGraph.forPaths(paths: List<SequencePath>): FlowGraph {
     val nodesById = nodes.associateBy { it.id }
     // by execution identity, never by the text drawn: a title or an actor arrow changes the label only
-    val pathNodeIds = (path.messages.flatMap { it.refs } + "event:${path.start.name}")
+    val pathNodeIds = paths.flatMap { path -> path.messages.flatMap { it.refs } + "event:${path.start.name}" }
         .filterTo(linkedSetOf()) { it in nodesById }
 
     // Policies are structural links between an event and a command. Keep only

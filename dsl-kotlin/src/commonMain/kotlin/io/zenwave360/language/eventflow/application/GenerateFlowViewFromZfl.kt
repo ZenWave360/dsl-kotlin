@@ -8,6 +8,9 @@ import io.zenwave360.language.eventflow.view.FlowSystemGroupView
 import io.zenwave360.language.eventflow.view.FlowViewModel
 import io.zenwave360.language.eventflow.view.Point
 import io.zenwave360.language.eventflow.view.FlowVariant
+import io.zenwave360.language.eventflow.view.FlowVariantGroup
+import io.zenwave360.language.eventflow.view.flowVariantSelection
+import io.zenwave360.language.eventflow.view.flowVariantTree
 import io.zenwave360.language.eventflow.view.ZflToFlowViewModelTransformer
 import io.zenwave360.language.eventflow.view.zflFlowVariants
 import io.zenwave360.language.zfl.ZflParser
@@ -30,12 +33,21 @@ class GenerateFlowViewFromZfl(
     fun variants(zflContent: String): List<FlowVariant> =
         variants(semanticAnalyzer.analyze(parser.parseModel(zflContent))).map { it.variant }
 
+    /** The variants grouped by end outcome, each group a prefix tree of steps (spec:flows/eventflow#ef-r25). */
+    fun variantTree(zflContent: String): List<FlowVariantGroup> = flowVariantTree(variants(zflContent))
+
+    /**
+     * One variant, or with a tree line's id (spec:flows/eventflow#ef-r25) every variant under that line together;
+     * either way the graph is laid out automatically here.
+     */
     suspend fun variant(zflContent: String, id: String, lanes: FlowLanes = FlowLanes.NONE): FlowVariantViewResult {
         val semantic = semanticAnalyzer.analyze(parser.parseModel(zflContent))
-        val variant = variants(semantic).firstOrNull { it.variant.id == id }
+        val all = variants(semantic)
+        val selected = flowVariantSelection(all.map { it.variant }, id)
             ?: return FlowVariantViewResult.UnknownVariant(id)
+        val paths = all.filter { it.variant.id in selected }.map { it.path }
         return FlowVariantViewResult.Found(
-            FlowLaneLayout.apply(layoutEngine.layout(transformer.transform(semantic, variant.path)), lanes)
+            FlowLaneLayout.apply(layoutEngine.layout(transformer.transform(semantic, paths)), lanes)
         )
     }
 
