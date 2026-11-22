@@ -120,4 +120,41 @@ class RulesPagesTest {
         assertTrue("[Order.limit](#limit)" in page, page)
         assertTrue("[Payment.limit](#limit-1)" in page, page)
     }
+
+    @Test
+    fun theFlowPageShowsTheAnnotationsAndJavadocOfARule() {
+        val text = """
+            flow F {
+                rules (Order) {
+                    /** Seats are never oversold. */
+                    @invariant @rule(severity: high) noOversell "No oversell"
+                    plain "Plain"
+                }
+                start S {}
+                when S do a { service X.A emits E1 }
+                end { done: E1 }
+            }
+        """.trimIndent()
+        val page = DslDocs().generate(DocsInput(listOf(DocsSource(SourceKind.ZFL, "f.zfl", text)))).files.first { it.path == "flows/f.md" }.content
+
+        assertTrue("### noOversell\n\n`@invariant` `@rule(severity: high)`\n\nSeats are never oversold.\n\nAggregate: `Order`\n\nNo oversell\n" in page, page)
+        assertTrue("### plain\n\nAggregate: `Order`\n\nPlain\n" in page, page)
+    }
+
+    @Test
+    fun theModulePageShowsTheAnnotationsAndJavadocOfARule() {
+        val text = """
+            rules (Order) {
+                /** Seats are never oversold. */
+                @invariant @pre(late) noOversell "No oversell"
+                plain "Plain"
+            }
+            @aggregate
+            entity Order { name String }
+        """.trimIndent()
+        val page = DslDocs().previewZdl(text)
+
+        assertTrue("### noOversell\n\n`@invariant` `@pre(late)`\n\nSeats are never oversold.\n\nAggregate: Order\n\nNo oversell\n" in page, page)
+        assertTrue("### plain\n\nAggregate: Order\n\nPlain\n" in page, page)
+    }
 }

@@ -167,6 +167,8 @@ class ZflSemanticAnalyzer {
                     name = rule.getString("name"),
                     value = ruleText(rule["value"]),
                     aggregate = rule.getStringOrNull("aggregate"),
+                    options = (rule["options"] as? Map<*, *>).orEmpty().entries.associate { (k, v) -> k.toString() to optionText(v) },
+                    javadoc = rule.getStringOrNull("javadoc"),
                     sourceRef = sourceModel.sourceRef("flows.$flowName.rules[$index]"),
                 )
             }
@@ -774,6 +776,13 @@ class ZflSemanticAnalyzer {
         }.orEmpty()
 
     /** Rule values keep the typed `simple` from the listener. The semantic model stores the text. */
+    /** `severity: high` for an annotation with arguments, its value as text otherwise, null without a value. */
+    private fun optionText(value: Any?): String? = when (value) {
+        null, true -> null
+        is Map<*, *> -> value.entries.joinToString(", ") { "${it.key}: ${it.value}" }
+        else -> value.toString()
+    }
+
     private fun ruleText(value: Any?): String = when (value) {
         null -> ""
         is String -> value

@@ -15,3 +15,9 @@ internal fun resolveRuleRef(ref: String, rules: List<Pair<String?, String>>): St
     val byName = rules.filter { it.second == ref }
     return byName.singleOrNull()?.let { ruleKey(it.first, it.second) }
 }
+
+/** The annotations of a rule as inline code tags (`@invariant`, `@rule(severity: high)`), or empty. */
+internal fun ruleTags(options: Map<String, String?>): String =
+    options.entries.joinToString(" ") { (name, value) ->
+        Markdown.code(if (value == null || value == "true") "@$name" else "@$name($value)")
+    }

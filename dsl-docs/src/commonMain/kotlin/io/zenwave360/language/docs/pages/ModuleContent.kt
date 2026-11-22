@@ -5,6 +5,7 @@ import io.zenwave360.language.docs.internal.Markdown
 import io.zenwave360.language.docs.internal.resolveRuleRef
 import io.zenwave360.language.docs.internal.ruleAnchor
 import io.zenwave360.language.docs.internal.ruleKey
+import io.zenwave360.language.docs.internal.ruleTags
 import io.zenwave360.language.zdl.architecture.ZdlArchitecture
 import io.zenwave360.language.zdl.view.AggregateLifecycle
 import io.zenwave360.language.zdl.view.CommandAdapter
@@ -143,6 +144,8 @@ internal class ModuleContent(
             append("The business rules of the module, and the commands that apply them.\n\n")
             for (rule in domain.rules) {
                 append(anchors.heading(3, inline(rule.name), ruleAnchor(rule.aggregate, rule.name)))
+                if (rule.options.isNotEmpty()) append(ruleTags(rule.options)).append("\n\n")
+                rule.javadoc?.takeIf { it.isNotBlank() }?.let { append(text(it.replace(Regex("\\s*[\\r\\n]+\\s*"), " ").trim())).append("\n\n") }
                 rule.aggregate?.let { append("Aggregate: ").append(text(it)).append("\n\n") }
                 if (rule.value.isNotBlank()) append(text(rule.value.replace(Regex("\\s*[\\r\\n]+\\s*"), " ").trim())).append("\n\n")
                 val appliedBy = domain.services.flatMap { s ->

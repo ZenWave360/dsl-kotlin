@@ -481,9 +481,9 @@ class ZdlListenerKotlinTest {
         """.trimIndent())
         val policies = model["policies"] as Map<*, *>
         assertEquals(setOf("Order.maxItems", "Customer.maxItems", "maxItems"), policies.keys)
-        assertEquals(mapOf("name" to "maxItems", "value" to 10L, "aggregate" to "Order"), policies["Order.maxItems"])
-        assertEquals(mapOf("name" to "maxItems", "value" to 3L, "aggregate" to "Customer"), policies["Customer.maxItems"])
-        assertEquals(mapOf("name" to "maxItems", "value" to 1L, "aggregate" to null), policies["maxItems"])
+        assertEquals(mapOf("name" to "maxItems", "value" to 10L, "aggregate" to "Order", "options" to emptyMap<String, Any?>(), "javadoc" to null), policies["Order.maxItems"])
+        assertEquals(mapOf("name" to "maxItems", "value" to 3L, "aggregate" to "Customer", "options" to emptyMap<String, Any?>(), "javadoc" to null), policies["Customer.maxItems"])
+        assertEquals(mapOf("name" to "maxItems", "value" to 1L, "aggregate" to null, "options" to emptyMap<String, Any?>(), "javadoc" to null), policies["maxItems"])
     }
 
     @Test

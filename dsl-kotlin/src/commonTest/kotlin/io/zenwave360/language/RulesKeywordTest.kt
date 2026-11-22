@@ -27,9 +27,9 @@ class RulesKeywordTest {
         assertEquals(model["policies"], model["rules"])
         val rules = model["rules"] as Map<*, *>
         assertEquals(setOf("Order.maxItems", "Customer.maxItems", "audit"), rules.keys)
-        assertEquals(mapOf("name" to "maxItems", "value" to 10L, "aggregate" to "Order"), rules["Order.maxItems"])
-        assertEquals(mapOf("name" to "maxItems", "value" to 3L, "aggregate" to "Customer"), rules["Customer.maxItems"])
-        assertEquals(mapOf("name" to "audit", "value" to "Every change is audited", "aggregate" to null), rules["audit"])
+        assertEquals(mapOf("name" to "maxItems", "value" to 10L, "aggregate" to "Order", "options" to emptyMap<String, Any?>(), "javadoc" to null), rules["Order.maxItems"])
+        assertEquals(mapOf("name" to "maxItems", "value" to 3L, "aggregate" to "Customer", "options" to emptyMap<String, Any?>(), "javadoc" to null), rules["Customer.maxItems"])
+        assertEquals(mapOf("name" to "audit", "value" to "Every change is audited", "aggregate" to null, "options" to emptyMap<String, Any?>(), "javadoc" to null), rules["audit"])
     }
 
     @Test
@@ -121,10 +121,10 @@ class RulesKeywordTest {
 
         val rules = JSONPath.get<List<*>>(model, "$.flows.PlaceOrder.rules").orEmpty()
         assertEquals(4, rules.size)
-        assertEquals(mapOf("name" to "minimumAmount", "value" to "An order total must be at least 10 EUR", "aggregate" to "Order"), rules[0])
-        assertEquals(mapOf("name" to "stock-first", "value" to "Stock is reserved before payment is taken", "aggregate" to "Order"), rules[1])
-        assertEquals(mapOf("name" to "maxItems", "value" to 10L, "aggregate" to "Order"), rules[2])
-        assertEquals(mapOf("name" to "audit", "value" to "Every change is audited", "aggregate" to null), rules[3])
+        assertEquals(mapOf("name" to "minimumAmount", "value" to "An order total must be at least 10 EUR", "aggregate" to "Order", "options" to emptyMap<String, Any?>(), "javadoc" to null), rules[0])
+        assertEquals(mapOf("name" to "stock-first", "value" to "Stock is reserved before payment is taken", "aggregate" to "Order", "options" to emptyMap<String, Any?>(), "javadoc" to null), rules[1])
+        assertEquals(mapOf("name" to "maxItems", "value" to 10L, "aggregate" to "Order", "options" to emptyMap<String, Any?>(), "javadoc" to null), rules[2])
+        assertEquals(mapOf("name" to "audit", "value" to "Every change is audited", "aggregate" to null, "options" to emptyMap<String, Any?>(), "javadoc" to null), rules[3])
         assertEquals("String", JSONPath.get(model, "$.flows.PlaceOrder.starts.PlaceOrderRequested.fields.rules.type"))
 
         val flow = ZflSemanticAnalyzer().analyze(model).flows.single()
@@ -221,5 +221,105 @@ class RulesKeywordTest {
         assertTrue(zflModel.getProblems().isEmpty(), zflModel.getProblems().toString())
         val formattedRulesList = JSONPath.get<List<*>>(zflModel, "$.flows.PlaceOrder.rules").orEmpty()
         assertEquals(3, formattedRulesList.size)
+    }
+}
+
+/** ZFL-R11: annotations and javadoc on a rule, in ZDL `rules` and ZFL flow `rules` blocks. */
+private const val Q = "\"\"\""
+
+class RuleAnnotationsTest {
+
+    private val zdl = """
+        rules (SlotOccupancy) {
+            /** Seats are never oversold. */
+            @invariant  noBookingWithoutSeats "No se reserva si no quedan plazas."
+            @pre        deadlineForCitizens   ${Q}El ciudadano cancela
+                hasta el plazo.${Q}
+            @rule(severity: high) plain "x"
+            @temporal @audit some-rule "with dash"
+            noAnnotation "still valid"
+        }
+    """.trimIndent()
+
+    @Test
+    fun zdlRules_keepAnnotationsAndJavadoc_andOthersStayPlain() {
+        val model = ZdlParser().parseModel(zdl)
+        assertTrue(model.getProblems().isEmpty(), model.getProblems().toString())
+        assertEquals(model["policies"], model["rules"])
+        val rules = model["rules"] as Map<*, *>
+        assertEquals(5, rules.size)
+
+        val first = rules["SlotOccupancy.noBookingWithoutSeats"] as Map<*, *>
+        assertEquals("No se reserva si no quedan plazas.", first["value"])
+        assertEquals("SlotOccupancy", first["aggregate"])
+        assertEquals("Seats are never oversold.", first["javadoc"])
+        assertEquals(mapOf("invariant" to true), first["options"])
+
+        val pre = rules["SlotOccupancy.deadlineForCitizens"] as Map<*, *>
+        assertEquals(mapOf("pre" to true), pre["options"])
+        assertNull(pre["javadoc"])
+        assertTrue((pre["value"] as String).contains("hasta el plazo"))
+
+        assertEquals(mapOf("rule" to mapOf("severity" to "high")), (rules["SlotOccupancy.plain"] as Map<*, *>)["options"])
+        val dashed = rules["SlotOccupancy.some-rule"] as Map<*, *>
+        assertEquals(setOf("temporal", "audit"), (dashed["options"] as Map<*, *>).keys)
+        assertEquals("with dash", dashed["value"])
+        assertEquals(emptyMap<String, Any?>(), (rules["SlotOccupancy.noAnnotation"] as Map<*, *>)["options"])
+    }
+
+    @Test
+    fun zdlRuleAnnotations_doNotLeakToOtherElements() {
+        val model = ZdlParser().parseModel(
+            """
+            @aggregate
+            entity Order { id String }
+            rules { @invariant a "x" }
+            entity Other { id String }
+            """.trimIndent()
+        )
+        assertTrue(model.getProblems().isEmpty(), model.getProblems().toString())
+        assertEquals(mapOf("aggregate" to true), JSONPath.get<Map<*, *>>(model, "$.entities.Order.options"))
+        assertEquals(emptyMap<String, Any?>(), JSONPath.get<Map<*, *>>(model, "$.entities.Other.options"))
+        assertNull(JSONPath.get<Any?>(model, "$.entities.Other.options.invariant"))
+    }
+
+    private val zfl = """
+        flow PlaceOrder {
+            rules (Order) {
+                /** Never oversell. */
+                @invariant noOversell "Stock first"
+                @pre @rule(severity: high) stock-first "Multi
+                    line"
+                plain "x"
+            }
+            @title("Place")
+            start PlaceOrderRequested {}
+            when PlaceOrderRequested do placeOrder
+        }
+    """.trimIndent()
+
+    @Test
+    fun zflRules_keepAnnotationsAndJavadoc_inModelAndZflRule() {
+        val parsed = ZflParser().parse(zfl)
+        assertTrue(parsed.syntaxProblems.isEmpty(), parsed.syntaxProblems.toString())
+        val model = ZflParser().parseModel(zfl)
+        assertTrue(model.getProblems().isEmpty(), model.getProblems().toString())
+        val rules = JSONPath.get<List<Map<String, Any?>>>(model, "$.flows.PlaceOrder.rules").orEmpty()
+        assertEquals(mapOf("invariant" to true), rules[0]["options"])
+        assertEquals("Never oversell.", rules[0]["javadoc"])
+        assertEquals(setOf("pre", "rule"), (rules[1]["options"] as Map<*, *>).keys)
+        assertEquals(emptyMap<String, Any?>(), rules[2]["options"])
+        assertNull(rules[2]["javadoc"])
+        // annotations of a rule do not become options of the flow
+        assertNull(JSONPath.get<Any?>(model, "$.flows.PlaceOrder.options.invariant"))
+
+        val flow = ZflSemanticAnalyzer().analyze(model).flows.single()
+        assertEquals(listOf("noOversell", "stock-first", "plain"), flow.rules.map { it.name })
+        assertEquals(mapOf("invariant" to null), flow.rules[0].options)
+        assertEquals("Never oversell.", flow.rules[0].javadoc)
+        assertEquals(mapOf("pre" to null, "rule" to "severity: high"), flow.rules[1].options)
+        assertTrue(flow.rules[1].value.contains("line"))
+        assertTrue(flow.rules[2].options.isEmpty())
+        assertNull(flow.rules[2].javadoc)
     }
 }

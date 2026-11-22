@@ -82,6 +82,8 @@ class ZflListenerImpl : ZflBaseListener() {
             .with("name", name)
             .with("value", value)
             .with("aggregate", aggregate)
+            .with("options", getOptions(ctx.annotations()))
+            .with("javadoc", javadoc(ctx.javadoc()))
         @Suppress("UNCHECKED_CAST")
         val rules = flow.getOrPut("rules") { mutableListOf<Any?>() } as MutableList<Any?>
         rules.add(rule)
@@ -89,6 +91,8 @@ class ZflListenerImpl : ZflBaseListener() {
     }
 
     override fun enterOption(ctx: ZflParser.OptionContext) {
+        // annotations of a rule are read by enterFlow_rule, they do not belong to the element on the stack
+        if (ctx.getParent()?.getParent() is ZflParser.Flow_ruleContext) return
         val name = ctx.option_name().text.replace("@", "")
         val value = getOptionValue(ctx.option_value())
         if (currentStack.isNotEmpty()) {
