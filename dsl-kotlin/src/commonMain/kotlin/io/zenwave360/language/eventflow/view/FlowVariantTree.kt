@@ -34,7 +34,7 @@ fun flowVariantTree(variants: List<FlowVariant>): List<FlowVariantGroup> =
             variant.steps.forEach { step -> node = node.children.getOrPut(step) { TrieNode(listOf(step)) } }
             node.own += variant
         }
-        FlowVariantGroup(outcome, root.children.values.mapIndexed { index, child -> child.toNode(outcome, emptyList(), "$index") })
+        FlowVariantGroup(outcome, root.children.values.map { child -> child.toNode(outcome, emptyList()) })
     }
 
 /** The tree line [id] names, or null: a leaf is named by its variant's id. */
@@ -44,8 +44,12 @@ fun flowVariantNode(variants: List<FlowVariant>, id: String): FlowVariantNode? {
     return flowVariantTree(variants).firstNotNullOfOrNull { find(it.nodes) }
 }
 
-/** The ids of the variants a variant id or a tree line id stands for, in the flow's order, or null when it is neither. */
+/**
+ * The ids of the variants a variant id or a tree line id stands for, in the flow's order, or null when it is neither.
+ * Every variant id selects that variant, wherever the tree puts it.
+ */
 fun flowVariantSelection(variants: List<FlowVariant>, id: String): List<String>? {
+    if (variants.any { it.id == id }) return listOf(id)
     val ids = flowVariantNode(variants, id)?.variantIds?.toSet() ?: return null
     return variants.filter { it.id in ids }.map { it.id }
 }
@@ -66,19 +70,36 @@ private class TrieNode(var steps: List<String>) {
         return this
     }
 
-    fun toNode(outcome: String, parentPath: List<String>, index: String): FlowVariantNode {
+    fun toNode(outcome: String, parentPath: List<String>): FlowVariantNode {
         collapse()
         val path = parentPath + steps
-        val kids = children.values.mapIndexed { i, child -> child.toNode(outcome, path, "$index.$i") }
-        val ids = own.map { it.id } + kids.flatMap { it.variantIds }
-        val leaf = kids.isEmpty() && own.size == 1
+        val branches = children.values.map { child -> child.toNode(outcome, path) }
+        val leaf = branches.isEmpty() && own.size == 1
+        // A variant that ends at a line with other variants under it, or shares its steps with another, is a leaf of its own
+        // that adds no steps, so every variant id stays selectable from the tree.
+        val ends = if (leaf) emptyList() else own.map { variant ->
+            FlowVariantNode(variant.id, emptyList(), path, variant.title, listOf(variant.id), emptyList())
+        }
+        val kids = ends + branches
         return FlowVariantNode(
-            id = if (leaf) own.first().id else "branch:$outcome:$index",
+            id = if (leaf) own.first().id else branchId(outcome, path),
             steps = steps,
             path = path,
             title = variantTitle(path, outcome),
-            variantIds = ids,
+            variantIds = if (leaf) own.map { it.id } else kids.flatMap { it.variantIds },
             children = kids
         )
     }
+}
+
+/**
+ * `branch:<outcome>:<hash of the steps down to the line>`: it names what the line is, not where it sits among its
+ * siblings, so an edit that inserts or reorders variants never makes a kept id select another line.
+ */
+private fun branchId(outcome: String, path: List<String>): String {
+    var hash = -3750763034362895579L // FNV-1a, 64 bit
+    for (char in path.joinToString("\u001f")) {
+        hash = (hash xor char.code.toLong()) * 1099511628211L
+    }
+    return "branch:$outcome:${hash.toULong().toString(16)}"
 }

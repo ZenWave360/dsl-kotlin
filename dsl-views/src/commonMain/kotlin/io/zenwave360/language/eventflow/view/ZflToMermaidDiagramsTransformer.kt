@@ -48,7 +48,11 @@ class ZflToMermaidDiagramsTransformer(
      * as its own sequence, a line as alt blocks, one per variant, labelled by the steps they do not share.
      * Null when the id names nothing.
      */
-    fun transformVariants(semanticModel: ZflSemanticModel, id: String): MermaidSequenceDiagram? {
+    fun transformVariants(semanticModel: ZflSemanticModel, id: String): MermaidSequenceDiagram? =
+        transformVariantsWithNode(semanticModel, id)?.first
+
+    /** As [transformVariants], with the tree line the id names, so a caller can say how many variants it stands for. */
+    fun transformVariantsWithNode(semanticModel: ZflSemanticModel, id: String): Pair<MermaidSequenceDiagram, FlowVariantNode>? {
         val flow = semanticModel.flows.firstOrNull() ?: return null
         val all = zflFlowVariants(flow, maxCommandVisitsPerPath)
         val node = flowVariantNode(all.map { it.variant }, id) ?: return null
@@ -66,7 +70,7 @@ class ZflToMermaidDiagramsTransformer(
             startLabel = paths.first().start.name,
             branchLabels = if (paths.size == 1) paths.first().choiceLabels else stepLabels(chosen.map { it.variant.steps }).distinct(),
             mermaid = withTitleComment(mermaid, flow.name, node.title)
-        )
+        ) to node
     }
 
     /** Alt label of each variant: its steps without the ones every variant shares at the start and at the end. */

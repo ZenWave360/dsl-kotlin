@@ -42,5 +42,9 @@ class ZflFlowVariantsTest {
         val single = generator.variants(content, leaf.id)!!
         assertEquals(false, single.mermaid.contains("alt "))
         assertEquals(null, generator.variants(content, "branch:missing:0"))
+        val (diagram, node) = generator.variantsWithTree(content, line.id)!!
+        assertEquals(line.id, node.id)
+        assertEquals(line.variantIds.size, node.variantIds.size)
+        assertEquals(set.mermaid, diagram.mermaid)
     }
 }
