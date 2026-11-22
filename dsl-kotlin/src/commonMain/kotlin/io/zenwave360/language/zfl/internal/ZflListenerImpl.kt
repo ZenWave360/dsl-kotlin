@@ -202,7 +202,9 @@ class ZflListenerImpl : ZflBaseListener() {
     }
 
     // View block
-    override fun enterFlow_view(ctx: ZflParser.Flow_viewContext) {
+    override fun enterFlow_view(ctx: ZflParser.Flow_viewContext) = guardedBlock("view", ctx) { enterFlowView(ctx) }
+
+    private fun enterFlowView(ctx: ZflParser.Flow_viewContext) {
         val flow = currentStack.last()
         val flowName = flow["name"] as String
         val key = ctx.flow_view_key()
@@ -239,6 +241,23 @@ class ZflListenerImpl : ZflBaseListener() {
         currentStack.removeLast()
     }
 
+    /**
+     * A `view` or `timer` still being typed misses parts the grammar requires. That is a problem on the block, not
+     * a failure of the walk: the block is dropped, the stack stays balanced for its exit, and the next block parses.
+     */
+    private fun guardedBlock(what: String, ctx: ParserRuleContext, enter: () -> Unit) {
+        val depth = currentStack.size
+        try {
+            enter()
+        } catch (e: Exception) {
+            val flowName = currentStack.getOrNull(depth - 1)?.get("name")
+            val path = "flows.$flowName.$what"
+            model.setLocation(path, getLocations(ctx))
+            model.addProblem(path, ctx.text, "Incomplete $what")
+        }
+        if (currentStack.size == depth) currentStack.addLast(buildMap())
+    }
+
     /** `view`, `timer`, `by`, `after`, `at` and `unless` are contextual words: the grammar reads an ID, this checks which. */
     private fun expectWord(ctx: ParserRuleContext?, word: String, path: String) {
         if (ctx == null || ctx.text == word) return
@@ -250,7 +269,9 @@ class ZflListenerImpl : ZflBaseListener() {
         ctx?.keyword()?.map { it.text }.orEmpty()
 
     // Timer steps
-    override fun enterFlow_timer(ctx: ZflParser.Flow_timerContext) {
+    override fun enterFlow_timer(ctx: ZflParser.Flow_timerContext) = guardedBlock("timer", ctx) { enterFlowTimer(ctx) }
+
+    private fun enterFlowTimer(ctx: ZflParser.Flow_timerContext) {
         val flow = currentStack.last()
         val flowName = flow["name"] as String
         val actionName = getText(ctx.flow_command_name())
@@ -552,24 +573,29 @@ class ZflListenerImpl : ZflBaseListener() {
         val outcomes = mutableListOf<Any?>()
         val flowName = currentStack[currentStack.size - 2]["name"]
         ctx.flow_end_outcome().forEach { endOutcome ->
-            val outcomeName = endOutcome.flow_end_outcome_name()?.text ?: return@forEach
-            val outcomeEvents = getOutcomeEvents(endOutcome.flow_end_outcome_list()).orEmpty()
-            // a repeated outcome is one outcome: its events merge, each line is a final-state variant
-            @Suppress("UNCHECKED_CAST")
-            val merged = (endOutcomes[outcomeName] as? List<String>).orEmpty()
-            endOutcomes.with(outcomeName, (merged + outcomeEvents).distinct())
-            // kept as a list, so a repeated aggregate reaches the analyzer
-            val states = endOutcome.flow_end_states()?.flow_end_state().orEmpty().map { state ->
-                buildMap()
-                    .with("aggregate", getText(state.flow_view_aggregate()))
-                    .with("values", state.flow_end_state_value().keyword().map { it.text })
+            try {
+                val outcomeName = endOutcome.flow_end_outcome_name()?.text ?: return@forEach
+                val outcomeEvents = getOutcomeEvents(endOutcome.flow_end_outcome_list()).orEmpty()
+                // a repeated outcome is one outcome: its events merge, each line is a final-state variant
+                @Suppress("UNCHECKED_CAST")
+                val merged = (endOutcomes[outcomeName] as? List<String>).orEmpty()
+                endOutcomes.with(outcomeName, (merged + outcomeEvents).distinct())
+                // kept as a list, so a repeated aggregate reaches the analyzer
+                val states = endOutcome.flow_end_states()?.flow_end_state().orEmpty().map { state ->
+                    buildMap()
+                        .with("aggregate", getText(state.flow_view_aggregate()))
+                        .with("values", state.flow_end_state_value().keyword().map { it.text })
+                }
+                val path = "flows.$flowName.end.outcomes[${outcomes.size}]"
+                model.setLocation(path, getLocations(endOutcome))
+                outcomes.add(buildMap()
+                    .with("name", outcomeName)
+                    .with("events", outcomeEvents)
+                    .with("states", states))
+            } catch (e: Exception) {
+                // an outcome line still being typed: the others keep their place
+                model.addProblem("flows.$flowName.end.outcomes[${outcomes.size}]", endOutcome.text, "Incomplete end outcome")
             }
-            val path = "flows.$flowName.end.outcomes[${outcomes.size}]"
-            model.setLocation(path, getLocations(endOutcome))
-            outcomes.add(buildMap()
-                .with("name", outcomeName)
-                .with("events", outcomeEvents)
-                .with("states", states))
         }
 
         currentStack.last().appendToWithMap("endOutcomes", endOutcomes)
