@@ -8,9 +8,9 @@ data class ZflEnd(
     val description: String? = null,
     /** Every event of each outcome, the lines of a repeated outcome merged. */
     val endOutcomes: Map<String, List<String>> = emptyMap(),
+    val sourceRef: SourceRef,
     /** The outcomes in order, each with the final-state variants of its lines. */
     val outcomes: List<ZflEndOutcome> = emptyList(),
-    val sourceRef: SourceRef
 )
 
 /** One outcome of `end`. An outcome written on several lines is one outcome with several [variants]. */

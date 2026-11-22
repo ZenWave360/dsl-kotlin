@@ -29,8 +29,8 @@ enum class FlowGraphNodeType {
     START,
     ACTION,
     OUTCOME,
-    READ_MODEL,
-    POLICY
+    POLICY,
+    READ_MODEL
 }
 
 data class FlowGraphEdge(

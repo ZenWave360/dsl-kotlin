@@ -35,8 +35,6 @@ data class ZflCommandOccurrence(
     val actor: String? = null,
     val timer: String? = null,
     val options: Map<String, String?> = emptyMap(),
-    /** Rule names from `@rules(...)` on this occurrence. */
-    val rules: List<String> = emptyList(),
     val system: String? = null,
     val service: String? = null,
     val servicePath: String? = null,
@@ -44,6 +42,8 @@ data class ZflCommandOccurrence(
     val emissions: List<ZflEmission> = emptyList(),
     val responses: List<ZflResponse> = emptyList(),
     val sourceRef: SourceRef,
+    /** Rule names from `@rules(...)` on this occurrence. */
+    val rules: List<String> = emptyList(),
 )
 
 /**
@@ -64,7 +64,7 @@ data class ZflCommand(
     val responses: List<String> = emptyList(),
     val steps: List<ZflActionStep> = emptyList(),
     val occurrences: List<ZflCommandOccurrence> = emptyList(),
+    val sourceRef: SourceRef,
     /** Rule names from `@rules(...)` on any occurrence, in order, without repeats. */
     val rules: List<String> = emptyList(),
-    val sourceRef: SourceRef,
 )
