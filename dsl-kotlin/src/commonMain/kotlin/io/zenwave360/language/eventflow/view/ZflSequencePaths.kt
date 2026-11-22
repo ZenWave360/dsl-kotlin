@@ -118,7 +118,8 @@ class ZflSequencePaths(
                 triggers = occurrence.triggers,
                 steps = occurrence.steps.ifEmpty { command.steps },
                 participant = SequenceParticipant(sequenceParticipantAlias(label), label, ParticipantKind.PARTICIPANT, system),
-                policy = flow.policies.firstOrNull { it.command == command.name && it.triggers == occurrence.triggers },
+                policy = flow.policies.filter { it.command == command.name && it.triggers == occurrence.triggers && it.fromTimerBlock == ("@timer[" in occurrence.key) }
+                    .let { candidates -> candidates.firstOrNull { it.sourceRef == occurrence.sourceRef } ?: candidates.firstOrNull() },
                 rules = occurrence.rules
             )
         }
