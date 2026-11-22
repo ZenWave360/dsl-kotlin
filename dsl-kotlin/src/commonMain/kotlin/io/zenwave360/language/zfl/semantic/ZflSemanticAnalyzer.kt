@@ -160,8 +160,25 @@ class ZflSemanticAnalyzer {
                 )
             }
 
+            // a timer is drawn as a policy with a timer, armed by its event, like a `when` with `@time`
+            flowModel.getMapList("timers").forEachIndexed { index, timerModel ->
+                val timer = timers[index]
+                policies += ZflPolicy(
+                    description = timer.description,
+                    triggers = listOfNotNull(timer.after),
+                    condition = null,
+                    compensates = timer.options["compensates"] ?: timer.options["compensate"],
+                    command = timer.command,
+                    title = timer.options["title"],
+                    timer = timerLabel(timer),
+                    events = commandByName[timer.command]?.emits?.map { it.eventName }.orEmpty(),
+                    rules = (timerModel["occurrence"] as? Map<String, Any?>)?.ruleNames().orEmpty(),
+                    sourceRef = timer.sourceRef,
+                )
+            }
+
             diagnostics += validateCalls(flowName, commandByName.values.toList())
-            diagnostics += validateUnreachableActions(flowName, commandByName.values.toList(), policies, timers.map { it.command }.toSet())
+            diagnostics += validateUnreachableActions(flowName, commandByName.values.toList(), policies)
 
             val endOutcomes = flowModel.getStringListMap("end.endOutcomes")
             val endLines = flowModel.getMap("end").getMapList("outcomes")
@@ -281,6 +298,12 @@ class ZflSemanticAnalyzer {
             }
         }
         return result
+    }
+
+    /** `10 minutes after OrderCreated, unless A, B` or `at Booking.endsAt, unless C`. */
+    private fun timerLabel(timer: ZflTimer): String {
+        val arming = timer.at?.let { "at $it" } ?: listOfNotNull(timer.duration, "after ${timer.after}").joinToString(" ")
+        return arming + if (timer.unless.isEmpty()) "" else ", unless ${timer.unless.joinToString(", ")}"
     }
 
     private fun toEndOutcomes(flowName: String, lines: List<Map<String, Any?>>): List<ZflEndOutcome> {
@@ -753,9 +776,8 @@ class ZflSemanticAnalyzer {
         flowName: String,
         commands: List<ZflCommand>,
         policies: List<ZflPolicy>,
-        timerCommands: Set<String> = emptySet(),
     ): List<ZflSemanticDiagnostic> {
-        val reachable = (policies.map { it.command } + timerCommands).toMutableSet()
+        val reachable = policies.map { it.command }.toMutableSet()
         fun collect(call: ZflCallStep) {
             reachable += call.action
             call.handlers.forEach { handler ->

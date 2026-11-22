@@ -63,11 +63,7 @@ SUSPENDED: 'suspended';
 CANCELLED: 'cancelled';
 AND: 'and';
 VIEW: 'view';
-BY: 'by';
 TIMER: 'timer';
-AFTER: 'after';
-AT: 'at';
-UNLESS: 'unless';
 
 // field validators
 REQUIRED: 'required';
@@ -119,7 +115,7 @@ javadoc: JAVADOC;
 suffix_javadoc: JAVADOC;
 
 // values
-keyword: ID | IMPORT | CONFIG | FLOW | RULES | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | DO | FOR | END | COMPLETED | SUSPENDED | CANCELLED | AND | VIEW | BY | TIMER | AFTER | AT | UNLESS | ASYNC | RESPONSE | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
+keyword: ID | IMPORT | CONFIG | FLOW | RULES | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | DO | FOR | END | COMPLETED | SUSPENDED | CANCELLED | AND | VIEW | TIMER | ASYNC | RESPONSE | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
 
 //complex_value: value | array | object;
 //value: simple | object;
@@ -174,8 +170,10 @@ flow_name: ID;
 flow_body: (flow_view | flow_start | flow_when | flow_timer | flow_do | flow_end | flow_rules)*;
 
 // view: the aggregates of one flow instance and how each reaches the instance key
-flow_view: javadoc? annotations VIEW flow_view_name BY flow_view_key LBRACE (flow_view_member COMMA?)* RBRACE;
+// `by`, `after`, `at` and `unless` are contextual: IDs that the listener checks, so they stay usable as names
+flow_view: javadoc? annotations VIEW flow_view_name flow_view_by flow_view_key LBRACE (flow_view_member COMMA?)* RBRACE;
 flow_view_name: ID;
+flow_view_by: ID;
 flow_view_key: flow_view_aggregate flow_view_path;
 flow_view_member: flow_view_aggregate ARRAY? flow_view_path?;
 flow_view_aggregate: ID;
@@ -193,12 +191,13 @@ flow_when_event_trigger: ID;
 flow_command_name: ID;
 
 // timers: armed by an event or at a view datum, disarmed by any `unless` event
-flow_timer: javadoc? annotations TIMER (flow_timer_after | flow_timer_at) (UNLESS flow_timer_unless)? DO flow_command_name (LBRACE flow_do_body RBRACE)?;
-flow_timer_after: AFTER flow_timer_event flow_timer_duration;
+flow_timer: javadoc? annotations TIMER (flow_timer_after | flow_timer_at) flow_timer_unless? DO flow_command_name (LBRACE flow_do_body RBRACE)?;
+flow_timer_after: flow_timer_keyword flow_timer_event flow_timer_duration;
+flow_timer_keyword: ID;
 flow_timer_event: ID;
 flow_timer_duration: DOUBLE_QUOTED_STRING | SINGLE_QUOTED_STRING;
-flow_timer_at: AT flow_view_aggregate flow_view_path;
-flow_timer_unless: flow_timer_event (COMMA flow_timer_event)*;
+flow_timer_at: flow_timer_keyword flow_view_aggregate flow_view_path;
+flow_timer_unless: flow_timer_keyword flow_timer_event (COMMA flow_timer_event)*;
 
 // action blocks
 flow_do: javadoc? annotations DO flow_command_name LBRACE flow_do_body RBRACE;

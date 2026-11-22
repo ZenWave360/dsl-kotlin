@@ -121,6 +121,54 @@ class ZflViewTimerEndTest {
     }
 
     @Test
+    fun timersArePoliciesWithATimerArmedByTheirEvent() {
+        val orderFlow = analyze(flow).flows.single()
+        val expire = orderFlow.policies.single { it.command == "expireOrder" }
+        assertEquals(listOf("OrderCreated"), expire.triggers)
+        assertEquals("10 minutes after OrderCreated, unless PaymentAuthorized, PaymentDeclined", expire.timer)
+        assertEquals("placeOrder", expire.compensates)
+        assertEquals(listOf("OrderExpired"), expire.events)
+        val archive = orderFlow.policies.single { it.command == "archiveOrder" }
+        assertEquals(emptyList(), archive.triggers)
+        assertEquals("at Order.expiresAt", archive.timer)
+    }
+
+    @Test
+    fun byAfterAtAndUnlessAreContextualWords() {
+        val model = analyze(
+            """
+            systems { by { service at { commands: after } } }
+            flow unless {
+                view V by Order.id { Order Payment.by }
+                start after { at String unless String by String }
+                when after do at {
+                    service by.at
+                    emits unless
+                }
+                timer after unless "1 day" unless after do by {
+                    service by.at
+                    emits at
+                }
+                end { completed: unless, at }
+            }
+            """
+        )
+        assertEquals(emptyList(), model.diagnostics.map { it.message })
+        val unless = model.flows.single()
+        assertEquals(listOf("by"), unless.view?.members?.last()?.path)
+        assertEquals(setOf("at", "unless", "by"), unless.starts.single().fields.keys)
+        assertEquals("unless", unless.timers.single().after)
+        assertEquals(listOf("after"), unless.timers.single().unless)
+
+        val errors = ZflLinter().lint("flow F { view V with Order.id { Order } timer later X \"1d\" until Y do z }").diagnostics
+            .filter { it.severity == Severity.ERROR }.map { it.message }
+        assertEquals(
+            listOf("Expected 'by' but found 'with'", "Expected 'after' but found 'later'", "Expected 'unless' but found 'until'"),
+            errors,
+        )
+    }
+
+    @Test
     fun flowsWithoutViewOrTimerAndEndWithoutStatesStayValid() {
         val model = analyze(
             """

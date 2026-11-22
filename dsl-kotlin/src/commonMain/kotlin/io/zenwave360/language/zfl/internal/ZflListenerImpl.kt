@@ -221,6 +221,7 @@ class ZflListenerImpl : ZflBaseListener() {
         val viewPath = "flows.$flowName.views[${views.size - 1}]"
         model.setLocation(viewPath, getLocations(ctx))
         model.setLocation("$viewPath.key", getLocations(key))
+        expectWord(ctx.flow_view_by(), "by", "$viewPath.by")
         @Suppress("UNCHECKED_CAST")
         val members = view["members"] as MutableList<Any?>
         ctx.flow_view_member().forEach { member ->
@@ -237,6 +238,13 @@ class ZflListenerImpl : ZflBaseListener() {
         currentStack.removeLast()
     }
 
+    /** `by`, `after`, `at` and `unless` are contextual words: the grammar reads an ID, this checks which. */
+    private fun expectWord(ctx: ParserRuleContext?, word: String, path: String) {
+        if (ctx == null || ctx.text == word) return
+        model.setLocation(path, getLocations(ctx))
+        model.addProblem(path, ctx.text, "Expected '$word' but found '%s'")
+    }
+
     private fun pathSegments(ctx: ZflParser.Flow_view_pathContext?): List<String> =
         ctx?.keyword()?.map { it.text }.orEmpty()
 
@@ -250,11 +258,16 @@ class ZflListenerImpl : ZflBaseListener() {
         val at = ctx.flow_timer_at()?.let { listOf(getText(it.flow_view_aggregate())) + pathSegments(it.flow_view_path()) }
             ?.joinToString(".")
         val unless = ctx.flow_timer_unless()?.flow_timer_event()?.map { it.text }.orEmpty()
+        val timerPath = "flows.$flowName.timers[${(flow["timers"] as? List<*>)?.size ?: 0}]"
+        ctx.flow_timer_after()?.let { expectWord(it.flow_timer_keyword(), "after", "$timerPath.after") }
+        ctx.flow_timer_at()?.let { expectWord(it.flow_timer_keyword(), "at", "$timerPath.at") }
+        ctx.flow_timer_unless()?.let { expectWord(it.flow_timer_keyword(), "unless", "$timerPath.unless") }
         val occurrence = createOccurrence(
             flow = flow,
             actionName = actionName,
             description = javadoc(ctx.javadoc()),
-            triggers = emptyList(),
+            // the arming event triggers the command, so paths and diagrams follow the timer
+            triggers = listOfNotNull(after),
             options = getOptions(ctx.annotations()),
             definition = false,
             locations = getLocations(ctx),
@@ -267,7 +280,7 @@ class ZflListenerImpl : ZflBaseListener() {
             .with("at", at)
             .with("unless", unless)
             // `triggers` and `action` let a timer body be read as a `when` body
-            .with("triggers", emptyList<String>())
+            .with("triggers", listOfNotNull(after))
             .with("action", actionName)
             .with("javadoc", javadoc(ctx.javadoc()))
             .with("options", getOptions(ctx.annotations()))
