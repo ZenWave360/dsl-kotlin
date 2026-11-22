@@ -69,8 +69,17 @@ sealed interface CommandAdapter {
     data class AsyncApi(val channel: String, val api: String?, val module: String? = null, val event: String? = null) : CommandAdapter
 }
 
-/** A business rule: [aggregate] is the optional `rules (Aggregate)`. */
-data class ZdlRule(val name: String, val value: String, val aggregate: String?)
+/**
+ * A business rule: [aggregate] is the optional `rules (Aggregate)`. [options] are its free annotations
+ * (`@invariant`, `@pre`...) by name, with the value as text or null; [javadoc] its comment.
+ */
+data class ZdlRule(
+    val name: String,
+    val value: String,
+    val aggregate: String?,
+    val options: Map<String, String?> = emptyMap(),
+    val javadoc: String? = null,
+)
 
 /**
  * A service method or an aggregate command.
@@ -176,7 +185,11 @@ class ZdlDomain(private val model: ZdlModel) {
         rules = (model["rules"].let { it as? Map<*, *> }?.values ?: model["rules"] as? List<*>).orEmpty().mapNotNull { raw ->
             val rule = raw.asMap()
             val name = rule["name"] as? String ?: return@mapNotNull null
-            ZdlRule(name, rule["value"]?.toString().orEmpty(), rule.text("aggregate"))
+            ZdlRule(
+                name, rule["value"]?.toString().orEmpty(), rule.text("aggregate"),
+                rule.sub("options").mapValues { (_, v) -> optionText(v) },
+                rule.text("javadoc"),
+            )
         }
         val all = linkedMapOf<String, ZdlType>()
         for (kind in listOf(ZdlTypeKind.ENTITY, ZdlTypeKind.ENUM, ZdlTypeKind.INPUT, ZdlTypeKind.OUTPUT, ZdlTypeKind.EVENT)) {
@@ -474,6 +487,13 @@ class ZdlDomain(private val model: ZdlModel) {
 
 @Suppress("UNCHECKED_CAST")
 private fun Any?.asMap(): Map<String, Any?> = this as? Map<String, Any?> ?: emptyMap()
+
+/** The value of an annotation as text; null for one written without a value (`true`). */
+private fun optionText(value: Any?): String? = when (value) {
+    null, true -> null
+    is Map<*, *> -> value.entries.joinToString(", ") { "${it.key}: ${it.value}" }
+    else -> value.toString()
+}
 
 private fun Map<String, Any?>.sub(key: String): Map<String, Any?> = this[key].asMap()
 

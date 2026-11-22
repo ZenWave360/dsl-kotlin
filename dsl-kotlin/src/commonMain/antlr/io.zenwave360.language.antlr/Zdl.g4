@@ -182,7 +182,7 @@ plugin_config_cli_option: '--' keyword (EQUALS simple)?;
 policies: (POLICIES | RULES) (LPAREN policy_aggregate RPAREN)? policies_body;
 policy_aggregate: ID;
 policies_body: LBRACE policie_body* RBRACE;
-policie_body: policie_name policie_value;
+policie_body: javadoc? annotations policie_name policie_value;
 policie_name: ID | POLICY_ID;
 policie_value: simple;
 

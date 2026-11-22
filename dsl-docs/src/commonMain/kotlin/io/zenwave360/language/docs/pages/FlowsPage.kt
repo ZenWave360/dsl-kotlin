@@ -8,6 +8,7 @@ import io.zenwave360.language.docs.internal.problemText
 import io.zenwave360.language.docs.internal.resolveRuleRef
 import io.zenwave360.language.docs.internal.ruleAnchor
 import io.zenwave360.language.docs.internal.ruleKey
+import io.zenwave360.language.docs.internal.ruleTags
 import io.zenwave360.language.eventflow.application.GenerateMermaidFromZfl
 import io.zenwave360.language.eventflow.view.MermaidDiagramsView
 import io.zenwave360.language.eventflow.view.MermaidSequenceDiagram
@@ -169,6 +170,8 @@ internal object FlowsPage {
             append("The business rules of the flow, and the commands that apply them.\n\n")
             for (rule in rules) {
                 append(anchors.heading(3, Markdown.inline(rule.name), ruleAnchor(rule.aggregate, rule.name)))
+                if (rule.options.isNotEmpty()) append(ruleTags(rule.options)).append("\n\n")
+                rule.javadoc?.takeIf { it.isNotBlank() }?.let { append(Markdown.javadoc(it)).append("\n\n") }
                 rule.aggregate?.let { append("Aggregate: ").append(Markdown.code(it)).append("\n\n") }
                 if (rule.value.isNotBlank()) append(Markdown.inline(rule.value)).append("\n\n")
                 val appliedBy = flow?.commands.orEmpty().filter { c -> c.rules.any { resolveRuleRef(it, ruleList) == ruleKey(rule.aggregate, rule.name) } }.map { it.name }

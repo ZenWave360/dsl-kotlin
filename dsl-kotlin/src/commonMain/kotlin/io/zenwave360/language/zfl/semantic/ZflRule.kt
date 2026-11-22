@@ -9,5 +9,8 @@ data class ZflRule(
     val name: String,
     val value: String,
     val aggregate: String? = null,
+    /** Free annotations (`@invariant`, `@pre`...) by name; null value when written without one. */
+    val options: Map<String, String?> = emptyMap(),
+    val javadoc: String? = null,
     val sourceRef: SourceRef,
 )

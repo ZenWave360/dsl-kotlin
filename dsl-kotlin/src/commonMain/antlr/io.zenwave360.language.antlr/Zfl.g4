@@ -202,6 +202,6 @@ flow_end_outcome_event: ID;
 
 flow_rules: RULES (LPAREN rules_aggregate RPAREN)? LBRACE flow_rule* RBRACE;
 rules_aggregate: ID;
-flow_rule: flow_rule_name flow_rule_value;
+flow_rule: javadoc? annotations flow_rule_name flow_rule_value;
 flow_rule_name: ID | POLICY_ID;
 flow_rule_value: simple;

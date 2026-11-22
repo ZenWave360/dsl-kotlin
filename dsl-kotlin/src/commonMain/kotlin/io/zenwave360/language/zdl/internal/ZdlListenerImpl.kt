@@ -204,7 +204,11 @@ class ZdlListenerImpl : ZdlBaseListener() {
         // keyed by "<aggregate>.<name>" (just "<name>" without aggregate) so equal names under different aggregates do not collide
         val key = if (aggregate != null) "$aggregate.$name" else name
         // `rules` is the model key. `policies` stays filled so zenwave-sdk templates keep working.
-        val entry = buildMap().with(key, buildMap().with("name", name).with("value", value).with("aggregate", aggregate))
+        val options = relationshipOptions(ctx.annotations().option())
+        val body = buildMap().with("name", name).with("value", value).with("aggregate", aggregate)
+            .with("options", options)
+            .with("javadoc", javadoc(ctx.javadoc()))
+        val entry = buildMap().with(key, body)
         model.appendToWithMap("rules", entry)
         model.appendToWithMap("policies", entry)
         super.enterPolicie_body(ctx)
@@ -260,6 +264,8 @@ class ZdlListenerImpl : ZdlBaseListener() {
     }
 
     override fun enterOption(ctx: ZdlParser.OptionContext) {
+        // annotations of a rule are read by enterPolicie_body, they do not belong to the element on the stack
+        if (ctx.getParent()?.getParent() is ZdlParser.Policie_bodyContext) return
         val name = ctx.option_name().text.replace("@", "")
         val value = getOptionValue(ctx.option_value())
         if (currentStack.isNotEmpty()) {
