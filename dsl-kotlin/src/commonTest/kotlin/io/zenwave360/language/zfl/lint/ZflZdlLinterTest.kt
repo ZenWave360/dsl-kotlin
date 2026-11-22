@@ -226,6 +226,20 @@ class ZflZdlLinterTest {
     }
 
     @Test
+    fun anEventEmittedAsAResponseStillCorrelates() {
+        val extra = """
+            when OrderCancelled do refundPayment {
+                service Payments.PaymentsService
+                emits response PaymentRefunded
+            }
+        """
+        assertWarns(
+            "Event 'PaymentRefunded' cannot be correlated with view 'OrderView': it carries none of 'orderId', 'paymentId', 'notificationId'.",
+            lint(flow(goodView, extra = extra)),
+        )
+    }
+
+    @Test
     fun aStartFieldThatALaterCommandNeedsReachesIt() {
         val actual = lint(flow(goodView))
         assertWarns(
@@ -234,6 +248,40 @@ class ZflZdlLinterTest {
         )
         // customerId is in Order, a view aggregate
         assertTrue(actual.none { "'customerId' is lost" in it }, actual.joinToString("\n"))
+    }
+
+    @Test
+    fun theImplicitIdBelongsToEntitiesAndAggregatesOnly() {
+        // the ZDL itself reports the input used as a field type; the linter still reads what it can
+        val notifications = """
+            @aggregate
+            entity Notification {
+                orderId String
+                payload NotificationPayload
+                owner Receipt
+            }
+
+            @aggregate
+            entity Receipt {
+                orderId String
+            }
+
+            input NotificationPayload {
+                text String
+            }
+        """
+        val zdls = mapOf("Orders" to ZdlParser().parseModel(ordersZdl), "Payments" to ZdlParser().parseModel(notifications))
+        fun lintView(member: String): List<String> {
+            val view = "view OrderView by Order.orderId { Order $member }"
+            val result = ZflLinter().lint(flow(view), "flow.zfl")
+            return ZflZdlLinter().lint(result.model, zdls).map { it.message }
+        }
+        assertTrue(
+            "Path 'Notification.payload.id' of view 'OrderView' does not exist: 'NotificationPayload' has no field 'id'." in lintView("Notification[].payload.id"),
+        )
+        // an entity or aggregate has its implicit id, at the root and nested
+        assertTrue(lintView("Notification[].id").none { "does not exist" in it })
+        assertTrue(lintView("Notification[].owner.id").none { "does not exist" in it })
     }
 
     @Test
