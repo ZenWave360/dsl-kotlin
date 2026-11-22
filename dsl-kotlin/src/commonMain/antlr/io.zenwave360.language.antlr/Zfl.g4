@@ -126,7 +126,8 @@ keyword: ID | IMPORT | CONFIG | FLOW | RULES | SYSTEMS | ZDL | SERVICE | COMMAND
 complex_value : value | array_plain | pairs;
 value: object| array | simple;
 string: keyword | SINGLE_QUOTED_STRING | DOUBLE_QUOTED_STRING;
-simple: ID | SINGLE_QUOTED_STRING | DOUBLE_QUOTED_STRING | INT | NUMBER | TRUE | FALSE | NULL | keyword;
+simple: ID | qualified_name | SINGLE_QUOTED_STRING | DOUBLE_QUOTED_STRING | INT | NUMBER | TRUE | FALSE | NULL | keyword;
+qualified_name: ID (DOT ID)+;
 object: LBRACE pair (COMMA pair)* RBRACE
       | LBRACE RBRACE;
 pair: string COLON value;

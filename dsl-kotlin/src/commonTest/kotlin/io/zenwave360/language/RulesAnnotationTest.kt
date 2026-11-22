@@ -191,4 +191,54 @@ class RulesAnnotationTest {
         val loc = warning["location"] as IntArray
         assertEquals("""@policy(minimumAmount, "stock-first")""", text.substring(loc[0], loc[1]))
     }
+
+    @Test
+    fun zflUnquotedQualifiedName_sameModelAsQuoted_andWarnsOnTheWholeName() {
+        val quoted = analyze(zfl("""@rules("Order.limit", audit)
+            when PlaceOrderRequested do placeOrder""")).flows.single().commands.single()
+        val text = zfl("""@rules(Order.limit, audit)
+            when PlaceOrderRequested do placeOrder""")
+        val semantic = analyze(text)
+        assertEquals(listOf("Order.limit", "audit"), semantic.flows.single().commands.single().rules)
+        assertEquals(quoted.rules, semantic.flows.single().commands.single().rules)
+        val warning = semantic.diagnostics.single { "rule" in it.message }
+        assertEquals("Flow 'PlaceOrder' has no rule 'Order.limit'.", warning.message)
+        val at = text.indexOf("Order.limit")
+        assertEquals(at - (text.lastIndexOf('\n', at) + 1) + 1, warning.sourceRef!!.column)
+    }
+
+    @Test
+    fun zflUnquotedQualifiedName_inDoBlock() {
+        val semantic = analyze(zfl("""@rules(Order.limit)
+            do placeOrder {
+            }"""))
+        assertEquals(listOf("Order.limit"), semantic.flows.single().commands.single().rules)
+    }
+
+    @Test
+    fun zdlUnquotedQualifiedName_sameAsQuoted() {
+        val unquoted = zdl("""@rules(Order.limit, minimumAmount)
+            placeOrder(Order) Order""")
+        val quoted = zdl("""@rules("Order.limit", minimumAmount)
+            placeOrder(Order) Order""")
+        assertEquals(listOf("Order.limit", "minimumAmount"), methodRules(unquoted))
+        assertEquals(methodRules(quoted), methodRules(unquoted))
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun zdlOption(text: String): Any? =
+        (((ZflParser().parseModel(text)["systems"] as Map<String, Any?>)["Orders"] as Map<String, Any?>)["options"]
+            as Map<String, Any?>)["zdl"]
+
+    @Test
+    fun zflSystemZdl_listKeepsOrder_singleStaysAString() {
+        assertEquals(
+            listOf("../orders/orders.zdl", "https://example.com/orders/orders.zdl"),
+            zdlOption("""systems {
+                @zdl("../orders/orders.zdl", "https://example.com/orders/orders.zdl")
+                Orders { service OrderService } }"""))
+        assertEquals("../orders/orders.zdl", zdlOption("""systems {
+                @zdl("../orders/orders.zdl")
+                Orders { service OrderService } }"""))
+    }
 }
