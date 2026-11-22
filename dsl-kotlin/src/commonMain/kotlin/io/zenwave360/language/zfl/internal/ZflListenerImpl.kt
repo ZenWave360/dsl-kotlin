@@ -221,6 +221,7 @@ class ZflListenerImpl : ZflBaseListener() {
         val viewPath = "flows.$flowName.views[${views.size - 1}]"
         model.setLocation(viewPath, getLocations(ctx))
         model.setLocation("$viewPath.key", getLocations(key))
+        expectWord(ctx.flow_view_keyword(), "view", "$viewPath.view")
         expectWord(ctx.flow_view_by(), "by", "$viewPath.by")
         @Suppress("UNCHECKED_CAST")
         val members = view["members"] as MutableList<Any?>
@@ -238,7 +239,7 @@ class ZflListenerImpl : ZflBaseListener() {
         currentStack.removeLast()
     }
 
-    /** `by`, `after`, `at` and `unless` are contextual words: the grammar reads an ID, this checks which. */
+    /** `view`, `timer`, `by`, `after`, `at` and `unless` are contextual words: the grammar reads an ID, this checks which. */
     private fun expectWord(ctx: ParserRuleContext?, word: String, path: String) {
         if (ctx == null || ctx.text == word) return
         model.setLocation(path, getLocations(ctx))
@@ -259,6 +260,7 @@ class ZflListenerImpl : ZflBaseListener() {
             ?.joinToString(".")
         val unless = ctx.flow_timer_unless()?.flow_timer_event()?.map { it.text }.orEmpty()
         val timerPath = "flows.$flowName.timers[${(flow["timers"] as? List<*>)?.size ?: 0}]"
+        expectWord(ctx.flow_timer_start(), "timer", "$timerPath.timer")
         ctx.flow_timer_after()?.let { expectWord(it.flow_timer_keyword(), "after", "$timerPath.after") }
         ctx.flow_timer_at()?.let { expectWord(it.flow_timer_keyword(), "at", "$timerPath.at") }
         ctx.flow_timer_unless()?.let { expectWord(it.flow_timer_keyword(), "unless", "$timerPath.unless") }
