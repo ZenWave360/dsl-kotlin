@@ -43,6 +43,42 @@ class ZflToMermaidDiagramsTransformer(
         )
     }
 
+    /**
+     * The variants under a variant id or a tree line id (spec:flows/eventflow#ef-r25) as one sequence diagram: a leaf
+     * as its own sequence, a line as alt blocks, one per variant, labelled by the steps they do not share.
+     * Null when the id names nothing.
+     */
+    fun transformVariants(semanticModel: ZflSemanticModel, id: String): MermaidSequenceDiagram? {
+        val flow = semanticModel.flows.firstOrNull() ?: return null
+        val all = zflFlowVariants(flow, maxCommandVisitsPerPath)
+        val node = flowVariantNode(all.map { it.variant }, id) ?: return null
+        val chosen = all.filter { it.variant.id in node.variantIds }
+        val paths = chosen.map { it.path }
+        val outcome = paths.first().endOutcome
+        val mermaid = if (paths.size == 1) {
+            renderSequenceDiagram(outcome, paths.first())
+        } else {
+            renderAltSequenceDiagram(outcome, paths, stepLabels(chosen.map { it.variant.steps }))
+        }
+        return MermaidSequenceDiagram(
+            endOutcome = outcome,
+            title = node.title,
+            startLabel = paths.first().start.name,
+            branchLabels = if (paths.size == 1) paths.first().choiceLabels else stepLabels(chosen.map { it.variant.steps }).distinct(),
+            mermaid = withTitleComment(mermaid, flow.name, node.title)
+        )
+    }
+
+    /** Alt label of each variant: its steps without the ones every variant shares at the start and at the end. */
+    private fun stepLabels(all: List<List<String>>): List<String> {
+        val shortest = all.minOf { it.size }
+        var prefix = 0
+        while (prefix < shortest && all.all { it[prefix] == all.first()[prefix] }) prefix++
+        var suffix = 0
+        while (suffix < shortest - prefix - 1 && all.all { it[it.size - 1 - suffix] == all.first()[all.first().size - 1 - suffix] }) suffix++
+        return all.map { steps -> steps.subList(prefix, steps.size - suffix).joinToString(" → ").ifBlank { "variant" } }
+    }
+
     private fun renderFlowchart(
         semanticModel: ZflSemanticModel,
         flow: ZflFlow,

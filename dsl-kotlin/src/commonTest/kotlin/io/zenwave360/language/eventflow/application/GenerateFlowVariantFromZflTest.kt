@@ -37,6 +37,32 @@ class GenerateFlowVariantFromZflTest {
     }
 
     @Test
+    fun variantsCarryTheirOutcomeAndStepsAndTheTitleIsWrittenFromThem() {
+        generator.variants(readTestFile("flow/place-order-flow.zfl")).forEach {
+            assertTrue(it.outcome.isNotBlank() && it.steps.isNotEmpty())
+            assertEquals(io.zenwave360.language.eventflow.view.variantTitle(it.steps, it.outcome), it.title)
+        }
+    }
+
+    @Test
+    fun aTreeLineLaysOutAllItsVariantsTogether() = runTest {
+        val content = readTestFile("flow/place-order-flow.zfl")
+        val tree = generator.variantTree(content)
+        val line = tree.flatMap { it.nodes }.first { it.children.isNotEmpty() }
+        val single = assertIs<FlowVariantViewResult.Found>(generator.variant(content, line.variantIds.first())).view
+        val together = assertIs<FlowVariantViewResult.Found>(generator.variant(content, line.id)).view
+        val full = generator.execute(content)
+
+        assertTrue(together.nodes.size >= single.nodes.size)
+        assertTrue(together.nodes.size <= full.nodes.size)
+        assertTrue(together.nodes.all { it.position != null })
+        assertTrue(together.nodes.map { it.id }.containsAll(single.nodes.map { it.id }))
+        assertTrue(together.edges.all { e -> together.nodes.any { it.id == e.source } && together.nodes.any { it.id == e.target } })
+        val siblings = line.variantIds.drop(1).map { assertIs<FlowVariantViewResult.Found>(generator.variant(content, it)).view }
+        assertTrue(siblings.all { s -> together.nodes.map { it.id }.containsAll(s.nodes.map { it.id }) })
+    }
+
+    @Test
     fun unknownVariantIsNotAnEmptyGraph() = runTest {
         val result = GenerateFlowViewFromZfl().variant(
             readTestFile("flow/place-order-flow.zfl"),

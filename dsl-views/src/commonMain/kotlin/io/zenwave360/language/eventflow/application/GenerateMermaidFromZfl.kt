@@ -23,4 +23,8 @@ class GenerateMermaidFromZfl(
         val semantic = semanticAnalyzer.analyze(model)
         return transformer.transform(semantic, sequenceRenderMode)
     }
+
+    /** The variants under a variant id or a variant tree line id, as one sequence diagram; null when the id names nothing. */
+    fun variants(zflContent: String, id: String): io.zenwave360.language.eventflow.view.MermaidSequenceDiagram? =
+        transformer.transformVariants(semanticAnalyzer.analyze(parser.parseModel(zflContent)), id)
 }
