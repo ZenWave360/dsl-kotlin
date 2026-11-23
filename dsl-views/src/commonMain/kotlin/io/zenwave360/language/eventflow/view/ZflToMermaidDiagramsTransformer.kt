@@ -30,9 +30,10 @@ class ZflToMermaidDiagramsTransformer(
             .flatMap { policy -> policy.triggers.map { trigger -> trigger to policy } }
             .groupBy({ it.first }, { it.second })
 
-        val engine = ZflSequencePaths(flow, maxCommandVisitsPerPath)
-        val paths = engine.paths()
-        val sequences = renderSequences(flow, paths, engine.happy(paths), sequenceRenderMode)
+        val variants = zflFlowVariants(flow, maxCommandVisitsPerPath)
+        val paths = variants.map { it.path }
+        val happy = ZflSequencePaths(flow, maxCommandVisitsPerPath).happy(paths)
+        val sequences = renderSequences(flow, paths, happy, sequenceRenderMode)
 
         return MermaidDiagramsView(
             flowName = flow.name,
@@ -40,6 +41,46 @@ class ZflToMermaidDiagramsTransformer(
             sequenceRenderMode = sequenceRenderMode,
             sequences = sequences
         )
+    }
+
+    /**
+     * The variants under a variant id or a tree line id (spec:flows/eventflow#ef-r25) as one sequence diagram: a leaf
+     * as its own sequence, a line as alt blocks, one per variant, labelled by the steps they do not share.
+     * Null when the id names nothing.
+     */
+    fun transformVariants(semanticModel: ZflSemanticModel, id: String): MermaidSequenceDiagram? =
+        transformVariantsWithNode(semanticModel, id)?.first
+
+    /** As [transformVariants], with the tree line the id names, so a caller can say how many variants it stands for. */
+    fun transformVariantsWithNode(semanticModel: ZflSemanticModel, id: String): Pair<MermaidSequenceDiagram, FlowVariantNode>? {
+        val flow = semanticModel.flows.firstOrNull() ?: return null
+        val all = zflFlowVariants(flow, maxCommandVisitsPerPath)
+        val node = flowVariantNode(all.map { it.variant }, id) ?: return null
+        val chosen = all.filter { it.variant.id in node.variantIds }
+        val paths = chosen.map { it.path }
+        val outcome = paths.first().endOutcome
+        val mermaid = if (paths.size == 1) {
+            renderSequenceDiagram(outcome, paths.first())
+        } else {
+            renderAltSequenceDiagram(outcome, paths, stepLabels(chosen.map { it.variant.steps }))
+        }
+        return MermaidSequenceDiagram(
+            endOutcome = outcome,
+            title = node.title,
+            startLabel = paths.first().start.name,
+            branchLabels = if (paths.size == 1) paths.first().choiceLabels else stepLabels(chosen.map { it.variant.steps }).distinct(),
+            mermaid = withTitleComment(mermaid, flow.name, node.title)
+        ) to node
+    }
+
+    /** Alt label of each variant: its steps without the ones every variant shares at the start and at the end. */
+    private fun stepLabels(all: List<List<String>>): List<String> {
+        val shortest = all.minOf { it.size }
+        var prefix = 0
+        while (prefix < shortest && all.all { it[prefix] == all.first()[prefix] }) prefix++
+        var suffix = 0
+        while (suffix < shortest - prefix - 1 && all.all { it[it.size - 1 - suffix] == all.first()[all.first().size - 1 - suffix] }) suffix++
+        return all.map { steps -> steps.subList(prefix, steps.size - suffix).joinToString(" → ").ifBlank { "variant" } }
     }
 
     private fun renderFlowchart(
@@ -56,28 +97,48 @@ class ZflToMermaidDiagramsTransformer(
         val outcomeNodes = linkedSetOf<String>()
 
         val startByName = flow.starts.associateBy { it.name }
+        val policyLabelsById = flow.policies.associate { policy ->
+            flowchartPolicyNodeId(policy) to policyLabel(policy)
+        }
 
         flow.starts.forEach { start ->
             val startId = flowchartNodeId("start", start.name)
-            val startLabel = start.actor ?: start.timer ?: start.name
-            val startShape = if (start.actor != null) "[\"$startLabel\"]" else "(($startLabel))"
+            val startLabel = listOfNotNull(start.actor ?: start.timer, start.name)
+                .distinct()
+                .joinToString("<br/>") { escape(it) }
+            val startShape = "([\"$startLabel\"])"
             nodeLines += "    $startId$startShape"
-            classAssignments += "    class $startId actor"
+            classAssignments += "    class $startId start"
+        }
+
+        // the flow graph leaves out the policy that only hands an actor start to its command, so does the flowchart
+        val drawnPolicyIds = graph.nodes.filter { it.type == FlowGraphNodeType.POLICY }.map { it.id }.toSet()
+        fun isDrawn(policy: ZflPolicy) = flowPolicyNodeId(policy) in drawnPolicyIds
+
+        flow.policies.filter(::isDrawn).forEach { policy ->
+            val policyId = flowchartPolicyNodeId(policy)
+            nodeLines += "    $policyId{{\"${policyLabel(policy)}\"}}"
+            classAssignments += "    class $policyId policy"
         }
 
         graph.nodes.forEach { node ->
+            if (node.type == FlowGraphNodeType.START && startByName.containsKey(node.label)) {
+                return@forEach
+            }
             val nodeId = flowchartNodeId(flowchartPrefix(node.type), node.label)
             val shape = when (node.type) {
-                FlowGraphNodeType.START -> "[\"${escape(node.label)}\"]"
+                FlowGraphNodeType.START -> "([\"${escape(node.label)}\"])"
                 FlowGraphNodeType.ACTION -> "[\"${escape(node.label)}\"]"
-                FlowGraphNodeType.OUTCOME -> "[/${escape(node.label)}/]"
-                FlowGraphNodeType.POLICY -> "{{\"${escape(node.label)}\"}}"
+                FlowGraphNodeType.OUTCOME -> "(\"${escape(node.label)}\")"
+                FlowGraphNodeType.READ_MODEL -> "[\"${escape(node.label)}\"]"
+                FlowGraphNodeType.POLICY -> "{{\"${policyLabelsById[nodeId] ?: escape(node.label)}\"}}"
             }
             nodeLines += "    $nodeId$shape"
             val klass = when (node.type) {
-                FlowGraphNodeType.START -> "actor"
-                FlowGraphNodeType.ACTION -> "action"
+                FlowGraphNodeType.START -> "start"
+                FlowGraphNodeType.ACTION -> "command"
                 FlowGraphNodeType.OUTCOME -> "event"
+                FlowGraphNodeType.READ_MODEL -> "readModel"
                 FlowGraphNodeType.POLICY -> "policy"
             }
             classAssignments += "    class $nodeId $klass"
@@ -86,7 +147,7 @@ class ZflToMermaidDiagramsTransformer(
         flow.end.endOutcomes.keys.forEach { endOutcome ->
             val terminalId = flowchartNodeId("terminal", endOutcome)
             nodeLines += "    $terminalId((\"${escape(endOutcome)}\"))"
-            classAssignments += "    class $terminalId terminal"
+            classAssignments += "    class $terminalId endOutcome"
         }
 
         val edgeLines = mutableListOf<String>()
@@ -95,8 +156,14 @@ class ZflToMermaidDiagramsTransformer(
             val startPolicies = policiesByTrigger[start.name].orEmpty()
             startPolicies.forEach { policy ->
                 val sourceId = flowchartNodeId("start", start.name)
-                val targetId = flowchartNodeId("action", policy.command)
-                edgeLines += "    $sourceId --> $targetId"
+                val policyId = flowchartPolicyNodeId(policy)
+                val commandId = flowchartNodeId("action", policy.command)
+                if (isDrawn(policy)) {
+                    edgeLines += "    $sourceId --> $policyId"
+                    edgeLines += "    $policyId --> $commandId"
+                } else {
+                    edgeLines += "    $sourceId --> $commandId"
+                }
             }
         }
 
@@ -115,16 +182,26 @@ class ZflToMermaidDiagramsTransformer(
             val outcome = edge.outcome
             if (
                 sourceNode.type == FlowGraphNodeType.ACTION &&
-                targetNode.type == FlowGraphNodeType.OUTCOME &&
-                outcome != null
+                targetNode.isOutcomeLike() &&
+                outcome == null &&
+                graph.edges.any {
+                    it.source == edge.source && it.target == edge.target && it.outcome != null
+                }
+            ) {
+                return@forEach
+            }
+            if (
+                sourceNode.type == FlowGraphNodeType.ACTION &&
+                targetNode.isOutcomeLike() &&
+                outcome != null && outcome != targetNode.label
             ) {
                 val outcomeNodeId = flowchartOutcomeNodeId(sourceNode.label, outcome)
                 if (outcomeNodes.add(outcomeNodeId)) {
-                    nodeLines += "    $outcomeNodeId([\"${escape(outcome)}\"])"
+                    nodeLines += "    $outcomeNodeId[/\"${escape(outcome)}\"/]"
                     classAssignments += "    class $outcomeNodeId outcomeNode"
-                    val label = edge.label?.let { "|${escape(it)}|" } ?: ""
-                    edgeLines += "    $sourceId -->$label $outcomeNodeId"
                 }
+                val label = edge.label?.let { "|${escape(it)}|" } ?: ""
+                edgeLines += "    $sourceId -->$label $outcomeNodeId"
                 edgeLines += "    $outcomeNodeId --> $targetId"
                 return@forEach
             }
@@ -136,7 +213,13 @@ class ZflToMermaidDiagramsTransformer(
         flow.end.endOutcomes.forEach { (endOutcome, eventNames) ->
             val terminalId = flowchartNodeId("terminal", endOutcome)
             eventNames.forEach { eventName ->
-                val eventId = flowchartNodeId("event", eventName)
+                // the terminal hangs from the node the graph drew: the event, else the read model
+                val sourceNode = graph.nodes.find { it.type == FlowGraphNodeType.OUTCOME && it.label == eventName }
+                    ?: graph.nodes.find { it.type == FlowGraphNodeType.READ_MODEL && it.label == eventName }
+                val eventId = flowchartNodeId(
+                    sourceNode?.let { flowchartPrefix(it.type) } ?: "event",
+                    eventName
+                )
                 edgeLines += "    $eventId --> $terminalId"
             }
         }
@@ -144,12 +227,13 @@ class ZflToMermaidDiagramsTransformer(
         lines += nodeLines.sorted()
         lines += edgeLines.distinct()
         lines += ""
-        lines += "    classDef actor fill:#dbeafe,stroke:#1d4ed8,color:#0f172a"
-        lines += "    classDef action fill:#dcfce7,stroke:#166534,color:#0f172a"
-        lines += "    classDef event fill:#f8fafc,stroke:#475569,color:#0f172a"
+        lines += "    classDef start fill:#475569,stroke:#1e293b,color:#ffffff"
+        lines += "    classDef command fill:#3b82f6,stroke:#1d4ed8,color:#ffffff"
+        lines += "    classDef readModel fill:#bbf7d0,stroke:#15803d,color:#0f172a"
+        lines += "    classDef event fill:#f97316,stroke:#c2410c,color:#ffffff"
         lines += "    classDef outcomeNode fill:#ede9fe,stroke:#6d28d9,color:#0f172a"
-        lines += "    classDef policy fill:#fef3c7,stroke:#92400e,color:#0f172a"
-        lines += "    classDef terminal fill:#fee2e2,stroke:#b91c1c,color:#0f172a"
+        lines += "    classDef policy fill:#a855f7,stroke:#7e22ce,color:#ffffff"
+        lines += "    classDef endOutcome fill:#ef4444,stroke:#b91c1c,color:#ffffff"
         lines += classAssignments.distinct()
         return lines.joinToString("\n")
     }
@@ -165,12 +249,13 @@ class ZflToMermaidDiagramsTransformer(
             val ofOutcome = paths.filter { it.endOutcome == endOutcome }
             if (sequenceRenderMode == MermaidSequenceRenderMode.SEPARATE_VARIANTS) {
                 ofOutcome.map { path ->
+                    val title = sequenceVariantTitle(path)
                     MermaidSequenceDiagram(
                         endOutcome = endOutcome,
-                        title = buildSequenceTitle(endOutcome, path.start.name, path.choiceLabels),
+                        title = title,
                         startLabel = path.start.name,
                         branchLabels = path.choiceLabels,
-                        mermaid = renderSequenceDiagram(endOutcome, path),
+                        mermaid = withTitleComment(renderSequenceDiagram(endOutcome, path), flow.name, title),
                         happy = path === happy
                     )
                 }
@@ -178,21 +263,30 @@ class ZflToMermaidDiagramsTransformer(
                 ofOutcome.groupBy { it.startIndex }.values.map { family ->
                     val startLabel = family.first().start.name
                     val branchLabels = familyLabels(family)
+                    val title = if (family.size == 1) sequenceVariantTitle(family.first()) else "from $startLabel to $endOutcome"
+                    val mermaid = if (family.size > 1) {
+                        renderAltSequenceDiagram(endOutcome, family, branchLabels)
+                    } else {
+                        renderSequenceDiagram(endOutcome, family.first())
+                    }
                     MermaidSequenceDiagram(
                         endOutcome = endOutcome,
-                        title = buildSequenceTitle(endOutcome, startLabel, emptyList()),
+                        title = title,
                         startLabel = startLabel,
                         branchLabels = if (family.size > 1) branchLabels.distinct() else family.first().choiceLabels,
-                        mermaid = if (family.size > 1) {
-                            renderAltSequenceDiagram(endOutcome, family, branchLabels)
-                        } else {
-                            renderSequenceDiagram(endOutcome, family.first())
-                        },
+                        mermaid = withTitleComment(mermaid, flow.name, title),
                         happy = family.any { it === happy }
                     )
                 }
             }
         }
+
+    /** The flow and variant title as a Mermaid comment after the header, so copied source says what it shows. */
+    private fun withTitleComment(mermaid: String, flowName: String, title: String): String {
+        val lines = mermaid.lines().toMutableList()
+        lines.add(1, "    %% " + "$flowName: $title".replace(Regex("\\s*[\\r\\n]+\\s*"), " "))
+        return lines.joinToString("\n")
+    }
 
     private fun renderSequenceDiagram(endOutcome: String, path: SequencePath): String {
         val lines = mutableListOf<String>()
@@ -249,9 +343,13 @@ class ZflToMermaidDiagramsTransformer(
         participants: List<SequenceParticipant>
     ) {
         lines += "sequenceDiagram"
-        participants.filter { it.kind == ParticipantKind.ACTOR }.forEach { lines += "    actor ${it.alias}" }
+        participants.filter { it.kind == ParticipantKind.ACTOR }.forEach { lines += actorLine(it) }
         participants.filter { it.kind != ParticipantKind.ACTOR }.forEach { lines += participantLine(it) }
     }
+
+    /** The display name is kept with `as` when the alias had to be sanitised. */
+    private fun actorLine(actor: SequenceParticipant): String =
+        if (actor.label == actor.alias) "    actor ${actor.alias}" else "    actor ${actor.alias} as ${escapeSequence(actor.label)}"
 
     private fun participantLine(participant: SequenceParticipant): String =
         "    participant ${participant.alias} as ${escapeSequence(participant.label)}"
@@ -273,6 +371,13 @@ class ZflToMermaidDiagramsTransformer(
         indent: String = "    "
     ) {
         messages.forEach { message ->
+            if (message.note) {
+                lines += "${indent}Note over ${message.from.alias}: ${escapeSequence(message.label)}"
+                return@forEach
+            }
+            if (message.rules.isNotEmpty()) {
+                lines += "$indent%% rules: " + message.rules.joinToString(", ") { it.replace(Regex("[;\\s]+"), " ").trim() }
+            }
             val arrow = if (message.dashed) "-->>" else "->>"
             lines += "$indent${message.from.alias}$arrow${message.to.alias}: ${escapeSequence(message.label)}"
         }
@@ -303,21 +408,6 @@ class ZflToMermaidDiagramsTransformer(
         return suffixLength
     }
 
-    private fun buildSequenceTitle(
-        endOutcome: String,
-        startLabel: String,
-        choices: List<String>
-    ): String =
-        buildString {
-            append(endOutcome)
-            append(": from ")
-            append(startLabel)
-            if (choices.isNotEmpty()) {
-                append(" via ")
-                append(choices.joinToString(" → "))
-            }
-        }
-
     private fun flowchartNodeId(prefix: String, value: String): String =
         "${prefix}_${value.replace(Regex("[^A-Za-z0-9_]"), "_")}"
 
@@ -326,15 +416,43 @@ class ZflToMermaidDiagramsTransformer(
             FlowGraphNodeType.START -> "start"
             FlowGraphNodeType.ACTION -> "action"
             FlowGraphNodeType.OUTCOME -> "event"
+            FlowGraphNodeType.READ_MODEL -> "readModel"
             FlowGraphNodeType.POLICY -> "policy"
         }
 
     private fun flowchartOutcomeNodeId(commandName: String, outcome: String): String =
         flowchartNodeId("outcome", "${commandName}_$outcome")
 
-    private fun escape(value: String): String =
-        value.replace("\"", "\\\"")
+    private fun FlowGraphNode.isOutcomeLike(): Boolean =
+        type == FlowGraphNodeType.OUTCOME || type == FlowGraphNodeType.READ_MODEL
 
-    private fun escapeSequence(value: String): String =
-        value.replace("\n", " ").replace(":", " -")
+    /**
+     * The policy's title, else its `when … do …` text, with its actor or timer as first line like a start.
+     * Already escaped for a quoted flowchart label: its parts are joined with a real `<br/>`.
+     */
+    private fun policyLabel(policy: ZflPolicy): String {
+        val text = policy.title ?: ("when ${policy.triggers.joinToString(", ")} do ${policy.command}" +
+            (if (policy.condition != null) " if ${policy.condition}" else ""))
+        val marker = policy.timer?.let { "⏳ $it" } ?: policy.actor?.let { "👤 $it" }
+        return if (marker == null) escape(text) else "${escape(marker)}<br/>${escape(text)}"
+    }
+
+    private fun flowchartPolicyNodeId(policy: ZflPolicy): String =
+        flowchartNodeId(
+            "policy",
+            "when ${policy.triggers.joinToString(",")} do ${policy.command}" +
+                (if (policy.condition != null) " if ${policy.condition}" else "")
+        )
+
+    /** Entity codes (`#quot;`) are Mermaid's way to write these characters inside a quoted flowchart label. */
+    private fun escape(value: String): String = entityCoded(value, flowchartEntities)
+
+    /** `:` is allowed after the first one of a message; `#`, `;` and `<`/`>` get entity codes. */
+    private fun escapeSequence(value: String): String = entityCoded(value.replace('\n', ' '), sequenceEntities)
+
+    private val flowchartEntities = mapOf('#' to "#35;", '"' to "#quot;", '<' to "#lt;", '>' to "#gt;")
+    private val sequenceEntities = mapOf('#' to "#35;", ';' to "#59;", '<' to "#lt;", '>' to "#gt;")
+
+    private fun entityCoded(value: String, entities: Map<Char, String>): String =
+        buildString { value.forEach { append(entities[it] ?: it) } }
 }

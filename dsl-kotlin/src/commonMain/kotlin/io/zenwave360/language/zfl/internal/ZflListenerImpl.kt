@@ -72,7 +72,27 @@ class ZflListenerImpl : ZflBaseListener() {
         currentStack.removeLast()
     }
 
+    override fun enterFlow_rule(ctx: ZflParser.Flow_ruleContext) {
+        val flow = currentStack.lastOrNull() ?: return
+        val flowName = flow["name"] as? String ?: return
+        val name = getText(ctx.flow_rule_name()) ?: return
+        val value = getValueText(ctx.flow_rule_value().simple())
+        val aggregate = getText((ctx.getParent() as? ZflParser.Flow_rulesContext)?.rules_aggregate())
+        val rule = buildMap()
+            .with("name", name)
+            .with("value", value)
+            .with("aggregate", aggregate)
+            .with("options", getOptions(ctx.annotations()))
+            .with("javadoc", javadoc(ctx.javadoc()))
+        @Suppress("UNCHECKED_CAST")
+        val rules = flow.getOrPut("rules") { mutableListOf<Any?>() } as MutableList<Any?>
+        rules.add(rule)
+        model.setLocation("flows.$flowName.rules[${rules.size - 1}]", getLocations(ctx))
+    }
+
     override fun enterOption(ctx: ZflParser.OptionContext) {
+        // annotations of a rule are read by enterFlow_rule, they do not belong to the element on the stack
+        if (ctx.getParent()?.getParent() is ZflParser.Flow_ruleContext) return
         val name = ctx.option_name().text.replace("@", "")
         val value = getOptionValue(ctx.option_value())
         if (currentStack.isNotEmpty()) {
@@ -181,6 +201,124 @@ class ZflListenerImpl : ZflBaseListener() {
         currentStack.last().appendTo("fields", name!!, field)
     }
 
+    // View block
+    override fun enterFlow_view(ctx: ZflParser.Flow_viewContext) = guardedBlock("view", ctx) { enterFlowView(ctx) }
+
+    private fun enterFlowView(ctx: ZflParser.Flow_viewContext) {
+        val flow = currentStack.last()
+        val flowName = flow["name"] as String
+        val key = ctx.flow_view_key()
+        val view = buildMap()
+            .with("name", getText(ctx.flow_view_name()))
+            .with("keyAggregate", getText(key.flow_view_aggregate()))
+            .with("keyPath", pathSegments(key.flow_view_path()))
+            .with("javadoc", javadoc(ctx.javadoc()))
+            .with("options", buildMap())
+            .with("members", mutableListOf<Any?>())
+            // the view must be the first block of the flow
+            .with("first", (ctx.getParent() as? ParserRuleContext)?.children?.firstOrNull() === ctx)
+        @Suppress("UNCHECKED_CAST")
+        val views = flow.getOrPut("views") { mutableListOf<Any?>() } as MutableList<Any?>
+        views.add(view)
+        val viewPath = "flows.$flowName.views[${views.size - 1}]"
+        model.setLocation(viewPath, getLocations(ctx))
+        model.setLocation("$viewPath.key", getLocations(key))
+        expectWord(ctx.flow_view_keyword(), "view", "$viewPath.view")
+        expectWord(ctx.flow_view_by(), "by", "$viewPath.by")
+        @Suppress("UNCHECKED_CAST")
+        val members = view["members"] as MutableList<Any?>
+        ctx.flow_view_member().forEach { member ->
+            members.add(buildMap()
+                .with("aggregate", getText(member.flow_view_aggregate()))
+                .with("path", pathSegments(member.flow_view_path()))
+                .with("many", member.ARRAY() != null))
+            model.setLocation("$viewPath.members[${members.size - 1}]", getLocations(member))
+        }
+        currentStack.addLast(view)
+    }
+
+    override fun exitFlow_view(ctx: ZflParser.Flow_viewContext) {
+        currentStack.removeLast()
+    }
+
+    /**
+     * A `view` or `timer` still being typed misses parts the grammar requires. That is a problem on the block, not
+     * a failure of the walk: the block is dropped, the stack stays balanced for its exit, and the next block parses.
+     */
+    private fun guardedBlock(what: String, ctx: ParserRuleContext, enter: () -> Unit) {
+        val depth = currentStack.size
+        try {
+            enter()
+        } catch (e: Exception) {
+            val flowName = currentStack.getOrNull(depth - 1)?.get("name")
+            val path = "flows.$flowName.$what"
+            model.setLocation(path, getLocations(ctx))
+            model.addProblem(path, ctx.text, "Incomplete $what")
+        }
+        if (currentStack.size == depth) currentStack.addLast(buildMap())
+    }
+
+    /** `view`, `timer`, `by`, `after`, `at` and `unless` are contextual words: the grammar reads an ID, this checks which. */
+    private fun expectWord(ctx: ParserRuleContext?, word: String, path: String) {
+        if (ctx == null || ctx.text == word) return
+        model.setLocation(path, getLocations(ctx))
+        model.addProblem(path, ctx.text, "Expected '$word' but found '%s'")
+    }
+
+    private fun pathSegments(ctx: ZflParser.Flow_view_pathContext?): List<String> =
+        ctx?.keyword()?.map { it.text }.orEmpty()
+
+    // Timer steps
+    override fun enterFlow_timer(ctx: ZflParser.Flow_timerContext) = guardedBlock("timer", ctx) { enterFlowTimer(ctx) }
+
+    private fun enterFlowTimer(ctx: ZflParser.Flow_timerContext) {
+        val flow = currentStack.last()
+        val flowName = flow["name"] as String
+        val actionName = getText(ctx.flow_command_name())
+        val after = ctx.flow_timer_after()?.flow_timer_event()?.text
+        val duration = ctx.flow_timer_after()?.flow_timer_duration()?.text?.let { it.substring(1, it.length - 1) }
+        val at = ctx.flow_timer_at()?.let { listOf(getText(it.flow_view_aggregate())) + pathSegments(it.flow_view_path()) }
+            ?.joinToString(".")
+        val unless = ctx.flow_timer_unless()?.flow_timer_event()?.map { it.text }.orEmpty()
+        val timerPath = "flows.$flowName.timers[${(flow["timers"] as? List<*>)?.size ?: 0}]"
+        expectWord(ctx.flow_timer_start(), "timer", "$timerPath.timer")
+        ctx.flow_timer_after()?.let { expectWord(it.flow_timer_keyword(), "after", "$timerPath.after") }
+        ctx.flow_timer_at()?.let { expectWord(it.flow_timer_keyword(), "at", "$timerPath.at") }
+        ctx.flow_timer_unless()?.let { expectWord(it.flow_timer_keyword(), "unless", "$timerPath.unless") }
+        val occurrence = createOccurrence(
+            flow = flow,
+            actionName = actionName,
+            description = javadoc(ctx.javadoc()),
+            // the arming event triggers the command, so paths and diagrams follow the timer
+            triggers = listOfNotNull(after),
+            options = getOptions(ctx.annotations()),
+            definition = false,
+            locations = getLocations(ctx),
+            annotations = ctx.annotations(),
+            baseKey = "$actionName@timer[${after?.let { "after $it" } ?: "at $at"}]",
+        )
+        val timer = buildMap()
+            .with("after", after)
+            .with("duration", duration)
+            .with("at", at)
+            .with("unless", unless)
+            // `triggers` and `action` let a timer body be read as a `when` body
+            .with("triggers", listOfNotNull(after))
+            .with("action", actionName)
+            .with("javadoc", javadoc(ctx.javadoc()))
+            .with("options", getOptions(ctx.annotations()))
+            .with("occurrence", occurrence)
+        @Suppress("UNCHECKED_CAST")
+        val timers = flow.getOrPut("timers") { mutableListOf<Any?>() } as MutableList<Any?>
+        timers.add(timer)
+        model.setLocation("flows.$flowName.timers[${timers.size - 1}]", getLocations(ctx))
+        currentStack.addLast(timer)
+    }
+
+    override fun exitFlow_timer(ctx: ZflParser.Flow_timerContext) {
+        currentStack.removeLast()
+    }
+
     // When blocks
     override fun enterFlow_when(ctx: ZflParser.Flow_whenContext) {
         val triggerGroups = mutableListOf<MutableMap<String, Any?>>()
@@ -229,6 +367,7 @@ class ZflListenerImpl : ZflBaseListener() {
             options = getOptions(ctx.annotations()),
             definition = false,
             locations = getLocations(ctx),
+            annotations = ctx.annotations(),
         )
 
         val whenBlock = buildMap()
@@ -279,6 +418,7 @@ class ZflListenerImpl : ZflBaseListener() {
             options = getOptions(ctx.annotations()),
             definition = true,
             locations = getLocations(ctx),
+            annotations = ctx.annotations(),
         ))
     }
 
@@ -336,10 +476,13 @@ class ZflListenerImpl : ZflBaseListener() {
     }
 
     override fun enterFlow_do_on(ctx: ZflParser.Flow_do_onContext) {
-        val endOutcome = getText(ctx.flow_event_name())
+        val endOutcomes = ctx.flow_event_list().flow_event_name().mapNotNull { getText(it) }
+        val endOutcome = endOutcomes.firstOrNull()
         val step = buildMap()
             .with("type", "on")
+            // Keep endOutcome for consumers of the pre-list grammar; endOutcomes is authoritative.
             .with("endOutcome", endOutcome)
+            .with("endOutcomes", endOutcomes)
 
         when {
             ctx.CALL() != null -> {
@@ -356,7 +499,8 @@ class ZflListenerImpl : ZflBaseListener() {
                 step["emits"] = signalBody.EMITS() != null
                 step["response"] = signalBody.RESPONSE() != null
                 step["options"] = options
-                step["outcome"] = if (signalBody.EMITS() != null) explicitOutcome ?: endOutcome else null
+                step["terminal"] = true
+                step["outcome"] = explicitOutcome ?: if (signalBody.EMITS() != null) endOutcome else null
             }
         }
 
@@ -426,15 +570,36 @@ class ZflListenerImpl : ZflBaseListener() {
 
     override fun enterFlow_end_outcomes(ctx: ZflParser.Flow_end_outcomesContext) {
         val endOutcomes = buildMap()
+        val outcomes = mutableListOf<Any?>()
+        val flowName = currentStack[currentStack.size - 2]["name"]
         ctx.flow_end_outcome().forEach { endOutcome ->
-            val outcomeName = endOutcome.flow_end_outcome_name()?.text
-            val outcomeEvents = getOutcomeEvents(endOutcome.flow_end_outcome_list())
-            if (outcomeName != null) {
-                endOutcomes.with(outcomeName, outcomeEvents)
+            try {
+                val outcomeName = endOutcome.flow_end_outcome_name()?.text ?: return@forEach
+                val outcomeEvents = getOutcomeEvents(endOutcome.flow_end_outcome_list()).orEmpty()
+                // a repeated outcome is one outcome: its events merge, each line is a final-state variant
+                @Suppress("UNCHECKED_CAST")
+                val merged = (endOutcomes[outcomeName] as? List<String>).orEmpty()
+                endOutcomes.with(outcomeName, (merged + outcomeEvents).distinct())
+                // kept as a list, so a repeated aggregate reaches the analyzer
+                val states = endOutcome.flow_end_states()?.flow_end_state().orEmpty().map { state ->
+                    buildMap()
+                        .with("aggregate", getText(state.flow_view_aggregate()))
+                        .with("values", state.flow_end_state_value().keyword().map { it.text })
+                }
+                val path = "flows.$flowName.end.outcomes[${outcomes.size}]"
+                model.setLocation(path, getLocations(endOutcome))
+                outcomes.add(buildMap()
+                    .with("name", outcomeName)
+                    .with("events", outcomeEvents)
+                    .with("states", states))
+            } catch (e: Exception) {
+                // an outcome line still being typed: the others keep their place
+                model.addProblem("flows.$flowName.end.outcomes[${outcomes.size}]", endOutcome.text, "Incomplete end outcome")
             }
         }
 
         currentStack.last().appendToWithMap("endOutcomes", endOutcomes)
+        currentStack.last()["outcomes"] = outcomes
     }
 
     private fun getOutcomeEvents(ctx: ZflParser.Flow_end_outcome_listContext?): List<String>? {
@@ -481,11 +646,13 @@ class ZflListenerImpl : ZflBaseListener() {
         options: MutableMap<String, Any?>,
         definition: Boolean,
         locations: IntArray?,
+        annotations: ZflParser.AnnotationsContext? = null,
+        baseKey: String? = null,
     ): MutableMap<String, Any?> {
         val action = getOrCreateAction(flow, actionName, description)
         @Suppress("UNCHECKED_CAST")
         val occurrences = action["occurrences"] as MutableList<Any?>
-        val baseKey = if (definition) {
+        val baseKey = baseKey ?: if (definition) {
             "$actionName@definition"
         } else {
             "$actionName@when[${triggers.sorted().joinToString(",")}]"
@@ -503,6 +670,7 @@ class ZflListenerImpl : ZflBaseListener() {
             .with("javadoc", description)
             .with("triggers", triggers)
             .with("options", options)
+            .with("rules", mutableListOf<Any?>())
             .with("occurrenceKey", key)
             .with("occurrenceIndex", occurrenceIndex)
             .with("definition", definition)
@@ -514,7 +682,29 @@ class ZflListenerImpl : ZflBaseListener() {
             .with("responseDetails", mutableListOf<Any?>())
         occurrences.add(occurrence)
         model.setLocation(locationPath, locations)
+        addRuleNames(occurrence, locationPath, annotations)
         return occurrence
+    }
+
+    /** Names listed in `@rules(a, "b-c")`, each with the location of its token so a warning can point at the name. */
+    @Suppress("UNCHECKED_CAST")
+    private fun addRuleNames(occurrence: MutableMap<String, Any?>, locationPath: String, annotations: ZflParser.AnnotationsContext?) {
+        val rules = occurrence["rules"] as MutableList<Any?>
+        annotations?.option()?.filter { it.option_name().text == "@rules" }?.forEach { option ->
+            val complex = option.option_value()?.complex_value() ?: return@forEach
+            val simples = mutableListOf<ZflParser.SimpleContext>()
+            complex.array_plain()?.simple()?.let { simples += it }
+            complex.value()?.let { value ->
+                value.simple()?.let { simples += it }
+                value.array()?.value()?.forEach { item -> item.simple()?.let { simples += it } }
+            }
+            simples.forEach { simple ->
+                val name = getValueText(simple)?.toString() ?: return@forEach
+                val path = "$locationPath.rules[${rules.size}]"
+                model.setLocation(path, getLocations(simple))
+                rules.add(buildMap().with("name", name).with("locationPath", path))
+            }
+        }
     }
 
     @Suppress("UNCHECKED_CAST")

@@ -5,6 +5,10 @@ import io.zenwave360.language.docs.DocsSource
 import io.zenwave360.language.docs.internal.Anchors
 import io.zenwave360.language.docs.internal.Markdown
 import io.zenwave360.language.docs.internal.problemText
+import io.zenwave360.language.docs.internal.resolveRuleRef
+import io.zenwave360.language.docs.internal.ruleAnchor
+import io.zenwave360.language.docs.internal.ruleKey
+import io.zenwave360.language.docs.internal.ruleTags
 import io.zenwave360.language.eventflow.application.GenerateMermaidFromZfl
 import io.zenwave360.language.eventflow.view.MermaidDiagramsView
 import io.zenwave360.language.eventflow.view.MermaidSequenceDiagram
@@ -150,13 +154,29 @@ internal object FlowsPage {
             append(Markdown.table(listOf("Outcome", "Terminal events", "Paths"), rows)).append('\n')
         }
 
-        val systems = systems(semantic, flow, context)
+        val systems = systems(semantic, flow, context, anchors)
         if (systems.isNotEmpty()) {
             append(anchors.heading(2, "Systems"))
             append("The systems that take part, the services they expose in this flow and the commands they run.")
             if (context != null) append(" A system with the name of a module links to the page of that module.")
             append("\n\n")
             append(Markdown.table(listOf("System", "Services", "Commands", "Module"), systems)).append('\n')
+        }
+
+        val rules = flow?.rules.orEmpty()
+        val ruleList = rules.map { it.aggregate to it.name }
+        if (rules.isNotEmpty()) {
+            append(anchors.heading(2, "Rules"))
+            append("The business rules of the flow, and the commands that apply them.\n\n")
+            for (rule in rules) {
+                append(anchors.heading(3, Markdown.inline(rule.name), ruleAnchor(rule.aggregate, rule.name)))
+                if (rule.options.isNotEmpty()) append(ruleTags(rule.options)).append("\n\n")
+                rule.javadoc?.takeIf { it.isNotBlank() }?.let { append(Markdown.javadoc(it)).append("\n\n") }
+                rule.aggregate?.let { append("Aggregate: ").append(Markdown.code(it)).append("\n\n") }
+                if (rule.value.isNotBlank()) append(Markdown.inline(rule.value)).append("\n\n")
+                val appliedBy = flow?.commands.orEmpty().filter { c -> c.rules.any { resolveRuleRef(it, ruleList) == ruleKey(rule.aggregate, rule.name) } }.map { it.name }
+                if (appliedBy.isNotEmpty()) append("Applied by: ").append(appliedBy.joinToString(", ") { Markdown.code(it) }).append("\n\n")
+            }
         }
 
         if (others.isNotEmpty()) {
@@ -184,13 +204,16 @@ internal object FlowsPage {
         return if (text.isEmpty()) "" else "$text\n\n"
     }
 
-    private fun systems(semantic: ZflSemanticModel, flow: ZflFlow?, context: ArchitectureContext?): List<List<String?>> =
+    private fun systems(semantic: ZflSemanticModel, flow: ZflFlow?, context: ArchitectureContext?, anchors: Anchors): List<List<String?>> =
         semantic.systems.values.map { system ->
-            val commands = flow?.commands.orEmpty().filter { it.system == system.name }.map { it.name }.distinct()
+            val ruleList = flow?.rules.orEmpty().map { it.aggregate to it.name }
+            val commands = flow?.commands.orEmpty().filter { it.system == system.name }.distinctBy { it.name }
             listOf(
                 Markdown.code(system.name),
                 system.services.keys.joinToString(", ") { Markdown.code(it) },
-                commands.joinToString(", ") { Markdown.code(it) },
+                commands.joinToString(", ") { c ->
+                    Markdown.code(c.name) + if (c.rules.isEmpty()) "" else " (rules: " + c.rules.joinToString(", ") { resolveRuleRef(it, ruleList)?.let { key -> anchors.link("rule:$key", Markdown.inline(it)) } ?: Markdown.inline(it) } + ")"
+                },
                 moduleLink(context, system.name),
             )
         }

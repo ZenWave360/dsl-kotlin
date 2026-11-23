@@ -16,12 +16,13 @@ Back to the [architecture](../architecture.md).
   - [NotificationsConsumerService](#notificationsconsumerservice)
 - [Aggregates](#aggregates)
   - [Notification](#notification)
+  - [Inputs](#inputs)
 - [Domain events](#domain-events)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
   - [Enums](#enums)
-  - [Inputs](#inputs)
+  - [Inputs](#inputs-1)
   - [Domain events](#domain-events-1)
 
 ## Architecture
@@ -29,6 +30,11 @@ Back to the [architecture](../architecture.md).
 This module's commands and events, and the commands and events of other modules that connect to them.
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
@@ -96,13 +102,19 @@ Box = module. Blue = command. Orange = event; a pipe outside the boxes is an ext
 
 ## Services
 
-Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.
+Each service with its commands (blue), queries (pale yellow) and the events commands emit (orange), inside the aggregate it works on.
 
 ### NotificationsConsumerService
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef query fill:#fefce8,stroke:#ca8a04,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
   subgraph agg_NotificationsConsumerService["service NotificationsConsumerService for Notification"]
     direction LR
@@ -143,6 +155,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class Notification {
@@ -198,6 +212,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 stateDiagram-v2
     [*] --> PENDING : sendOrderConfirmation, sendStockUnavailableNotification, sendOrderCancelledNotification
@@ -205,6 +221,53 @@ stateDiagram-v2
 ```
 
 Field `status`, initial `PENDING`.
+
+### Inputs
+
+Inputs and the entities and enums they reach.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
+---
+classDiagram
+    class SendOrderConfirmationInput {
+        <<input>>
+        String orderId
+        String customerId
+        String customerEmail
+    }
+    class SendStockUnavailableNotificationInput {
+        <<input>>
+        String orderId
+        String customerId
+        String customerEmail
+        StockUnavailableItemInput[] unavailableItems
+    }
+    class StockUnavailableItemInput {
+        <<input>>
+        String sku
+        Integer requestedQuantity
+        Integer availableQuantity
+    }
+    class SendOrderCancelledNotificationInput {
+        <<input>>
+        String orderId
+        String customerId
+        String reason
+        String customerEmail
+    }
+    style SendOrderConfirmationInput fill:#ffffff,stroke:#333333,color:#111111
+    style SendStockUnavailableNotificationInput fill:#ffffff,stroke:#333333,color:#111111
+    style StockUnavailableItemInput fill:#ffffff,stroke:#333333,color:#111111
+    style SendOrderCancelledNotificationInput fill:#ffffff,stroke:#333333,color:#111111
+```
 
 ## Domain events
 
@@ -217,6 +280,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class OrderConfirmationSent {

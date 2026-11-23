@@ -1,4 +1,5 @@
 import io.zenwave360.language.zdl.application.GenerateMermaidFromZdl
+import io.zenwave360.language.zdl.application.GenerateMermaidCommandDiagramFromZdl
 import kotlin.js.ExperimentalJsExport
 import kotlin.js.JsExport
 
@@ -15,3 +16,9 @@ import kotlin.js.JsExport
 @OptIn(ExperimentalJsExport::class)
 @JsExport
 fun generateMermaidFromZdl(input: String): String = GenerateMermaidFromZdl().execute(input)
+
+/** Generates the command diagram for one service method, or null when that method is not declared. */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
+fun generateMermaidCommandDiagramFromZdl(input: String, service: String, command: String): String? =
+    GenerateMermaidCommandDiagramFromZdl().execute(input, service, command)

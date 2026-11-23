@@ -70,11 +70,24 @@ sealed interface CommandAdapter {
 }
 
 /**
+ * A business rule: [aggregate] is the optional `rules (Aggregate)`. [options] are its free annotations
+ * (`@invariant`, `@pre`...) by name, with the value as text or null; [javadoc] its comment.
+ */
+data class ZdlRule(
+    val name: String,
+    val value: String,
+    val aggregate: String?,
+    val options: Map<String, String?> = emptyMap(),
+    val javadoc: String? = null,
+)
+
+/**
  * A service method or an aggregate command.
  *
  * [events] holds one list per `withEvents` entry; a list with several names is an alternative
  * (`[A | B]`). A command is a [query] when it has no events, no `@transition`, no `@listener`,
- * no `@asyncapi` and no `@calls`; a query changes nothing and is left out of the flow diagrams.
+ * no `@asyncapi` and no `@calls`; a query changes nothing. EventStorming architecture diagrams show it
+ * without event edges, while service diagrams list it outside their command-and-event flowchart.
  */
 data class ZdlCommand(
     val owner: String,
@@ -91,6 +104,8 @@ data class ZdlCommand(
     val javadoc: String?,
     /** The adapters that trigger the command, in declaration order. Queries may have a REST adapter too. */
     val adapters: List<CommandAdapter> = emptyList(),
+    /** Names in the method's `@rules(...)`, in order. */
+    val rules: List<String> = emptyList(),
 ) {
     /** Every event name, in order of appearance, without repeats. */
     val eventNames: List<String>
@@ -158,12 +173,24 @@ class ZdlDomain(private val model: ZdlModel) {
     val types: Map<String, ZdlType>
 
     val services: List<ZdlService>
+
+    /** The business rules (`rules`, or the deprecated `policies`), in declaration order. */
+    val rules: List<ZdlRule>
     val aggregates: List<ZdlAggregate>
 
     /** Entities that are the root of an aggregate. */
     val aggregateRoots: Set<String>
 
     init {
+        rules = (model["rules"].let { it as? Map<*, *> }?.values ?: model["rules"] as? List<*>).orEmpty().mapNotNull { raw ->
+            val rule = raw.asMap()
+            val name = rule["name"] as? String ?: return@mapNotNull null
+            ZdlRule(
+                name, rule["value"]?.toString().orEmpty(), rule.text("aggregate"),
+                rule.sub("options").mapValues { (_, v) -> optionText(v) },
+                rule.text("javadoc"),
+            )
+        }
         val all = linkedMapOf<String, ZdlType>()
         for (kind in listOf(ZdlTypeKind.ENTITY, ZdlTypeKind.ENUM, ZdlTypeKind.INPUT, ZdlTypeKind.OUTPUT, ZdlTypeKind.EVENT)) {
             for ((name, declaration) in sections.getValue(kind)) {
@@ -334,16 +361,37 @@ class ZdlDomain(private val model: ZdlModel) {
         return ZdlReachable(root, entities, enums, others)
     }
 
-    /** Entities and enums that no aggregate root is or reaches (the "other entities"), in declaration order. */
-    fun unreachableTypes(): List<String> {
+    /**
+     * Entities and enums that no aggregate, input, output, event or service method reaches, in declaration order.
+     * Aggregate roots, top-level inputs, outputs and events are the starting points; a service method contributes
+     * its parameter and return type.
+     */
+    fun unusedTypes(): List<String> {
         val reached = mutableSetOf<String>()
-        for (root in aggregateRoots) {
-            val r = reachableFrom(root)
-            reached += root; reached += r.entities; reached += r.enums
-        }
+        val starts = aggregateRoots +
+            typesOf(ZdlTypeKind.INPUT).map { it.name } +
+            typesOf(ZdlTypeKind.OUTPUT).map { it.name } +
+            events.map { it.name } +
+            services.flatMap { service -> service.methods.flatMap { listOfNotNull(it.parameter, it.returnType) } }
+        reached += reachableEntityAndEnumsFrom(starts)
         return types.values
             .filter { (it.kind == ZdlTypeKind.ENTITY || it.kind == ZdlTypeKind.ENUM) && it.name !in reached }
             .map { it.name }
+    }
+
+    /** Entities and enums [starts] reach through fields and relationships, including entity and enum starts. */
+    fun reachableEntityAndEnumsFrom(starts: Collection<String>): List<String> {
+        val result = linkedSetOf<String>()
+        val seen = starts.toMutableSet()
+        val queue = ArrayDeque(starts)
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            if (kindOf(current) in setOf(ZdlTypeKind.ENTITY, ZdlTypeKind.ENUM)) result += current
+            for (target in fieldsOf(current).map { it.type } + relationshipTargets[current].orEmpty()) {
+                if (seen.add(target)) queue.addLast(target)
+            }
+        }
+        return result.toList()
     }
 
     // ---- internals ---------------------------------------------------------------------------
@@ -413,6 +461,7 @@ class ZdlDomain(private val model: ZdlModel) {
             owner, name, m["paramId"] != null, m.text("parameter"), m["parameterIsOptional"] == true,
             m.text("returnType"), m["returnTypeIsArray"] == true, m["returnTypeIsOptional"] == true,
             events, query, parsed, m.text("javadoc"), adaptersOf(m, restBase),
+            (m["rules"] as? List<*>).orEmpty().mapNotNull { it?.toString() },
         )
     }
 
@@ -438,6 +487,13 @@ class ZdlDomain(private val model: ZdlModel) {
 
 @Suppress("UNCHECKED_CAST")
 private fun Any?.asMap(): Map<String, Any?> = this as? Map<String, Any?> ?: emptyMap()
+
+/** The value of an annotation as text; null for one written without a value (`true`). */
+private fun optionText(value: Any?): String? = when (value) {
+    null, true -> null
+    is Map<*, *> -> value.entries.joinToString(", ") { "${it.key}: ${it.value}" }
+    else -> value.toString()
+}
 
 private fun Map<String, Any?>.sub(key: String): Map<String, Any?> = this[key].asMap()
 

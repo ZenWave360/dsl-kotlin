@@ -26,6 +26,7 @@ Starts with `StartOrderCheckout` and ends with the outcome `completed`.
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptured to completed
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -71,58 +72,61 @@ flowchart TD
     action_sendStockUnavailableNotification["sendStockUnavailableNotification"]
     action_startOrderCheckout["startOrderCheckout"]
     action_voidPayment["voidPayment"]
-    event_FulfillmentFailed[/FulfillmentFailed/]
-    event_FulfillmentScheduled[/FulfillmentScheduled/]
-    event_OrderCancelledNotificationSent[/OrderCancelledNotificationSent/]
-    event_OrderCancelled[/OrderCancelled/]
-    event_OrderConfirmationSent[/OrderConfirmationSent/]
-    event_OrderConfirmed[/OrderConfirmed/]
-    event_OrderCreated[/OrderCreated/]
-    event_PaymentAuthorized[/PaymentAuthorized/]
-    event_PaymentCaptureFailed[/PaymentCaptureFailed/]
-    event_PaymentCaptured[/PaymentCaptured/]
-    event_PaymentDeclined[/PaymentDeclined/]
-    event_PaymentFailed[/PaymentFailed/]
-    event_PaymentRetried[/PaymentRetried/]
-    event_PaymentRetryExhausted[/PaymentRetryExhausted/]
-    event_PaymentVoided[/PaymentVoided/]
-    event_StockReleased[/StockReleased/]
-    event_StockReservationConfirmed[/StockReservationConfirmed/]
-    event_StockUnavailableNotificationSent[/StockUnavailableNotificationSent/]
-    event_StockUnavailable[/StockUnavailable/]
-    outcome_authorizePayment_authorized(["authorized"])
-    outcome_authorizePayment_declined(["declined"])
-    outcome_authorizePayment_failed(["failed"])
-    outcome_retryPayment_retried(["retried"])
-    outcome_retryPayment_retry_exhausted(["retry-exhausted"])
-    outcome_startOrderCheckout_StockReservedResult(["StockReservedResult"])
-    outcome_startOrderCheckout_StockUnavailableResult(["StockUnavailableResult"])
-    policy_when_FulfillmentFailed_PaymentCaptureFailed_do_voidPayment{{"when FulfillmentFailed,PaymentCaptureFailed do voidPayment"}}
+    event_FulfillmentFailed("FulfillmentFailed")
+    event_FulfillmentScheduled("FulfillmentScheduled")
+    event_OrderCancelled("OrderCancelled")
+    event_OrderCancelledNotificationSent("OrderCancelledNotificationSent")
+    event_OrderConfirmationSent("OrderConfirmationSent")
+    event_OrderConfirmed("OrderConfirmed")
+    event_OrderCreated("OrderCreated")
+    event_PaymentAuthorized("PaymentAuthorized")
+    event_PaymentCaptureFailed("PaymentCaptureFailed")
+    event_PaymentCaptured("PaymentCaptured")
+    event_PaymentDeclined("PaymentDeclined")
+    event_PaymentFailed("PaymentFailed")
+    event_PaymentRetried("PaymentRetried")
+    event_PaymentRetryExhausted("PaymentRetryExhausted")
+    event_PaymentVoided("PaymentVoided")
+    event_StockReleased("StockReleased")
+    event_StockReservationConfirmed("StockReservationConfirmed")
+    event_StockUnavailable("StockUnavailable")
+    event_StockUnavailableNotificationSent("StockUnavailableNotificationSent")
+    outcome_authorizePayment_authorized[/"authorized"/]
+    outcome_authorizePayment_declined[/"declined"/]
+    outcome_authorizePayment_failed[/"failed"/]
+    outcome_retryPayment_retried[/"retried"/]
+    outcome_retryPayment_retry_exhausted[/"retry-exhausted"/]
+    outcome_startOrderCheckout_StockReservedResult[/"StockReservedResult"/]
+    outcome_startOrderCheckout_StockUnavailableResult[/"StockUnavailableResult"/]
+    policy_when_FulfillmentFailed_PaymentCaptureFailed_do_voidPayment{{"when FulfillmentFailed, PaymentCaptureFailed do voidPayment"}}
     policy_when_FulfillmentScheduled_do_capturePayment{{"when FulfillmentScheduled do capturePayment"}}
     policy_when_OrderCancelled_do_sendOrderCancelledNotification{{"when OrderCancelled do sendOrderCancelledNotification"}}
     policy_when_OrderConfirmed_do_scheduleFulfillment{{"when OrderConfirmed do scheduleFulfillment"}}
     policy_when_OrderCreated_do_authorizePayment{{"when OrderCreated do authorizePayment"}}
     policy_when_PaymentAuthorized_do_confirmOrder{{"when PaymentAuthorized do confirmOrder"}}
     policy_when_PaymentCaptured_do_sendOrderConfirmation{{"when PaymentCaptured do sendOrderConfirmation"}}
-    policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock{{"when PaymentDeclined,PaymentRetryExhausted,PaymentVoided,ReservationExpired do releaseStock"}}
+    policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock{{"when PaymentDeclined, PaymentRetryExhausted, PaymentVoided, ReservationExpired do releaseStock"}}
     policy_when_PaymentFailed_do_retryPayment{{"when PaymentFailed do retryPayment"}}
     policy_when_PaymentRetried_do_authorizePayment{{"when PaymentRetried do authorizePayment"}}
     policy_when_StockReleased_do_cancelOrder{{"when StockReleased do cancelOrder"}}
     policy_when_StockUnavailable_do_sendStockUnavailableNotification{{"when StockUnavailable do sendStockUnavailableNotification"}}
-    start_ReservationExpired["ReservationExpired"]
-    start_ReservationExpired["Scheduler"]
-    start_StartOrderCheckout["Customer"]
-    start_StartOrderCheckout["StartOrderCheckout"]
+    readModel_StockReservedResult["StockReservedResult"]
+    readModel_StockUnavailableResult["StockUnavailableResult"]
+    start_ReservationExpired(["Scheduler<br/>ReservationExpired"])
+    start_StartOrderCheckout(["Customer<br/>StartOrderCheckout"])
     terminal_completed(("completed"))
     terminal_orderCancelled(("orderCancelled"))
     terminal_stockGone(("stockGone"))
     start_StartOrderCheckout --> action_startOrderCheckout
-    start_ReservationExpired --> action_releaseStock
+    start_ReservationExpired --> policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock
+    policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock --> action_releaseStock
     action_startOrderCheckout --> action_reserveStock
-    action_startOrderCheckout -->|on StockReservedResult| outcome_startOrderCheckout_StockReservedResult
+    action_startOrderCheckout --> outcome_startOrderCheckout_StockReservedResult
     outcome_startOrderCheckout_StockReservedResult --> event_OrderCreated
-    action_startOrderCheckout -->|on StockUnavailableResult| outcome_startOrderCheckout_StockUnavailableResult
+    action_startOrderCheckout --> outcome_startOrderCheckout_StockUnavailableResult
     outcome_startOrderCheckout_StockUnavailableResult --> event_StockUnavailable
+    action_reserveStock --> readModel_StockReservedResult
+    action_reserveStock --> readModel_StockUnavailableResult
     action_authorizePayment --> outcome_authorizePayment_authorized
     outcome_authorizePayment_authorized --> event_PaymentAuthorized
     action_authorizePayment --> outcome_authorizePayment_declined
@@ -148,13 +152,8 @@ flowchart TD
     action_sendOrderCancelledNotification --> event_OrderCancelledNotificationSent
     event_OrderCreated --> policy_when_OrderCreated_do_authorizePayment
     policy_when_OrderCreated_do_authorizePayment --> action_authorizePayment
-    action_authorizePayment --> event_PaymentAuthorized
-    action_authorizePayment --> event_PaymentDeclined
-    action_authorizePayment --> event_PaymentFailed
     event_PaymentFailed --> policy_when_PaymentFailed_do_retryPayment
     policy_when_PaymentFailed_do_retryPayment --> action_retryPayment
-    action_retryPayment --> event_PaymentRetried
-    action_retryPayment --> event_PaymentRetryExhausted
     event_PaymentRetried --> policy_when_PaymentRetried_do_authorizePayment
     policy_when_PaymentRetried_do_authorizePayment --> action_authorizePayment
     event_PaymentAuthorized --> policy_when_PaymentAuthorized_do_confirmOrder
@@ -173,7 +172,6 @@ flowchart TD
     event_PaymentDeclined --> policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock
     event_PaymentRetryExhausted --> policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock
     event_PaymentVoided --> policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock
-    policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock --> action_releaseStock
     event_StockReleased --> policy_when_StockReleased_do_cancelOrder
     policy_when_StockReleased_do_cancelOrder --> action_cancelOrder
     event_OrderCancelled --> policy_when_OrderCancelled_do_sendOrderCancelledNotification
@@ -182,47 +180,15 @@ flowchart TD
     event_StockUnavailableNotificationSent --> terminal_stockGone
     event_OrderCancelledNotificationSent --> terminal_orderCancelled
 
-    classDef actor fill:#dbeafe,stroke:#1d4ed8,color:#0f172a
-    classDef action fill:#dcfce7,stroke:#166534,color:#0f172a
-    classDef event fill:#f8fafc,stroke:#475569,color:#0f172a
+    classDef start fill:#475569,stroke:#1e293b,color:#ffffff
+    classDef command fill:#3b82f6,stroke:#1d4ed8,color:#ffffff
+    classDef readModel fill:#bbf7d0,stroke:#15803d,color:#0f172a
+    classDef event fill:#f97316,stroke:#c2410c,color:#ffffff
     classDef outcomeNode fill:#ede9fe,stroke:#6d28d9,color:#0f172a
-    classDef policy fill:#fef3c7,stroke:#92400e,color:#0f172a
-    classDef terminal fill:#fee2e2,stroke:#b91c1c,color:#0f172a
-    class start_StartOrderCheckout actor
-    class start_ReservationExpired actor
-    class action_startOrderCheckout action
-    class event_OrderCreated event
-    class event_StockUnavailable event
-    class action_reserveStock action
-    class action_authorizePayment action
-    class event_PaymentAuthorized event
-    class event_PaymentDeclined event
-    class event_PaymentFailed event
-    class action_retryPayment action
-    class event_PaymentRetried event
-    class event_PaymentRetryExhausted event
-    class action_confirmOrder action
-    class event_OrderConfirmed event
-    class action_confirmStockReservation action
-    class event_StockReservationConfirmed event
-    class action_scheduleFulfillment action
-    class event_FulfillmentScheduled event
-    class event_FulfillmentFailed event
-    class action_capturePayment action
-    class event_PaymentCaptured event
-    class event_PaymentCaptureFailed event
-    class action_sendOrderConfirmation action
-    class event_OrderConfirmationSent event
-    class action_sendStockUnavailableNotification action
-    class event_StockUnavailableNotificationSent event
-    class action_voidPayment action
-    class event_PaymentVoided event
-    class action_releaseStock action
-    class event_StockReleased event
-    class action_cancelOrder action
-    class event_OrderCancelled event
-    class action_sendOrderCancelledNotification action
-    class event_OrderCancelledNotificationSent event
+    classDef policy fill:#a855f7,stroke:#7e22ce,color:#ffffff
+    classDef endOutcome fill:#ef4444,stroke:#b91c1c,color:#ffffff
+    class start_StartOrderCheckout start
+    class start_ReservationExpired start
     class policy_when_OrderCreated_do_authorizePayment policy
     class policy_when_PaymentFailed_do_retryPayment policy
     class policy_when_PaymentRetried_do_authorizePayment policy
@@ -235,9 +201,44 @@ flowchart TD
     class policy_when_PaymentDeclined_PaymentRetryExhausted_PaymentVoided_ReservationExpired_do_releaseStock policy
     class policy_when_StockReleased_do_cancelOrder policy
     class policy_when_OrderCancelled_do_sendOrderCancelledNotification policy
-    class terminal_completed terminal
-    class terminal_stockGone terminal
-    class terminal_orderCancelled terminal
+    class action_startOrderCheckout command
+    class event_OrderCreated event
+    class event_StockUnavailable event
+    class action_reserveStock command
+    class readModel_StockReservedResult readModel
+    class readModel_StockUnavailableResult readModel
+    class action_authorizePayment command
+    class event_PaymentAuthorized event
+    class event_PaymentDeclined event
+    class event_PaymentFailed event
+    class action_retryPayment command
+    class event_PaymentRetried event
+    class event_PaymentRetryExhausted event
+    class action_confirmOrder command
+    class event_OrderConfirmed event
+    class action_confirmStockReservation command
+    class event_StockReservationConfirmed event
+    class action_scheduleFulfillment command
+    class event_FulfillmentScheduled event
+    class event_FulfillmentFailed event
+    class action_capturePayment command
+    class event_PaymentCaptured event
+    class event_PaymentCaptureFailed event
+    class action_sendOrderConfirmation command
+    class event_OrderConfirmationSent event
+    class action_sendStockUnavailableNotification command
+    class event_StockUnavailableNotificationSent event
+    class action_voidPayment command
+    class event_PaymentVoided event
+    class action_releaseStock command
+    class event_StockReleased event
+    class action_cancelOrder command
+    class event_OrderCancelled event
+    class action_sendOrderCancelledNotification command
+    class event_OrderCancelledNotificationSent event
+    class terminal_completed endOutcome
+    class terminal_stockGone endOutcome
+    class terminal_orderCancelled endOutcome
     class outcome_startOrderCheckout_StockReservedResult outcomeNode
     class outcome_startOrderCheckout_StockUnavailableResult outcomeNode
     class outcome_authorizePayment_authorized outcomeNode
@@ -253,9 +254,9 @@ How the flow can end, the events that end it and the paths that lead there.
 
 | Outcome | Terminal events | Paths |
 | --- | --- | --- |
-| `completed` | `OrderConfirmationSent` | [Happy path](#happy-path)<br>[completed: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptured](#completed-from-startordercheckout-via-stockreservedresult--failed--retried--authorized--fulfillmentscheduled--paymentcaptured) |
-| `stockGone` | `StockUnavailableNotificationSent` | [stockGone: from StartOrderCheckout via StockUnavailableResult](#stockgone-from-startordercheckout-via-stockunavailableresult) |
-| `orderCancelled` | `OrderCancelledNotificationSent` | [orderCancelled: from StartOrderCheckout via StockReservedResult → declined](#ordercancelled-from-startordercheckout-via-stockreservedresult--declined)<br>[orderCancelled: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentFailed](#ordercancelled-from-startordercheckout-via-stockreservedresult--authorized--fulfillmentfailed)<br>[orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retry-exhausted](#ordercancelled-from-startordercheckout-via-stockreservedresult--failed--retry-exhausted)<br>[orderCancelled: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptureFailed](#ordercancelled-from-startordercheckout-via-stockreservedresult--authorized--fulfillmentscheduled--paymentcapturefailed)<br>[orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → declined](#ordercancelled-from-startordercheckout-via-stockreservedresult--failed--retried--declined)<br>[orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentFailed](#ordercancelled-from-startordercheckout-via-stockreservedresult--failed--retried--authorized--fulfillmentfailed)<br>[orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → failed → retry-exhausted](#ordercancelled-from-startordercheckout-via-stockreservedresult--failed--retried--failed--retry-exhausted)<br>[orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed](#ordercancelled-from-startordercheckout-via-stockreservedresult--failed--retried--authorized--fulfillmentscheduled--paymentcapturefailed)<br>[orderCancelled: from ReservationExpired](#ordercancelled-from-reservationexpired) |
+| `completed` | `OrderConfirmationSent` | [Happy path](#happy-path)<br>[from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptured to completed](#from-startordercheckout--stockreservedresult--failed--retried--authorized--fulfillmentscheduled--paymentcaptured-to-completed) |
+| `stockGone` | `StockUnavailableNotificationSent` | [from StartOrderCheckout → StockUnavailableResult to stockGone](#from-startordercheckout--stockunavailableresult-to-stockgone) |
+| `orderCancelled` | `OrderCancelledNotificationSent` | [from StartOrderCheckout → StockReservedResult → declined to orderCancelled](#from-startordercheckout--stockreservedresult--declined-to-ordercancelled)<br>[from StartOrderCheckout → StockReservedResult → authorized → FulfillmentFailed to orderCancelled](#from-startordercheckout--stockreservedresult--authorized--fulfillmentfailed-to-ordercancelled)<br>[from StartOrderCheckout → StockReservedResult → failed → retry-exhausted to orderCancelled](#from-startordercheckout--stockreservedresult--failed--retry-exhausted-to-ordercancelled)<br>[from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled](#from-startordercheckout--stockreservedresult--authorized--fulfillmentscheduled--paymentcapturefailed-to-ordercancelled)<br>[from StartOrderCheckout → StockReservedResult → failed → retried → declined to orderCancelled](#from-startordercheckout--stockreservedresult--failed--retried--declined-to-ordercancelled)<br>[from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentFailed to orderCancelled](#from-startordercheckout--stockreservedresult--failed--retried--authorized--fulfillmentfailed-to-ordercancelled)<br>[from StartOrderCheckout → StockReservedResult → failed → retried → failed → retry-exhausted to orderCancelled](#from-startordercheckout--stockreservedresult--failed--retried--failed--retry-exhausted-to-ordercancelled)<br>[from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled](#from-startordercheckout--stockreservedresult--failed--retried--authorized--fulfillmentscheduled--paymentcapturefailed-to-ordercancelled)<br>[from ReservationExpired to orderCancelled](#from-reservationexpired-to-ordercancelled) |
 
 ## Systems
 
@@ -275,10 +276,11 @@ Every other way through the flow, one diagram per path, grouped by the outcome w
 
 ### completed
 
-#### completed: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptured
+#### from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptured to completed
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptured to completed
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -310,10 +312,11 @@ sequenceDiagram
 
 ### stockGone
 
-#### stockGone: from StartOrderCheckout via StockUnavailableResult
+#### from StartOrderCheckout → StockUnavailableResult to stockGone
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockUnavailableResult to stockGone
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -329,10 +332,11 @@ sequenceDiagram
 
 ### orderCancelled
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → declined
+#### from StartOrderCheckout → StockReservedResult → declined to orderCancelled
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → declined to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -353,10 +357,11 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentFailed
+#### from StartOrderCheckout → StockReservedResult → authorized → FulfillmentFailed to orderCancelled
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → authorized → FulfillmentFailed to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -386,10 +391,11 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retry-exhausted
+#### from StartOrderCheckout → StockReservedResult → failed → retry-exhausted to orderCancelled
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → failed → retry-exhausted to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -412,10 +418,11 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptureFailed
+#### from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -447,10 +454,11 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → declined
+#### from StartOrderCheckout → StockReservedResult → failed → retried → declined to orderCancelled
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → failed → retried → declined to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -475,10 +483,11 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentFailed
+#### from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentFailed to orderCancelled
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentFailed to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -512,10 +521,11 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → failed → retry-exhausted
+#### from StartOrderCheckout → StockReservedResult → failed → retried → failed → retry-exhausted to orderCancelled
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → failed → retried → failed → retry-exhausted to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -542,10 +552,11 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed
+#### from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled
     actor Customer
     participant OrdersCheckoutService as OrdersCheckoutService
     participant InventoryService as InventoryService
@@ -581,10 +592,11 @@ sequenceDiagram
     Note over NotificationsConsumerService: end orderCancelled
 ```
 
-#### orderCancelled: from ReservationExpired
+#### from ReservationExpired to orderCancelled
 
 ```mermaid
 sequenceDiagram
+    %% PlaceOrderFlow: from ReservationExpired to orderCancelled
     actor Scheduler
     participant InventoryService as InventoryService
     participant OrdersCheckoutService as OrdersCheckoutService

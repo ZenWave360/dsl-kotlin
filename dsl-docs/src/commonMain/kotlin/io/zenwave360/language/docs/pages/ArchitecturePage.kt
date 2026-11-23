@@ -307,6 +307,7 @@ internal object ModulePage {
         if (module != null) append(content.architecture(context.architecture, module.id))
         append(content.services())
         append(content.aggregates())
+        append(content.rules())
         append(content.domainEvents())
         append(content.commands())
         if (module != null) {

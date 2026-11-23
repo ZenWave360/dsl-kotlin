@@ -9,6 +9,8 @@ import io.zenwave360.language.docs.pages.IndexPage
 import io.zenwave360.language.docs.pages.ModulePage
 import io.zenwave360.language.docs.pages.OpenApiPage
 import io.zenwave360.language.docs.pages.PageEntry
+import io.zenwave360.language.docs.pages.PreviewPage
+import io.zenwave360.language.docs.pages.ZwPreviewPage
 import io.zenwave360.language.docs.pages.SpecDocument
 import io.zenwave360.language.docs.pages.ZdlDocument
 import io.zenwave360.language.zdl.architecture.ZdlArchitectureReader
@@ -76,6 +78,40 @@ class DslDocs {
 
         return DocsOutput(files.sortedBy { it.path }, problems.toList())
     }
+
+    /**
+     * The Markdown of a single page that previews one ZDL document, for an editor that shows the model beside its text. [generate]
+     * is not involved: it writes a documentation folder, this gives one page whose output does not depend on other files.
+     *
+     * The page is the sections of the domain page that come from the document alone (services, aggregates and their class
+     * diagrams, domain events, commands, glossary), with Mermaid diagrams as fenced `mermaid` blocks. It has no links to other pages,
+     * names no other file, and what the user wrote in the model (descriptions, comments) is escaped, so it cannot bring raw HTML,
+     * images or links into the page; `<script>` shows as text. Same-page links, from the contents and from commands to the glossary, remain.
+     *
+     * Like [generate], it never throws on a bad model: a document with semantic problems (unknown references) still gives its
+     * page, and a syntax error gives the part of the model the parser could read, with a `Problems` block naming each error with
+     * its line. A document with nothing to show gives a page that says so. Line endings are normalized as in [generate].
+     * Runs on every platform, reads no file and gives the same text for the same input.
+     */
+    fun previewZdl(text: String): String = PreviewPage.zdl(normalize(text))
+
+    /**
+     * The Markdown of a single page that previews one `.zw` document (the plugin configuration of a model), for an editor that
+     * shows it beside its text. It has the global `config`, then each plugin in document order with its description, a Bash command
+     * using the default `jbang zw` SDK command, and its own and inherited configuration. The command arguments, including Maven
+     * dependencies and the default `zdlFile`, are from the rules shared with the VS Code extension's command builder; this page
+     * alone supplies its fixed preview path and Bash quoting.
+     *
+     * [catalogue] says what each plugin is for and what its options mean. A plugin that is not in it, or no [catalogue] at all,
+     * still shows its name and configuration, without a description. A `.zw` file with no `config` or no plugins gives a page
+     * that says so.
+     *
+     * Everything the file or the catalogue wrote is escaped as in [previewZdl]: no HTML, images, links or remote references, and
+     * no link to anything but the page's own headings. Like [previewZdl] it never throws on a bad model: semantic problems still
+     * give the page, and a syntax error gives what the parser could read (a plugin declaration not closed is left out, as the
+     * extension does) with a `Problems` block. The output depends on the input only.
+     */
+    fun previewZw(text: String, catalogue: PluginCatalogue? = null): String = ZwPreviewPage.zw(normalize(text), catalogue)
 
     private fun normalize(text: String): String = text.replace("\r\n", "\n").replace('\r', '\n')
 

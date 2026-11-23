@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 
 class ZdlEventToMermaidClassDiagramTransformerTest {
 
-    private val fm = "---\nconfig:\n  theme: default\n  themeVariables:\n    lineColor: \"#888888\"\n    edgeLabelBackground: \"#ffffff\"\n---\n"
+    private val fm = "---\nconfig:\n  theme: default\n  themeVariables:\n    lineColor: \"#888888\"\n    edgeLabelBackground: \"#ffffff\"\n    transitionColor: \"#888888\"\n    transitionLabelColor: \"#111111\"\n---\n"
 
     private fun transform(zdl: String) = ZdlEventToMermaidClassDiagramTransformer().transform(ZdlParser().parseModel(zdl))
 
@@ -20,6 +20,20 @@ class ZdlEventToMermaidClassDiagramTransformerTest {
         assertEquals("fill:#fbd3ee,stroke:#333333,color:#111111", MermaidLight.classStyle("aggregate"))
         assertEquals("fill:#f2f2f2,stroke:#333333,color:#111111", MermaidLight.classStyle("enumeration"))
         assertEquals("fill:#ffffff,stroke:#333333,color:#111111", MermaidLight.classStyle("embedded"))
+    }
+
+    @Test
+    fun stateTransitionsAndFlowchartSubgraphTitlesAreDarkWhateverThePageTheme() {
+        // The state diagram draws lines and arrowheads with transitionColor and edge-label text with transitionLabelColor.
+        assertTrue(MermaidLight.FRONT_MATTER.contains("    transitionColor: \"#888888\"\n"))
+        assertTrue(MermaidLight.FRONT_MATTER.contains("    transitionLabelColor: \"#111111\"\n"))
+        // A flowchart subgraph title takes titleColor, not the colour of its `style`: dark text on every light fill.
+        assertEquals(
+            "---\nconfig:\n  themeVariables:\n    titleColor: \"#111111\"\n---\n",
+            MermaidLight.SUBGRAPH_TITLE_FRONT_MATTER,
+        )
+        assertTrue(ZdlServiceToEventStormingTransformer.AGGREGATE_STYLE.contains("color:#111"))
+        assertTrue(MermaidLight.PLAIN_BOX_STYLE.contains("color:#111"))
     }
 
     @Test

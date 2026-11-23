@@ -18,7 +18,24 @@ object MermaidLight {
             "  themeVariables:\n" +
             "    lineColor: \"#888888\"\n" +
             "    edgeLabelBackground: \"#ffffff\"\n" +
+            "    transitionColor: \"#888888\"\n" +
+            "    transitionLabelColor: \"#111111\"\n" +
             "---\n"
+
+    /**
+     * Front matter for a flowchart whose every subgraph has a light fill. Mermaid draws a subgraph title with the
+     * theme's `titleColor`, not with the `color` of the subgraph's `style`, so on a dark page the title would be
+     * light on light. Only the title colour changes: the theme stays the page's.
+     */
+    const val SUBGRAPH_TITLE_FRONT_MATTER: String =
+        "---\n" +
+            "config:\n" +
+            "  themeVariables:\n" +
+            "    titleColor: \"#111111\"\n" +
+            "---\n"
+
+    /** Mermaid's own light subgraph colours, for a subgraph that has none of its own next to filled ones. */
+    const val PLAIN_BOX_STYLE: String = "fill:#ffffde,stroke:#aaaa33,color:#111"
 
     private const val BASE = "stroke:#333333,color:#111111"
 

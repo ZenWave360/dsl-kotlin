@@ -50,8 +50,10 @@ internal object ElkLayoutConstraints {
 
             val keepForward = when {
                 sourceType == FlowNodeType.START -> true
-                sourceType == FlowNodeType.COMMAND && targetType == FlowNodeType.EVENT -> true
+                sourceType == FlowNodeType.COMMAND &&
+                    (targetType == FlowNodeType.EVENT || targetType == FlowNodeType.READ_MODEL) -> true
                 sourceType == FlowNodeType.EVENT && targetType == FlowNodeType.POLICY -> true
+                sourceType == FlowNodeType.READ_MODEL && targetType == FlowNodeType.EVENT -> true
                 sourceType == FlowNodeType.COMMAND && targetType == FlowNodeType.COMMAND &&
                     (edge.type == FlowEdgeType.CALL || edge.type == FlowEdgeType.OUTCOME_HANDLER) -> true
                 sourceType == FlowNodeType.POLICY && targetType == FlowNodeType.COMMAND ->
@@ -109,7 +111,10 @@ internal object ElkLayoutConstraints {
                     }
                     .mapNotNull { edge ->
                         val targetType = nodeTypes[edge.target]
-                        if (targetType == FlowNodeType.COMMAND || targetType == FlowNodeType.EVENT) {
+                        if (targetType == FlowNodeType.COMMAND ||
+                            targetType == FlowNodeType.EVENT ||
+                            targetType == FlowNodeType.READ_MODEL
+                        ) {
                             edge.target
                         } else {
                             null
@@ -119,7 +124,9 @@ internal object ElkLayoutConstraints {
                     .toList()
 
                 val commandTargets = siblingTargets.filter { nodeTypes[it] == FlowNodeType.COMMAND }
-                val eventTargets = siblingTargets.filter { nodeTypes[it] == FlowNodeType.EVENT }
+                val eventTargets = siblingTargets.filter {
+                    nodeTypes[it] == FlowNodeType.EVENT || nodeTypes[it] == FlowNodeType.READ_MODEL
+                }
 
                 commandTargets.forEach { commandTarget ->
                     eventTargets.forEach { eventTarget ->

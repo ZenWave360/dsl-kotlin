@@ -13,9 +13,15 @@ class ZdlArchitectureToMermaidTransformerTest {
     private val modulith = ZdlArchitectureReader().read(ArchitectureFixtures.modulith())
 
     private val smallFull = """
+        ---
+        config:
+          themeVariables:
+            titleColor: "#111111"
+        ---
         flowchart LR
           classDef module fill:#e8f0fe,stroke:#4a6fa5,stroke-width:2px,color:#111
           classDef event fill:#fff4d6,stroke:#c9a227,color:#111
+          classDef box fill:#ffffde,stroke:#aaaa33,color:#111
           classDef foreign fill:#f3f3f3,stroke:#888,stroke-dasharray:5 5,color:#111
 
           subgraph sg_Billing["Billing"]
@@ -37,6 +43,7 @@ class ZdlArchitectureToMermaidTransformerTest {
           ext_partner_shipped_event_v1@{ shape: h-cyl, label: "partner-shipped-event-v1" }
 
           class Billing,Orders module
+          class sg_Billing,sg_Orders box
           class EntryPosted,Ledger,ext_partner_shipped_event_v1,sg_Ledger foreign
           class InvoiceIssued,InvoiceVoided,OrderPlaced event
 
@@ -103,9 +110,15 @@ class ZdlArchitectureToMermaidTransformerTest {
         assertEquals(smallFull, result.diagrams[1].mermaid)
         assertEquals(
             """
+            ---
+            config:
+              themeVariables:
+                titleColor: "#111111"
+            ---
             flowchart LR
               classDef module fill:#e8f0fe,stroke:#4a6fa5,stroke-width:2px,color:#111
               classDef event fill:#fff4d6,stroke:#c9a227,color:#111
+              classDef box fill:#ffffde,stroke:#aaaa33,color:#111
 
               subgraph sg_Billing["Billing"]
                 Billing{{"Billing"}}
@@ -119,6 +132,7 @@ class ZdlArchitectureToMermaidTransformerTest {
               InvoiceIssued@{ shape: h-cyl, label: "InvoiceIssued" }
 
               class Billing,Orders module
+              class sg_Billing,sg_Orders box
               class InvoiceIssued,OrderPlaced event
 
               Billing --> InvoiceIssued

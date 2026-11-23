@@ -41,6 +41,9 @@ data class ZflEndOutcomeHandler(
     val action: String? = null,
     val signal: ZflHandlerSignal? = null,
     val sourceRef: SourceRef? = null,
+    /** The call initiated by [action], with the `on` lines that handle its responses. */
+    val chainedCall: ZflCallStep? = null,
+    val terminal: Boolean = false,
 )
 
 @Serializable

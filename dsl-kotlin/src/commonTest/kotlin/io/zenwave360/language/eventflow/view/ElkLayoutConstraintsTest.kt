@@ -34,6 +34,27 @@ class ElkLayoutConstraintsTest {
     }
 
     @Test
+    fun partitions_put_an_event_after_its_read_model() {
+        val viewModel = FlowViewModel(
+            nodes = listOf(
+                node("event:Start", FlowNodeType.START),
+                node("command:A", FlowNodeType.COMMAND),
+                node("readModel:Y", FlowNodeType.READ_MODEL),
+                node("event:Y", FlowNodeType.EVENT)
+            ),
+            edges = listOf(
+                edge("e1", "event:Start", "command:A", FlowEdgeType.TRIGGER),
+                edge("e2", "command:A", "readModel:Y", FlowEdgeType.CAUSATION),
+                edge("e3", "readModel:Y", "event:Y", FlowEdgeType.CAUSATION)
+            )
+        )
+
+        val partitions = ElkLayoutConstraints.partitions(viewModel)
+
+        assertTrue(partitions.getValue("readModel:Y") < partitions.getValue("event:Y"))
+    }
+
+    @Test
     fun partitions_break_cycles_at_policy_to_command_edges() {
         val viewModel = FlowViewModel(
             nodes = listOf(

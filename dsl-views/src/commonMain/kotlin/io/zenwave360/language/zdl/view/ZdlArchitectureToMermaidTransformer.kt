@@ -85,7 +85,7 @@ class ZdlArchitectureToMermaidTransformer(
     // ---- full / per-module diagram ----------------------------------------------------------
 
     private fun render(a: ZdlArchitecture, ids: Ids, view: View, focus: String?): String {
-        val out = StringBuilder()
+        val out = StringBuilder(MermaidLight.SUBGRAPH_TITLE_FRONT_MATTER)
         out.append(header()).append('\n')
         val modules = a.modules.filter { it.id in view.modules }
         val events = a.events.filter { EventRef(it.module, it.name) in view.events }
@@ -94,6 +94,7 @@ class ZdlArchitectureToMermaidTransformer(
 
         out.append("  classDef module fill:#e8f0fe,stroke:#4a6fa5,stroke-width:2px,color:#111\n")
         out.append("  classDef event fill:#fff4d6,stroke:#c9a227,color:#111\n")
+        out.append("  classDef box ${MermaidLight.PLAIN_BOX_STYLE}\n")
         if (foreign.isNotEmpty() || referenced.isNotEmpty()) {
             out.append("  classDef foreign fill:#f3f3f3,stroke:#888,stroke-dasharray:5 5,color:#111\n")
         }
@@ -115,6 +116,7 @@ class ZdlArchitectureToMermaidTransformer(
         val referencedIds = referenced.map { it.id }.toSet()
         val ownEvents = events.filter { it.module !in referencedIds }
         classLine(out, "module", modules.filter { !it.referenced }.map { it.id })
+        classLine(out, "box", modules.filter { !it.referenced }.map { ids.box(it) })
         classLine(
             out, "foreign",
             referenced.map { it.id } + referenced.map { ids.box(it) } +
@@ -206,8 +208,8 @@ class ZdlArchitectureToMermaidTransformer(
      * Node ids: `<ModuleId>__<Service>__<method>` and `<ModuleId>__<Event>`.
      */
     fun moduleDiagram(a: ZdlArchitecture, moduleId: String): String {
-        val out = StringBuilder(header()).append('\n')
-        val focus = a.module(moduleId) ?: return out.toString()
+        val focus = a.module(moduleId) ?: return header() + "\n"
+        val out = StringBuilder(MermaidLight.SUBGRAPH_TITLE_FRONT_MATTER).append(header()).append('\n')
 
         val cmds = linkedSetOf<CmdKey>()
         val events = linkedSetOf<EventRef>()

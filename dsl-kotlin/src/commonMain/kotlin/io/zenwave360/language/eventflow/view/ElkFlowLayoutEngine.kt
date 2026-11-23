@@ -1,5 +1,7 @@
 package io.zenwave360.language.eventflow.view
 
+internal const val READ_MODEL_NODE_SIZE = 124.0
+
 /**
  * Layout engine that uses the Eclipse Layout Kernel (ELK) for automatic graph layout.
  *

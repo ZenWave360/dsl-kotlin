@@ -16,12 +16,13 @@ Back to the [architecture](../architecture.md).
   - [FulfillmentShippingService](#fulfillmentshippingservice)
 - [Aggregates](#aggregates)
   - [Fulfillment](#fulfillment)
+  - [Inputs](#inputs)
 - [Domain events](#domain-events)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
   - [Enums](#enums)
-  - [Inputs](#inputs)
+  - [Inputs](#inputs-1)
   - [Domain events](#domain-events-1)
 
 ## Architecture
@@ -29,6 +30,11 @@ Back to the [architecture](../architecture.md).
 This module's commands and events, and the commands and events of other modules that connect to them.
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
@@ -81,13 +87,19 @@ Box = module. Blue = command. Orange = event; a pipe outside the boxes is an ext
 
 ## Services
 
-Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.
+Each service with its commands (blue), queries (pale yellow) and the events commands emit (orange), inside the aggregate it works on.
 
 ### FulfillmentShippingService
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef query fill:#fefce8,stroke:#ca8a04,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
   subgraph agg_FulfillmentShippingService["service FulfillmentShippingService for Fulfillment"]
     direction LR
@@ -121,6 +133,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class Fulfillment {
@@ -177,6 +191,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 stateDiagram-v2
     [*] --> SCHEDULED : scheduleFulfillment
@@ -185,6 +201,48 @@ stateDiagram-v2
 ```
 
 Field `status`, initial `SCHEDULED`.
+
+### Inputs
+
+Inputs and the entities and enums they reach.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
+---
+classDiagram
+    class ScheduleFulfillmentInput {
+        <<input>>
+        String orderId
+        String customerId
+        ShippingAddressInput shippingAddress
+        FulfillmentItemInput[] items
+    }
+    class ShippingAddressInput {
+        <<input>>
+        String name
+        String line1
+        String line2
+        String city
+        String region
+        String postalCode
+        String country
+    }
+    class FulfillmentItemInput {
+        <<input>>
+        String sku
+        Integer quantity
+    }
+    style ScheduleFulfillmentInput fill:#ffffff,stroke:#333333,color:#111111
+    style ShippingAddressInput fill:#ffffff,stroke:#333333,color:#111111
+    style FulfillmentItemInput fill:#ffffff,stroke:#333333,color:#111111
+```
 
 ## Domain events
 
@@ -197,6 +255,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class FulfillmentScheduled {

@@ -254,6 +254,28 @@ class ZflListenerKotlinTest {
     }
 
     @Test
+    fun parseZfl_OnResponseListWithAnnotationIsTerminal() {
+        val model = ZflParser().parseModel(
+            """
+                flow TestFlow {
+                    do bookSlot {
+                        service Bookings.BookingService
+                        call checkBookingHolder
+                        @outcome("holder-rejected") on SlotNotBookable, HolderNotEligible response BookingRejected
+                    }
+                }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            listOf("SlotNotBookable", "HolderNotEligible"),
+            JSONPath.get(model, "$.flows.TestFlow.actions.bookSlot.steps[2].endOutcomes")
+        )
+        assertEquals(true, JSONPath.get(model, "$.flows.TestFlow.actions.bookSlot.steps[2].terminal"))
+        assertEquals("holder-rejected", JSONPath.get(model, "$.flows.TestFlow.actions.bookSlot.steps[2].outcome"))
+    }
+
+    @Test
     fun parseZfl_IncompleteFlow_DoesNotThrowAndRecordsProblem() {
         val model = ZflParser().parseModel(
             """

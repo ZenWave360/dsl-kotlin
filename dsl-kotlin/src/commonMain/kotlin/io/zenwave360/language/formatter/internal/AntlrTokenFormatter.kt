@@ -13,6 +13,7 @@ internal class AntlrTokenFormatter(
         val writer = FormatterWriter(indentSize)
         var pendingWhitespace = StringBuilder()
         var previousVisibleToken: Token? = null
+        var beforePreviousVisibleToken: Token? = null
         var inWhenHeader = false
         var whenHeaderUsesPipeLayout = false
 
@@ -57,6 +58,7 @@ internal class AntlrTokenFormatter(
                             writer.writeNewlines(1)
                         }
                         writer.writeToken(text)
+                        beforePreviousVisibleToken = previousVisibleToken
                         previousVisibleToken = token
                         return@forEach
                     }
@@ -72,7 +74,7 @@ internal class AntlrTokenFormatter(
                         writer.writeNewlines(1)
                     } else if (newlineCount > 0) {
                         writer.writeNewlines(newlineCount)
-                    } else if (shouldInsertSpace(previousVisibleToken, token, whitespace)) {
+                    } else if (shouldInsertSpace(beforePreviousVisibleToken, previousVisibleToken, token, whitespace)) {
                         writer.writeSpace()
                     }
 
@@ -89,6 +91,7 @@ internal class AntlrTokenFormatter(
                         writer.decreaseIndent()
                     }
 
+                    beforePreviousVisibleToken = previousVisibleToken
                     previousVisibleToken = token
                 }
             }
@@ -103,7 +106,7 @@ internal class AntlrTokenFormatter(
     private fun isCommentToken(token: Token, text: String): Boolean =
         token.channel != Token.DEFAULT_CHANNEL || text.startsWith("/**")
 
-    private fun shouldInsertSpace(previousToken: Token?, currentToken: Token, whitespace: String): Boolean {
+    private fun shouldInsertSpace(beforePreviousToken: Token?, previousToken: Token?, currentToken: Token, whitespace: String): Boolean {
         if (previousToken == null) return false
         if (countNewlines(whitespace) > 0) return false
 
@@ -113,6 +116,11 @@ internal class AntlrTokenFormatter(
         if (currentText == "{") {
             return whitespace.isNotEmpty()
         }
+
+        // `service X for (A, B)`: the aggregates list is written with a space after `for`.
+        if (currentText == "(" && previousText == "for") return true
+        // `service X (A, B)`: the same list without the optional `for` keeps the space after the name.
+        if (currentText == "(" && beforePreviousToken?.text == "service") return true
 
         if (NO_SPACE_BEFORE.contains(currentText)) return false
         if (NO_SPACE_AFTER.contains(previousText)) return false

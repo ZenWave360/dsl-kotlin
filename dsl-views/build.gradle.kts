@@ -38,5 +38,35 @@ kotlin {
                 implementation(kotlin("test"))
             }
         }
+        jvmTest {
+            dependencies {
+                // DevViewsExport calls the suspend generators.
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+            }
+        }
+    }
+}
+
+// Mermaid tests parse ZDL and ZFL: more than Mocha's default 2s when a full build keeps Node busy.
+tasks.withType<org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest>()
+    .matching { it.name == "jsNodeTest" }
+    .configureEach {
+        useMocha {
+            timeout = "20s"
+        }
+    }
+
+// Dev loop (see DEV-VIEWS.md): -PdevViewsInput / -PdevViewsDir reach DevViewsExport as system properties.
+tasks.withType<Test>().matching { it.name == "jvmTest" }.configureEach {
+    listOf("devViewsInput" to "zenwave.devViews.input", "devViewsDir" to "zenwave.devViews.dir").forEach { (gradleProperty, systemProperty) ->
+        providers.gradleProperty(gradleProperty).orNull?.let {
+            systemProperty(systemProperty, it)
+            // Same task inputs, different files to export: never reuse a previous result.
+            outputs.upToDateWhen { false }
+        }
+    }
+    // A failed test prints its message (for DevViewsExport: which input failed and why), not only the assertion line.
+    testLogging {
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
 }

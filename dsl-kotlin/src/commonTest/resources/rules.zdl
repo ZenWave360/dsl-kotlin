@@ -1,0 +1,11 @@
+
+rules {
+ somename_2 "this is the body of the rule 2"
+
+ some-3 """
+ this is the body of the rule 3
+ """
+
+ some-4
+ "this is the body of the rule 4"
+}

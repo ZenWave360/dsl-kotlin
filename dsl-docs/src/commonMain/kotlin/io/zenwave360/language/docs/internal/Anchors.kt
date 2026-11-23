@@ -17,7 +17,7 @@ internal class Anchors private constructor(
 
     constructor() : this(null)
 
-    private class TocEntry(val level: Int, val text: String, val anchor: String)
+    private class TocEntry(val level: Int, val key: String?, val text: String, val anchor: String)
 
     private class Registered(val level: Int, val key: String?, val text: String)
 
@@ -46,7 +46,7 @@ internal class Anchors private constructor(
         val anchors = slugs(headings.map { it.text })
         val map = linkedMapOf<String, String>()
         headings.forEachIndexed { i, h -> if (h.key != null && h.key !in map) map[h.key] = anchors[i] }
-        val entries = headings.mapIndexed { i, h -> TocEntry(h.level, h.text, anchors[i]) }
+        val entries = headings.mapIndexed { i, h -> TocEntry(h.level, h.key, h.text, anchors[i]) }
         return Anchors(map, entries)
     }
 
@@ -55,14 +55,16 @@ internal class Anchors private constructor(
      * page (the Contents heading itself left out). Nothing in the second pass when the page has no such heading.
      */
     fun toc(): String {
-        if (resolved == null) return heading(2, "Contents")
-        val items = entries.filter { it.level in 2..3 && it.text != "Contents" }
+        if (resolved == null) return heading(2, "Contents", CONTENTS_KEY)
+        val items = entries.filter { it.level in 2..3 && it.key != CONTENTS_KEY }
         if (items.isEmpty()) return ""
         val list = items.joinToString("") { "${"  ".repeat(it.level - 2)}- [${it.text}](#${it.anchor})\n" }
-        return heading(2, "Contents") + list + "\n"
+        return heading(2, "Contents", CONTENTS_KEY) + list + "\n"
     }
 
     companion object {
+        private const val CONTENTS_KEY = "toc:contents"
+
         /** The anchor of each heading, in order. */
         fun slugs(headings: List<String>): List<String> {
             val used = mutableSetOf<String>()

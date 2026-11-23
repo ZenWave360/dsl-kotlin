@@ -95,7 +95,7 @@ class ZdlDomainTest {
     }
 
     @Test
-    fun reachabilityStopsAtOtherRootsAndFindsUnreachableTypes() {
+    fun reachabilityStopsAtOtherRootsAndFindsUnusedTypes() {
         val d = domain(
             """
             @aggregate
@@ -113,8 +113,8 @@ class ZdlDomainTest {
         assertEquals(listOf("K"), reach.enums)
         assertEquals(listOf("C"), reach.otherRoots)
         assertEquals(setOf("A", "C"), d.aggregateRoots)
-        assertEquals(listOf("Lonely"), d.unreachableTypes())
-        assertFalse("D" in d.unreachableTypes())
+        assertEquals(listOf("Lonely"), d.unusedTypes())
+        assertFalse("D" in d.unusedTypes())
     }
 
     @Test

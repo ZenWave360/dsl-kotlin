@@ -1,0 +1,31 @@
+/** Generation scripts of the Arcadia Editions orders-checkout service. */
+config {
+    id "urn:com.arcadiaeditions:orders:checkout:scripts"
+    title "Arcadia Editions - Orders Checkout scripts"
+    basePackage "io.example.orders"
+    targetFolder "."
+    --force
+    --profile="local build"
+
+    plugins {
+        /** Generates the OpenAPI specification. */
+        ZDLToOpenAPIPlugin {
+            idType integer
+            targetFolder "build/generated"
+            targetFile "./openapi.yml"
+            --profile=test
+        }
+        ZDLToAsyncAPIPlugin (inherit false) {
+            schemaFormat avro
+            targetFile "./asyncapi.yml"
+            --verbose
+        }
+        disabled ZdlToMarkdownPlugin {
+            targetFile "./docs.md"
+        }
+        TeamOwnPlugin {
+            maxDepth 3
+            paths ["src/a", "src/b"]
+        }
+    }
+}

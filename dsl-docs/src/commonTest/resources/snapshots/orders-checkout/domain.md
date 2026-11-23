@@ -16,12 +16,13 @@ Back to the [architecture](architecture.md).
   - [OrdersCheckoutService](#orderscheckoutservice)
 - [Aggregates](#aggregates)
   - [Order](#order)
+  - [Inputs](#inputs)
 - [Domain events](#domain-events)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
   - [Enums](#enums)
-  - [Inputs](#inputs)
+  - [Inputs](#inputs-1)
   - [Domain events](#domain-events-1)
 
 ## Architecture
@@ -29,6 +30,11 @@ Back to the [architecture](architecture.md).
 This module's commands and events, and the commands and events of other modules that connect to them.
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
@@ -72,13 +78,19 @@ Box = module. Blue = command. Orange = event; a pipe outside the boxes is an ext
 
 ## Services
 
-Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.
+Each service with its commands (blue), queries (pale yellow) and the events commands emit (orange), inside the aggregate it works on.
 
 ### OrdersCheckoutService
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef query fill:#fefce8,stroke:#ca8a04,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
   subgraph agg_OrdersCheckoutService["service OrdersCheckoutService for Order"]
     direction LR
@@ -117,6 +129,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class Order {
@@ -148,6 +162,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 stateDiagram-v2
     [*] --> CREATED : startOrderCheckout
@@ -158,6 +174,38 @@ stateDiagram-v2
 ```
 
 Field `status`, initial `CREATED`.
+
+### Inputs
+
+Inputs and the entities and enums they reach.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
+---
+classDiagram
+    class StartOrderCheckoutInput {
+        <<input>>
+        String[] items
+    }
+    class ConfirmOrderInput {
+        <<input>>
+        String orderId
+    }
+    class CancelOrderInput {
+        <<input>>
+        String orderId
+    }
+    style StartOrderCheckoutInput fill:#ffffff,stroke:#333333,color:#111111
+    style ConfirmOrderInput fill:#ffffff,stroke:#333333,color:#111111
+    style CancelOrderInput fill:#ffffff,stroke:#333333,color:#111111
+```
 
 ## Domain events
 
@@ -170,6 +218,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class OrderCreated {

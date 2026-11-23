@@ -54,6 +54,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class OrderCreated {
@@ -82,6 +84,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class StockUnavailable {
@@ -110,6 +114,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class OrderConfirmed {
@@ -140,6 +146,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class OrderCancelled {

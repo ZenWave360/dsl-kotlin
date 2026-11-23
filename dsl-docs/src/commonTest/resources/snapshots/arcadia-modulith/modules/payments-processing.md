@@ -16,12 +16,13 @@ Back to the [architecture](../architecture.md).
   - [PaymentsProcessingService](#paymentsprocessingservice)
 - [Aggregates](#aggregates)
   - [Payment](#payment)
+  - [Inputs](#inputs)
 - [Domain events](#domain-events)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
   - [Enums](#enums)
-  - [Inputs](#inputs)
+  - [Inputs](#inputs-1)
   - [Domain events](#domain-events-1)
 
 ## Architecture
@@ -29,6 +30,11 @@ Back to the [architecture](../architecture.md).
 This module's commands and events, and the commands and events of other modules that connect to them.
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
@@ -118,13 +124,19 @@ Box = module. Blue = command. Orange = event; a pipe outside the boxes is an ext
 
 ## Services
 
-Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.
+Each service with its commands (blue), queries (pale yellow) and the events commands emit (orange), inside the aggregate it works on.
 
 ### PaymentsProcessingService
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef query fill:#fefce8,stroke:#ca8a04,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
   subgraph agg_PaymentsProcessingService["service PaymentsProcessingService for Payment"]
     direction LR
@@ -177,6 +189,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class Payment {
@@ -221,6 +235,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 stateDiagram-v2
     [*] --> AUTHORIZATION_REQUESTED : authorizePayment
@@ -235,6 +251,48 @@ stateDiagram-v2
 
 Field `status`, initial `AUTHORIZATION_REQUESTED`.
 
+### Inputs
+
+Inputs and the entities and enums they reach.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
+---
+classDiagram
+    class AuthorizePaymentInput {
+        <<input>>
+        String orderId
+        String customerId
+        String customerEmail
+        BigDecimal amount
+        String currency
+        String paymentMethodId
+    }
+    class RetryPaymentInput {
+        <<input>>
+        String orderId
+    }
+    class CapturePaymentInput {
+        <<input>>
+        String orderId
+    }
+    class VoidPaymentInput {
+        <<input>>
+        String reason
+    }
+    style AuthorizePaymentInput fill:#ffffff,stroke:#333333,color:#111111
+    style RetryPaymentInput fill:#ffffff,stroke:#333333,color:#111111
+    style CapturePaymentInput fill:#ffffff,stroke:#333333,color:#111111
+    style VoidPaymentInput fill:#ffffff,stroke:#333333,color:#111111
+```
+
 ## Domain events
 
 The events this module declares, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
@@ -246,6 +304,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class PaymentAuthorized {

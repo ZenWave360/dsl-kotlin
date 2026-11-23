@@ -42,6 +42,7 @@ IMPORT: 'import';
 CONFIG: 'config';
 // Flow Keywords
 FLOW: 'flow';
+RULES: 'rules';
 SYSTEMS: 'systems';
 ZDL: 'zdl';
 SERVICE: 'service';
@@ -112,7 +113,7 @@ javadoc: JAVADOC;
 suffix_javadoc: JAVADOC;
 
 // values
-keyword: ID | IMPORT | CONFIG | FLOW | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | DO | FOR | END | COMPLETED | SUSPENDED | CANCELLED | AND | ASYNC | RESPONSE | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
+keyword: ID | IMPORT | CONFIG | FLOW | RULES | SYSTEMS | ZDL | SERVICE | COMMANDS | EVENTS | START | WHEN | DO | FOR | END | COMPLETED | SUSPENDED | CANCELLED | AND | ASYNC | RESPONSE | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
 
 //complex_value: value | array | object;
 //value: simple | object;
@@ -125,7 +126,8 @@ keyword: ID | IMPORT | CONFIG | FLOW | SYSTEMS | ZDL | SERVICE | COMMANDS | EVEN
 complex_value : value | array_plain | pairs;
 value: object| array | simple;
 string: keyword | SINGLE_QUOTED_STRING | DOUBLE_QUOTED_STRING;
-simple: ID | SINGLE_QUOTED_STRING | DOUBLE_QUOTED_STRING | INT | NUMBER | TRUE | FALSE | NULL | keyword;
+simple: ID | qualified_name | SINGLE_QUOTED_STRING | DOUBLE_QUOTED_STRING | INT | NUMBER | TRUE | FALSE | NULL | keyword;
+qualified_name: ID (DOT ID)+;
 object: LBRACE pair (COMMA pair)* RBRACE
       | LBRACE RBRACE;
 pair: string COLON value;
@@ -155,7 +157,7 @@ system: javadoc? annotations system_name LBRACE system_body RBRACE;
 system_name: ID;
 system_body: system_services;
 system_services: system_service*;
-system_service: javadoc? annotations SERVICE system_service_name (FOR LPAREN system_service_aggregates RPAREN)? (LBRACE system_service_body RBRACE)?;
+system_service: javadoc? annotations SERVICE system_service_name (FOR? LPAREN system_service_aggregates RPAREN)? (LBRACE system_service_body RBRACE)?;
 system_service_name: ID;
 system_service_aggregates: ID (COMMA ID)*;
 system_service_body: COMMANDS COLON system_service_command_list;
@@ -164,7 +166,18 @@ system_service_command_list: ID (COMMA ID)*;
 // flows
 flow: javadoc? annotations FLOW flow_name LBRACE flow_body RBRACE;
 flow_name: ID;
-flow_body: (flow_start | flow_when | flow_do | flow_end)*;
+flow_body: (flow_view | flow_start | flow_when | flow_timer | flow_do | flow_end | flow_rules)*;
+
+// view: the aggregates of one flow instance and how each reaches the instance key
+// `view`, `timer`, `by`, `after`, `at` and `unless` are contextual: IDs that the listener checks, so they stay usable as names
+flow_view: javadoc? annotations flow_view_keyword flow_view_name flow_view_by flow_view_key LBRACE (flow_view_member COMMA?)* RBRACE;
+flow_view_keyword: ID;
+flow_view_name: ID;
+flow_view_by: ID;
+flow_view_key: flow_view_aggregate flow_view_path;
+flow_view_member: flow_view_aggregate ARRAY? flow_view_path?;
+flow_view_aggregate: ID;
+flow_view_path: (DOT keyword)+;
 
 // start events
 flow_start: javadoc? annotations START flow_start_name LBRACE fields RBRACE;
@@ -177,13 +190,23 @@ flow_when_trigger_group: flow_when_event_trigger ((COMMA | OR) flow_when_event_t
 flow_when_event_trigger: ID;
 flow_command_name: ID;
 
+// timers: armed by an event or at a view datum, disarmed by any `unless` event
+flow_timer: javadoc? annotations flow_timer_start (flow_timer_after | flow_timer_at) flow_timer_unless? DO flow_command_name (LBRACE flow_do_body RBRACE)?;
+flow_timer_start: ID;
+flow_timer_after: flow_timer_keyword flow_timer_event flow_timer_duration;
+flow_timer_keyword: ID;
+flow_timer_event: ID;
+flow_timer_duration: DOUBLE_QUOTED_STRING | SINGLE_QUOTED_STRING;
+flow_timer_at: flow_timer_keyword flow_view_aggregate flow_view_path;
+flow_timer_unless: flow_timer_keyword flow_timer_event (COMMA flow_timer_event)*;
+
 // action blocks
 flow_do: javadoc? annotations DO flow_command_name LBRACE flow_do_body RBRACE;
 flow_do_body: flow_do_statement*;
 flow_do_statement: flow_do_service | flow_do_call | flow_do_on | flow_do_signal;
 flow_do_service: SERVICE flow_service_path;
 flow_do_call: ASYNC? CALL flow_command_name;
-flow_do_on: annotations ON flow_event_name (CALL flow_command_name | flow_signal_body);
+flow_do_on: annotations ON flow_event_list (CALL flow_command_name | flow_signal_body);
 flow_do_signal: annotations flow_signal_body;
 flow_signal_body: ((EMITS RESPONSE?) | RESPONSE) flow_event_list;
 flow_event_list: flow_event_name (COMMA flow_event_name)*;
@@ -194,7 +217,17 @@ flow_event_name: ID;
 // end block
 flow_end: javadoc? annotations END LBRACE flow_end_outcomes RBRACE;
 flow_end_outcomes: flow_end_outcome+;
-flow_end_outcome: flow_end_outcome_name COLON flow_end_outcome_list;
+flow_end_outcome: flow_end_outcome_name COLON flow_end_outcome_list flow_end_states?;
 flow_end_outcome_name: keyword;
 flow_end_outcome_list: flow_end_outcome_event (COMMA flow_end_outcome_event)*;
 flow_end_outcome_event: ID;
+// expected state of each view aggregate once the instance is at rest; `none`: it does not exist
+flow_end_states: LBRACE (flow_end_state (COMMA flow_end_state)* COMMA?)? RBRACE;
+flow_end_state: flow_view_aggregate COLON flow_end_state_value;
+flow_end_state_value: keyword | LBRACK keyword (COMMA keyword)* RBRACK;
+
+flow_rules: RULES (LPAREN rules_aggregate RPAREN)? LBRACE flow_rule* RBRACE;
+rules_aggregate: ID;
+flow_rule: javadoc? annotations flow_rule_name flow_rule_value;
+flow_rule_name: ID | POLICY_ID;
+flow_rule_value: simple;

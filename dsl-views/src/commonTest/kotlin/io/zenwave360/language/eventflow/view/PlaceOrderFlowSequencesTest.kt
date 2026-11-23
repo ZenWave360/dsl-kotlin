@@ -23,18 +23,18 @@ class PlaceOrderFlowSequencesTest {
 
         assertEquals(
             listOf(
-                "completed: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptured",
-                "completed: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptured",
-                "stockGone: from StartOrderCheckout via StockUnavailableResult",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → declined",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentFailed",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retry-exhausted",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptureFailed",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → declined",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentFailed",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → failed → retry-exhausted",
-                "orderCancelled: from StartOrderCheckout via StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed",
-                "orderCancelled: from ReservationExpired"
+                "from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptured to completed",
+                "from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptured to completed",
+                "from StartOrderCheckout → StockUnavailableResult to stockGone",
+                "from StartOrderCheckout → StockReservedResult → declined to orderCancelled",
+                "from StartOrderCheckout → StockReservedResult → authorized → FulfillmentFailed to orderCancelled",
+                "from StartOrderCheckout → StockReservedResult → failed → retry-exhausted to orderCancelled",
+                "from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled",
+                "from StartOrderCheckout → StockReservedResult → failed → retried → declined to orderCancelled",
+                "from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentFailed to orderCancelled",
+                "from StartOrderCheckout → StockReservedResult → failed → retried → failed → retry-exhausted to orderCancelled",
+                "from StartOrderCheckout → StockReservedResult → failed → retried → authorized → FulfillmentScheduled → PaymentCaptureFailed to orderCancelled",
+                "from ReservationExpired to orderCancelled"
             ),
             titles
         )
@@ -46,7 +46,8 @@ class PlaceOrderFlowSequencesTest {
         val view = diagrams(MermaidSequenceRenderMode.SEPARATE_VARIANTS)
 
         view.sequences.forEach { sequence ->
-            assertFalse(sequence.mermaid.contains("%%"), sequence.mermaid)
+            assertEquals("    %% PlaceOrderFlow: ${sequence.title}", sequence.mermaid.lines()[1])
+            assertFalse(sequence.mermaid.lines().drop(2).any { "%%" in it }, sequence.mermaid)
             val lines = sequence.mermaid.lines()
             assertTrue(lines.last().startsWith("    Note over "), sequence.mermaid)
             assertTrue(lines[lines.size - 2].contains("-->>"), sequence.mermaid)
@@ -55,7 +56,7 @@ class PlaceOrderFlowSequencesTest {
         assertEquals(1, happy.size)
         assertEquals("completed", happy.single().endOutcome)
         assertEquals(
-            "completed: from StartOrderCheckout via StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptured",
+            "from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptured to completed",
             happy.single().title
         )
         assertEquals(listOf("StockReservedResult", "authorized", "FulfillmentScheduled", "PaymentCaptured"), happy.single().branchLabels)
@@ -68,6 +69,7 @@ class PlaceOrderFlowSequencesTest {
         assertEquals(
             """
             sequenceDiagram
+                %% PlaceOrderFlow: from StartOrderCheckout → StockReservedResult → authorized → FulfillmentScheduled → PaymentCaptured to completed
                 actor Customer
                 participant OrdersCheckoutService as OrdersCheckoutService
                 participant InventoryService as InventoryService
@@ -110,16 +112,16 @@ class PlaceOrderFlowSequencesTest {
 
         assertEquals(
             listOf(
-                "completed: from StartOrderCheckout",
-                "stockGone: from StartOrderCheckout",
-                "orderCancelled: from StartOrderCheckout",
-                "orderCancelled: from ReservationExpired"
+                "from StartOrderCheckout to completed",
+                "from StartOrderCheckout → StockUnavailableResult to stockGone",
+                "from StartOrderCheckout to orderCancelled",
+                "from ReservationExpired to orderCancelled"
             ),
             view.sequences.map { it.title }
         )
-        view.sequences.forEach { assertFalse(it.mermaid.contains("%%"), it.mermaid) }
+        view.sequences.forEach { assertFalse(it.mermaid.lines().drop(2).any { line -> "%%" in line }, it.mermaid) }
         assertEquals(1, view.sequences.count { it.happy })
-        assertTrue(view.sequences.single { it.title == "completed: from StartOrderCheckout" }.happy)
+        assertTrue(view.sequences.single { it.title == "from StartOrderCheckout to completed" }.happy)
     }
 
     @Test
@@ -127,8 +129,9 @@ class PlaceOrderFlowSequencesTest {
         val mermaid = diagrams(MermaidSequenceRenderMode.SEPARATE_VARIANTS).sequences.first().mermaid.lines()
 
         assertEquals("sequenceDiagram", mermaid[0])
-        assertEquals("    actor Customer", mermaid[1])
-        assertEquals("    participant OrdersCheckoutService as OrdersCheckoutService", mermaid[2])
+        assertTrue(mermaid[1].startsWith("    %% PlaceOrderFlow: "))
+        assertEquals("    actor Customer", mermaid[2])
+        assertEquals("    participant OrdersCheckoutService as OrdersCheckoutService", mermaid[3])
         assertTrue(mermaid.none { it.trimStart().startsWith("box ") })
     }
 }

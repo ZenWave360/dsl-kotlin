@@ -20,17 +20,20 @@ data class FlowViewModel(
     /** Overall bounding box of the entire flow diagram. Null until layout is applied. */
     val bounds: FlowBounds? = null,
     /** System groupings (swim lanes). Null until layout is applied. */
-    val systemGroups: List<FlowSystemGroupView>? = null
+    val systemGroups: List<FlowSystemGroupView>? = null,
+    /** Full-width horizontal bands, top to bottom, when the flow is drawn in lanes. Null otherwise. */
+    val lanes: List<FlowLane>? = null
 ) {
     /** Returns true if all nodes have positions assigned (layout has been applied). */
     fun hasLayout(): Boolean = nodes.isNotEmpty() && nodes.all { it.position != null }
 
     /** Returns a copy of this view model with all layout data removed. */
     fun withoutLayout(): FlowViewModel = copy(
-        nodes = nodes.map { it.copy(position = null, dimensions = null) },
+        nodes = nodes.map { it.copy(position = null, dimensions = null, lane = null) },
         layout = null,
         bounds = null,
-        systemGroups = null
+        systemGroups = null,
+        lanes = null
     )
 
     /**

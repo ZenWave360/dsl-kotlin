@@ -16,13 +16,15 @@ Back to the [architecture](../architecture.md).
   - [ProductCatalogService](#productcatalogservice)
 - [Aggregates](#aggregates)
   - [Product](#product)
+  - [Inputs](#inputs)
+  - [Outputs](#outputs)
 - [Domain events](#domain-events)
 - [Commands](#commands)
 - [Glossary](#glossary)
   - [Aggregates](#aggregates-1)
   - [Enums](#enums)
-  - [Inputs](#inputs)
-  - [Outputs](#outputs)
+  - [Inputs](#inputs-1)
+  - [Outputs](#outputs-1)
   - [Domain events](#domain-events-1)
 
 ## Architecture
@@ -30,6 +32,11 @@ Back to the [architecture](../architecture.md).
 This module's commands and events, and the commands and events of other modules that connect to them.
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef module fill:#e8f0fe,stroke:#4a6fa5,color:#111
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
@@ -62,13 +69,19 @@ Box = module. Blue = command. Orange = event; a pipe outside the boxes is an ext
 
 ## Services
 
-Each service with its commands (blue) and the events they emit (orange), inside the aggregate it works on.
+Each service with its commands (blue), queries (pale yellow) and the events commands emit (orange), inside the aggregate it works on.
 
 ### ProductCatalogService
 
 ```mermaid
+---
+config:
+  themeVariables:
+    titleColor: "#111111"
+---
 flowchart LR
   classDef command fill:#a7c7f2,stroke:#3b6fb6,color:#111
+  classDef query fill:#fefce8,stroke:#ca8a04,color:#111
   classDef event fill:#ffb76b,stroke:#d9822b,color:#111
   subgraph agg_ProductCatalogService["service ProductCatalogService for Product"]
     direction LR
@@ -103,6 +116,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class Product {
@@ -144,6 +159,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 stateDiagram-v2
     [*] --> DRAFT : createProduct
@@ -157,6 +174,75 @@ stateDiagram-v2
 
 Field `status`, initial `DRAFT`.
 
+### Inputs
+
+Inputs and the entities and enums they reach.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
+---
+classDiagram
+    class CreateProductInput {
+        <<input>>
+        String sku
+        String name
+        String description
+        BigDecimal price
+        String currency
+        Integer editionSize
+        InventoryTrackingMode trackingMode
+        Instant launchAt
+    }
+    class UpdateProductInput {
+        <<input>>
+        String name
+        String description
+        BigDecimal price
+        String currency
+        Instant launchAt
+    }
+    class InventoryTrackingMode {
+        <<enumeration>>
+        QUANTITY
+        SERIALIZED
+    }
+    CreateProductInput --> InventoryTrackingMode : trackingMode
+    style CreateProductInput fill:#ffffff,stroke:#333333,color:#111111
+    style UpdateProductInput fill:#ffffff,stroke:#333333,color:#111111
+    style InventoryTrackingMode fill:#f2f2f2,stroke:#333333,color:#111111
+```
+
+### Outputs
+
+Outputs and the entities and enums they reach.
+
+```mermaid
+---
+config:
+  theme: default
+  themeVariables:
+    lineColor: "#888888"
+    edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
+---
+classDiagram
+    class ProductPublishedResponse {
+        <<output>>
+        String productId
+        String sku
+        Instant publishedAt
+    }
+    style ProductPublishedResponse fill:#ffffff,stroke:#333333,color:#111111
+```
+
 ## Domain events
 
 The events this module declares, with their fields. Fields copied with `@copy` are included; field descriptions are in the glossary.
@@ -168,6 +254,8 @@ config:
   themeVariables:
     lineColor: "#888888"
     edgeLabelBackground: "#ffffff"
+    transitionColor: "#888888"
+    transitionLabelColor: "#111111"
 ---
 classDiagram
     class ProductPublished {

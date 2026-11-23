@@ -1,10 +1,22 @@
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseZdl } from '@zenwave360/dsl';
+import { buildPluginArguments, parseZdl } from '@zenwave360/dsl';
 import fs from 'fs';
 import { jsonPath, mapSize, arraySize } from './utils.js';
 
 describe('ZDL Parser - Plugin source spans', () => {
+    it('builds SDK arguments from the plain model exported to JavaScript', () => {
+        const model = parseZdl(`config {
+            shared "yes"
+            plugins { ExamplePlugin { own "value" --profile="local build" } }
+        }`);
+
+        assert.deepEqual(
+            buildPluginArguments(model, model.pluginsList[0], '/work/orders.zdl'),
+            ['-p', 'ExamplePlugin', 'shared=yes', 'own=value', 'zdlFile=/work/orders.zdl', '--profile=local build'],
+        );
+    });
+
     it('should report config-level CLI options without corrupting following config', () => {
         const source = `config {
             title "shared"

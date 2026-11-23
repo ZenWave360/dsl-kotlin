@@ -1,0 +1,101 @@
+config {
+    version "0.0.0"
+}
+
+systems {
+    @zdl("bookings-domain-model.zdl")
+    Bookings {
+        service BookingService for (Booking, SlotOccupancy) {
+            commands: bookSlot
+        }
+    }
+    @zdl("facilities-domain-model.zdl")
+    Facilities {
+        service FacilityCatalogService for (BookableUnit) {
+            commands: getBookingTerms
+        }
+    }
+    @zdl("accounts-domain-model.zdl")
+    Accounts {
+        service AccountService for (Citizen, Club) {
+            commands: checkBookingHolder
+        }
+    }
+    @zdl("notifications-domain-model.zdl")
+    Notifications {
+        service NotificationService {
+            commands: sendBookingConfirmation
+        }
+    }
+    @zdl("analytics-domain-model.zdl")
+    Analytics {
+        service AnalyticsService {
+            commands: recordBooking
+        }
+    }
+}
+
+flow BookSlotFlow {
+    @actor(Citizen)
+    start RequestBooking {
+        unitId String
+        startsAt LocalDateTime
+        partySize Integer
+        clubId String
+        acceptedUsageRulesVersion Integer
+    }
+    @actor(FacilityStaff)
+    start RequestAssistedBooking {
+        unitId String
+        startsAt LocalDateTime
+        partySize Integer
+        citizenId String
+        guestContact GuestContact
+        acceptedUsageRulesVersion Integer
+    }
+
+    when RequestBooking, RequestAssistedBooking do bookSlot {
+        service Bookings.BookingService
+        call getBookingTerms
+        on SlotNotBookable response SlotNotBookable
+        call checkBookingHolder
+        on HolderNotEligible response BookingRejected
+        @outcome(confirmed)
+        emits response BookingConfirmed
+        @outcome("policy-violated")
+        response BookingRejected
+        @outcome("slot-full")
+        response SlotFull
+    }
+
+    do getBookingTerms {
+        service Facilities.FacilityCatalogService
+        response BookingTermsResult
+        response SlotNotBookable
+    }
+    do checkBookingHolder {
+        service Accounts.AccountService
+        response HolderEligibleResult
+        response HolderNotEligible
+    }
+    when BookingConfirmed do sendBookingConfirmation {
+        service Notifications.NotificationService
+        @outcome(sent)
+        emits BookingConfirmationSent
+        @outcome("no-account")
+        emits BookingConfirmationSkipped
+        @failure @outcome(failed)
+        emits BookingConfirmationFailed
+    }
+    when BookingConfirmed do recordBooking {
+        service Analytics.AnalyticsService
+        emits BookingRecorded
+    }
+    end {
+        completed: BookingConfirmationSent, BookingConfirmationSkipped
+        confirmedWithoutNotice: BookingConfirmationFailed
+        rejected: BookingRejected
+        slotFull: SlotFull
+        slotNotBookable: SlotNotBookable
+    }
+}

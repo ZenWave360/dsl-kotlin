@@ -4,7 +4,9 @@ import io.zenwave360.language.readViewsTestFile
 import io.zenwave360.language.zdl.ZdlParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ZdlAggregateToMermaidClassDiagramTransformerTest {
 
@@ -114,14 +116,9 @@ class ZdlAggregateToMermaidClassDiagramTransformerTest {
                     A
                     B
                 }
-                class Customer {
-                    <<aggregate>>
-                }
                 Orphan --> Kind : kind
-                Orphan --> Customer : owner
                 style Orphan fill:#ffffff,stroke:#333333,color:#111111
                 style Kind fill:#f2f2f2,stroke:#333333,color:#111111
-                style Customer fill:#fbd3ee,stroke:#333333,color:#111111
 
         """.trimIndent()
 
@@ -129,7 +126,7 @@ class ZdlAggregateToMermaidClassDiagramTransformerTest {
         assertEquals(listOf("Order", "Customer"), result.aggregates.map { it.aggregate })
         assertEquals(expectedOrder, result.aggregates[0].mermaid)
         assertEquals(expectedCustomer, result.aggregates[1].mermaid)
-        assertEquals(expectedOthers, result.others)
+        assertEquals(expectedOthers, result.unused)
     }
 
     @Test
@@ -152,7 +149,7 @@ class ZdlAggregateToMermaidClassDiagramTransformerTest {
                 "    style CustomerOrder fill:#fbd3ee,stroke:#333333,color:#111111\n",
             diagram.mermaid,
         )
-        assertNull(result.others)
+        assertNull(result.unused)
     }
 
     @Test
@@ -208,6 +205,36 @@ class ZdlAggregateToMermaidClassDiagramTransformerTest {
         """.trimIndent()
         val result = transform(readViewsTestFile("arcadia-editions-modulith/orders-checkout-domain-model.zdl"))
         assertEquals(expected, result.aggregates.single().mermaid)
-        assertNull(result.others)
+        assertNull(result.unused)
+    }
+
+    @Test
+    fun inputsOutputsAndUnusedTypesFollowEverySpecifiedStartingPoint() {
+        val result = transform(
+            """
+                input CreateOrder { details InputDetails }
+                entity InputDetails { kind Kind }
+                output OrderView { customer Customer }
+                entity Customer { name String }
+                enum Kind { STANDARD }
+                event OrderPlaced { eventDetail EventDetail }
+                entity EventDetail { value String }
+                service Orders for (ServiceDetail) { find(ServiceDetail) OrderView }
+                entity ServiceDetail { code String }
+                entity Unused { value String }
+            """.trimIndent(),
+        )
+
+        val inputs = result.inputs!!
+        val outputs = result.outputs!!
+        val unused = result.unused!!
+        assertEquals(listOf("CreateOrder", "InputDetails", "Kind"), Regex("class (\\w+)").findAll(inputs).map { it.groupValues[1] }.toList())
+        assertEquals(listOf("OrderView", "Customer"), Regex("class (\\w+)").findAll(outputs).map { it.groupValues[1] }.toList())
+        assertTrue(inputs.contains("CreateOrder --> InputDetails : details"), inputs)
+        assertTrue(inputs.contains("InputDetails --> Kind : kind"), inputs)
+        assertTrue(outputs.contains("OrderView --> Customer : customer"), outputs)
+        assertTrue(unused.contains("class Unused"), unused)
+        assertFalse(unused.contains("EventDetail"), unused)
+        assertFalse(unused.contains("ServiceDetail"), unused)
     }
 }

@@ -13,4 +13,9 @@ data class ZflFlow(
     val events: List<ZflEvent>,
     val end: ZflEnd,
     val sourceRef: io.zenwave360.language.source.SourceRef? = null,
+    /** Business rules from `rules` blocks. [policies] stays the `when … do` links. */
+    val rules: List<ZflRule> = emptyList(),
+    /** The `view` block: the aggregates of one flow instance. */
+    val view: ZflView? = null,
+    val timers: List<ZflTimer> = emptyList(),
 )

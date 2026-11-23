@@ -44,6 +44,7 @@ APIS: 'apis';
 ZDL: 'zdl';
 PLUGINS: 'plugins';
 POLICIES: 'policies';
+RULES: 'rules';
 DISABLED: 'disabled';
 ASYNCAPI: 'asyncapi';
 OPENAPI: 'openapi';
@@ -126,7 +127,7 @@ suffix_javadoc: JAVADOC;
 legacy_constants: LEGACY_CONSTANT*;
 
 // values
-keyword: ID | IMPORT | CONFIG | APIS | ZDL | PLUGINS | DISABLED | ASYNCAPI | OPENAPI | ENTITY | AGGREGATE | INPUT | OUTPUT | EVENT | RELATIONSHIP | SERVICE | PARAM_ID | FOR | FROM | TO | WITH_EVENTS | WITH | LIFECYCLE | INITIAL | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
+keyword: ID | IMPORT | CONFIG | APIS | POLICIES | RULES | ZDL | PLUGINS | DISABLED | ASYNCAPI | OPENAPI | ENTITY | AGGREGATE | INPUT | OUTPUT | EVENT | RELATIONSHIP | SERVICE | PARAM_ID | FOR | FROM | TO | WITH_EVENTS | WITH | LIFECYCLE | INITIAL | REQUIRED | UNIQUE | MIN | MAX | MINLENGTH | MAXLENGTH | EMAIL | PATTERN;
 
 //complex_value: value | array | object;
 //value: simple | object;
@@ -178,10 +179,10 @@ plugin_config: plugin_config_cli_option | plugin_config_option;
 plugin_config_option: field_name complex_value;
 plugin_config_cli_option: '--' keyword (EQUALS simple)?;
 
-policies: POLICIES (LPAREN policy_aggregate RPAREN)? policies_body;
+policies: (POLICIES | RULES) (LPAREN policy_aggregate RPAREN)? policies_body;
 policy_aggregate: ID;
 policies_body: LBRACE policie_body* RBRACE;
-policie_body: policie_name policie_value;
+policie_body: javadoc? annotations policie_name policie_value;
 policie_name: ID | POLICY_ID;
 policie_value: simple;
 
@@ -259,7 +260,7 @@ aggregate_command_name: ID;
 aggregate_command_parameter: ID | ID OPTIONAL;
 
 // services
-service: javadoc? annotations SERVICE service_name FOR LPAREN service_aggregates RPAREN LBRACE service_method* RBRACE;
+service: javadoc? annotations SERVICE service_name FOR? LPAREN service_aggregates RPAREN LBRACE service_method* RBRACE;
 service_name: ID;
 service_aggregates: ID (COMMA ID)*;
 service_method: javadoc? annotations service_method_name
